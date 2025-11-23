@@ -2,6 +2,15 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import fs from 'fs/promises';
 
+interface InitAnswers {
+  framework: string;
+  aiProvider: string;
+  apiKey?: string;
+  outputDir: string;
+  healing: boolean;
+  visual: boolean;
+}
+
 export async function initCommand() {
   console.log(chalk.blue.bold('\n🎯 Riflebird Configuration Setup\n'));
 
@@ -66,7 +75,7 @@ export async function initCommand() {
   console.log(chalk.white('  3. Run test: riflebird fire\n'));
 }
 
-function generateConfigFile(answers: any): string {
+function generateConfigFile(answers: InitAnswers): string {
   const envVar = `${answers.aiProvider.toUpperCase()}_API_KEY`;
   
   return `import { defineConfig } from '@riflebird/core';

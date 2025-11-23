@@ -2,7 +2,11 @@ import { Riflebird } from '@riflebird/core';
 import chalk from 'chalk';
 import ora from 'ora';
 
-export async function targetCommand(description: string, _options: any) {
+interface TargetOptions {
+  url?: string;
+}
+
+export async function targetCommand(description: string, _options: TargetOptions) {
   const spinner = ora('🎯 Finding element selector...').start();
 
   try {
@@ -13,9 +17,10 @@ export async function targetCommand(description: string, _options: any) {
 
     spinner.succeed('Selector found!');
     console.log(chalk.green(`\n✓ Best selector: ${chalk.cyan(selector)}\n`));
-  } catch (error: any) {
+  } catch (error) {
     spinner.fail('Failed to find selector');
-    console.error(chalk.red(error.message));
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(chalk.red(message));
     process.exit(1);
   }
 }

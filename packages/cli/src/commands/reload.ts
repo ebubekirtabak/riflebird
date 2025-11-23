@@ -3,7 +3,11 @@ import chalk from 'chalk';
 import ora from 'ora';
 import fs from 'fs/promises';
 
-export async function reloadCommand(testPath: string, options: any) {
+interface ReloadOptions {
+  dryRun?: boolean;
+}
+
+export async function reloadCommand(testPath: string, options: ReloadOptions) {
   const spinner = ora('🔄 Healing broken test...').start();
 
   try {
@@ -21,9 +25,10 @@ export async function reloadCommand(testPath: string, options: any) {
       await fs.writeFile(testPath, healedCode);
       console.log(chalk.green(`\n✓ Test updated: ${testPath}\n`));
     }
-  } catch (error: any) {
+  } catch (error) {
     spinner.fail('Failed to heal test');
-    console.error(chalk.red(error.message));
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(chalk.red(message));
     process.exit(1);
   }
 }

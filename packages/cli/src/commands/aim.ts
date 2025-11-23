@@ -4,7 +4,12 @@ import ora from 'ora';
 import fs from 'fs/promises';
 import path from 'path';
 
-export async function aimCommand(description: string, options: any) {
+interface AimOptions {
+  output?: string;
+  framework?: string;
+}
+
+export async function aimCommand(description: string, options: AimOptions) {
   const spinner = ora('🎯 Targeting test flow...').start();
 
   try {
@@ -28,9 +33,10 @@ export async function aimCommand(description: string, options: any) {
     console.log(testCode);
 
     console.log(chalk.cyan(`\n💡 Run with: riflebird fire ${outputPath}\n`));
-  } catch (error: any) {
+  } catch (error) {
     spinner.fail('Failed to generate test');
-    console.error(chalk.red(error.message));
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(chalk.red(message));
     process.exit(1);
   }
 }
