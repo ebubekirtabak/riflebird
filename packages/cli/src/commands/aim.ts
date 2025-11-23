@@ -4,10 +4,10 @@ import ora from 'ora';
 import fs from 'fs/promises';
 import path from 'path';
 
-interface AimOptions {
+export type AimOptions = {
   output?: string;
   framework?: string;
-}
+};
 
 export async function aimCommand(description: string, options: AimOptions) {
   const spinner = ora('🎯 Targeting test flow...').start();

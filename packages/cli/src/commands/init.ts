@@ -2,14 +2,14 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import fs from 'fs/promises';
 
-interface InitAnswers {
+export type InitAnswers = {
   framework: string;
   aiProvider: string;
   apiKey?: string;
   outputDir: string;
   healing: boolean;
   visual: boolean;
-}
+};
 
 export async function initCommand() {
   console.log(chalk.blue.bold('\n🎯 Riflebird Configuration Setup\n'));

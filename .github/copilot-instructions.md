@@ -70,6 +70,52 @@ this.adapter = this.createAdapter(); // Returns PlaywrightAdapter | CypressAdapt
 - **Imports**: Use TypeScript path aliases from `@riflebird/core`
 - **Error handling**: Throw descriptive errors (see adapter methods for examples)
 
+## TypeScript Conventions
+
+**Type Definitions**:
+- **Always use `type` instead of `interface`** for all type definitions
+- **Always export types** - never define internal-only types
+- Prefix unused parameters with underscore: `_param`
+- **No `any` types allowed** - ESLint enforces `@typescript-eslint/no-explicit-any: error`
+
+**Examples**:
+```typescript
+// ✅ Correct
+export type UserOptions = {
+  name: string;
+  age: number;
+};
+
+export type CommandHandler = (options: UserOptions) => Promise<void>;
+
+// ❌ Incorrect - Don't use interface
+interface UserOptions {
+  name: string;
+}
+
+// ❌ Incorrect - Don't use unexported types
+type InternalConfig = {
+  secret: string;
+};
+
+// ❌ Incorrect - Don't use any
+function handler(options: any) {}
+```
+
+**Error Handling**:
+```typescript
+// ✅ Correct - Type-safe error handling
+catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(message);
+}
+
+// ❌ Incorrect - Using any
+catch (error: any) {
+  console.error(error.message);
+}
+```
+
 ## Extension Points
 
 **Adding New Adapters**:

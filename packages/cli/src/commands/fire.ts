@@ -2,10 +2,10 @@ import { Riflebird } from '@riflebird/core';
 import chalk from 'chalk';
 import ora from 'ora';
 
-interface FireOptions {
+export type FireOptions = {
   headless?: boolean;
   browser?: string;
-}
+};
 
 export async function fireCommand(testPath?: string, _options?: FireOptions) {
   const spinner = ora('🔥 Executing tests...').start();

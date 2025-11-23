@@ -3,9 +3,9 @@ import chalk from 'chalk';
 import ora from 'ora';
 import fs from 'fs/promises';
 
-interface ReloadOptions {
+export type ReloadOptions = {
   dryRun?: boolean;
-}
+};
 
 export async function reloadCommand(testPath: string, options: ReloadOptions) {
   const spinner = ora('🔄 Healing broken test...').start();

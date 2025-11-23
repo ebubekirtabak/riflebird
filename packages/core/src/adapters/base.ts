@@ -1,8 +1,14 @@
-export interface TestFrameworkAdapter {
+export type ScreenshotOptions = {
+  path?: string;
+  fullPage?: boolean;
+  type?: 'png' | 'jpeg';
+};
+
+export type TestFrameworkAdapter = {
   name: string;
   
   // Initialize browser/context
-  init(config: any): Promise<void>;
+  init(config: unknown): Promise<void>;
   
   // Navigation
   goto(url: string): Promise<void>;
@@ -18,7 +24,7 @@ export interface TestFrameworkAdapter {
   expectURL(pattern: string | RegExp): Promise<void>;
   
   // Screenshot
-  screenshot(options?: any): Promise<Buffer>;
+  screenshot(options?: ScreenshotOptions): Promise<Buffer>;
   
   // Element finding
   findElement(description: string): Promise<string>;
@@ -28,23 +34,23 @@ export interface TestFrameworkAdapter {
   
   // Code generation (framework-specific syntax)
   generateTestCode(testPlan: TestPlan): Promise<string>;
-}
+};
 
-export interface TestPlan {
+export type TestPlan = {
   description: string;
   steps: TestStep[];
   assertions: Assertion[];
-}
+};
 
-export interface TestStep {
+export type TestStep = {
   type: 'navigate' | 'click' | 'fill' | 'select' | 'wait';
   target?: string;
   value?: string;
   description: string;
-}
+};
 
-export interface Assertion {
+export type Assertion = {
   type: 'visible' | 'text' | 'url' | 'count';
   target: string;
-  expected: any;
-}
+  expected: string | number | boolean;
+};

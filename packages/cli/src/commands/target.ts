@@ -2,9 +2,9 @@ import { Riflebird } from '@riflebird/core';
 import chalk from 'chalk';
 import ora from 'ora';
 
-interface TargetOptions {
+export type TargetOptions = {
   url?: string;
-}
+};
 
 export async function targetCommand(description: string, _options: TargetOptions) {
   const spinner = ora('🎯 Finding element selector...').start();
