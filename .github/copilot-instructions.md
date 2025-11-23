@@ -1,0 +1,89 @@
+# Riflebird AI Agent Instructions
+
+Riflebird is an AI-powered E2E testing framework that generates, executes, and heals tests across multiple testing frameworks (Playwright, Cypress, Puppeteer, WebdriverIO).
+
+## Architecture Overview
+
+**Core Design Pattern: Adapter-Based Framework Abstraction**
+- `packages/core/src/riflebird.ts` - Main orchestrator class that coordinates AI, config, and framework adapters
+- `packages/core/src/adapters/` - Framework-specific implementations (Playwright, Cypress) implementing `TestFrameworkAdapter` interface
+- **Key Distinction**: Playwright adapter executes tests programmatically; Cypress adapter generates test code (Cypress doesn't support programmatic execution)
+
+**Configuration Flow**:
+1. `riflebird.config.ts` (root) → User-facing config with AI settings, framework selection, test generation options
+2. `packages/core/src/config/loader.ts` → Dynamically imports config via `pathToFileURL`, validates with Zod schema
+3. `packages/core/src/config/schema.ts` → Single source of truth for all config validation using Zod schemas
+
+## Key Workflows
+
+**Test Generation (`aim` command)**:
+```typescript
+// Flow: User description → AI test plan → Framework-specific code
+Riflebird.aim(description) → generateTestPlan() → adapter.generateTestCode()
+```
+- AI generates structured `TestPlan` (steps + assertions) via OpenAI/Anthropic
+- Adapter transforms plan into framework syntax (see `PlaywrightAdapter.generateTestCode()`)
+- Output saved to `generation.outputDir` (default: `tests/e2e/`)
+
+**Adapter Implementation Rules**:
+- Playwright: Implements all methods (actual browser automation)
+- Cypress: Throws errors for action methods, only implements `generateTestCode()` (code generation only)
+- See `packages/core/src/adapters/base.ts` for required `TestFrameworkAdapter` interface
+
+## Build & Development
+
+**Monorepo Structure** (pnpm workspace):
+- Use `pnpm` (version 10.23.0) - specified in `packageManager` field
+- Turborepo for task orchestration: `pnpm dev`, `pnpm build`, `pnpm test`
+- Single package currently: `packages/core/` (extensible for CLI, plugins)
+
+**No turbo.json**: Turbo uses default conventions. Add `turbo.json` if custom pipeline needed.
+
+## Configuration Patterns
+
+**Zod-First Validation**:
+- All config in `schema.ts` uses Zod for runtime validation
+- Type safety via `z.infer<typeof RiflebirdConfigSchema>`
+- Optional sections (per-framework configs) validated only when framework is selected
+
+**Environment Variables**:
+- API keys loaded from env: `process.env.OPENAI_API_KEY`, `process.env.ANTHROPIC_API_KEY`
+- Never hardcode API keys in config files
+
+## Critical Integration Points
+
+**AI Provider Integration** (`riflebird.ts`):
+- OpenAI SDK initialized in `Riflebird.init()`
+- Temperature defaults to 0.2 for deterministic test generation
+- System prompt includes framework name for context-aware code generation
+
+**Adapter Selection** (runtime):
+```typescript
+// Framework chosen at runtime via config.framework
+this.adapter = this.createAdapter(); // Returns PlaywrightAdapter | CypressAdapter
+```
+
+## Naming & Code Conventions
+
+- **File naming**: kebab-case for files (`rifle-bird-config.ts`)
+- **Test naming**: Configurable via `generation.naming` (kebab-case | camelCase | PascalCase)
+- **Imports**: Use TypeScript path aliases from `@riflebird/core`
+- **Error handling**: Throw descriptive errors (see adapter methods for examples)
+
+## Extension Points
+
+**Adding New Adapters**:
+1. Create `packages/core/src/adapters/your-framework.ts`
+2. Implement `TestFrameworkAdapter` interface
+3. Add framework to `FrameworkSchema` enum in `schema.ts`
+4. Add case in `Riflebird.createAdapter()`
+
+**Self-Healing Strategy** (planned):
+- `healing.strategy`: 'smart' | 'visual' | 'text' | 'hybrid'
+- Hook into `Riflebird.reload()` method (currently stub)
+
+## Testing Strategy
+
+- Generated tests output to `generation.outputDir` (configurable)
+- Playwright tests run directly via adapter
+- Cypress tests require external `cypress run` command (framework limitation)
