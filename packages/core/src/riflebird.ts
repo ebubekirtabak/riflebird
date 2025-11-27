@@ -15,13 +15,10 @@ export class Riflebird {
   }
 
   async init(configPath?: string) {
-    // Load config
     this.config = await loadConfig(configPath);
 
-    // Initialize AI
     this.ai = new OpenAI({ apiKey: this.config.ai.apiKey });
 
-    // Select adapter based on config
     this.adapter = this.createAdapter();
 
     await this.adapter.init(this.config);
