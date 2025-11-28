@@ -78,6 +78,46 @@ this.adapter = this.createAdapter(); // Returns PlaywrightAdapter | CypressAdapt
 - Prefix unused parameters with underscore: `_param`
 - **No `any` types allowed** - ESLint enforces `@typescript-eslint/no-explicit-any: error`
 
+Additional strict TypeScript rules
+- **Avoid `any` entirely**: Prefer `unknown` for external/untrusted input and narrow it with type guards.
+  - Use explicit types, generics, or union types instead of `any`.
+  - When interacting with third-party libraries that expose `any`, wrap or adapt their surface with well-typed adapters.
+- **Always export named types for public-facing shapes**: Do not use inline type literals for function parameters, return values, or exported APIs.
+  - Named, exported types improve discoverability, reuse, and documentation.
+  - Example (preferred):
+    ```ts
+    export type LoginOptions = { username: string; password: string };
+
+    export function login(opts: LoginOptions): Promise<void> { /* ... */ }
+    ```
+  - Example (avoid):
+    ```ts
+    // ❌ Avoid inline type literal
+    export function login(opts: { username: string; password: string }): Promise<void> { }
+    ```
+- **Do not implement inline types** inside complex values (objects, arrays, or nested shapes).
+  - If a type is used in more than one place or is part of the public surface, extract and export it.
+  - For deeply nested shapes, define internal helper types (exported if part of public API) instead of embedding inline object types.
+
+Type guidance and examples
+- Use `unknown` in API boundaries and assert/validate before using values:
+  ```ts
+  export function handle(input: unknown) {
+    if (typeof input === 'string') {
+      // narrow to string
+    }
+  }
+  ```
+- For third-party responses, map into well-typed domain objects immediately:
+  ```ts
+  // map external response to exported type
+  export type User = { id: string; name: string };
+
+  function mapExternalUser(resp: unknown): User {
+    // validate and return User
+  }
+  ```
+
 **Examples**:
 ```typescript
 // ✅ Correct
