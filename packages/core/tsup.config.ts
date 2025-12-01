@@ -8,4 +8,6 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   external: ['playwright', 'openai'],
+  publicDir: 'src/prompts',
+  outDir: 'dist',
 });
