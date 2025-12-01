@@ -32,7 +32,6 @@ export type TestFrameworkAdapter = {
   // Cleanup
   close(): Promise<void>;
   
-  // Code generation (framework-specific syntax)
   generateTestCode(testPlan: TestPlan): Promise<string>;
 };
 

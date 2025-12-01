@@ -1,4 +1,3 @@
-// packages/core/src/config/schema.ts
 import { z } from 'zod';
 
 export const AIProviderSchema = z.enum(['openai', 'anthropic', 'local']);
@@ -19,11 +18,7 @@ export const RiflebirdConfigSchema = z.object({
     url: z.string().url().optional(),
     temperature: z.number().min(0).max(2).default(0.2),
   }),
-
-  // Framework Selection
   framework: FrameworkSchema,
-
-  // Framework-specific configs (optional, only for selected framework)
   playwright: z
     .object({
       browser: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
@@ -80,7 +75,6 @@ export const RiflebirdConfigSchema = z.object({
     })
     .optional(),
 
-  // Self-Healing
   healing: z
     .object({
       enabled: z.boolean().default(true),
@@ -90,7 +84,6 @@ export const RiflebirdConfigSchema = z.object({
     })
     .optional(),
 
-  // Visual Testing
   visual: z
     .object({
       enabled: z.boolean().default(true),
@@ -100,7 +93,6 @@ export const RiflebirdConfigSchema = z.object({
     })
     .optional(),
 
-  // Selectors
   selectors: z
     .object({
       strategy: z.enum(['smart', 'css', 'xpath', 'text', 'aria']).default('smart'),
@@ -109,7 +101,6 @@ export const RiflebirdConfigSchema = z.object({
     })
     .optional(),
 
-  // Reporting
   reporting: z
     .object({
       format: z.array(z.enum(['html', 'json', 'junit', 'allure'])).default(['html']),
@@ -120,7 +111,6 @@ export const RiflebirdConfigSchema = z.object({
     })
     .optional(),
 
-  // CI/CD
   ci: z
     .object({
       enabled: z.boolean().default(false),
