@@ -1,0 +1,46 @@
+name: Test
+
+on:
+  push:
+    branches: [master, feat/*]
+  pull_request:
+    branches: [master, feat/*]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.23.0
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run type check
+        run: pnpm -w -r run type-check
+
+      - name: Run linter
+        run: pnpm -w -r run lint
+
+      - name: Run unit tests
+        run: pnpm -w -r test -- --run --coverage
+
+      - name: Build packages
+        run: pnpm -w -r build
