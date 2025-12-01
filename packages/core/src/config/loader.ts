@@ -44,7 +44,7 @@ export async function loadConfig(
 
 async function loadConfigWithJiti(configFile: string): Promise<unknown> {
   const { createJiti } = await import('jiti');
-  const callerPath = getCallerPath();
+  const callerPath = fileURLToPath(import.meta.url);
   const jiti = createJiti(callerPath, {
     interopDefault: true,
     moduleCache: false,
@@ -52,14 +52,6 @@ async function loadConfigWithJiti(configFile: string): Promise<unknown> {
   });
 
   return jiti.import(configFile);
-}
-
-function getCallerPath(): string {
-  try {
-    return fileURLToPath(import.meta.url);
-  } catch {
-    return __filename;
-  }
 }
 
 async function findConfigFile(): Promise<string | null> {
