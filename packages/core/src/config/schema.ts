@@ -16,6 +16,7 @@ export const RiflebirdConfigSchema = z.object({
     provider: AIProviderSchema,
     apiKey: z.string().optional(),
     model: z.string().default('gpt-4o'),
+    url: z.string().url().optional(),
     temperature: z.number().min(0).max(2).default(0.2),
   }),
 
