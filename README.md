@@ -1,5 +1,8 @@
 # Riflebird
 
+[![Test](https://github.com/ebubekirtabak/riflebird/actions/workflows/test.yml/badge.svg)](https://github.com/ebubekirtabak/riflebird/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 AI-powered E2E testing framework with precision and self-healing capabilities.
 
 ## Installation
@@ -45,6 +48,8 @@ riflebird fire
 
 ## Development
 
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed development guidelines.
+
 ```bash
 # Install dependencies
 pnpm install
@@ -55,9 +60,18 @@ pnpm build
 # Run in development mode
 pnpm dev
 
-# Run tests
-pnpm test
+# Run tests with coverage
+pnpm test -- --run --coverage
 ```
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details on:
+- Development setup
+- Testing standards (TDD approach)
+- Code quality requirements
+- TypeScript conventions
+- Pull request process
 
 ## License
 
