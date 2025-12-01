@@ -15,8 +15,16 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
     "paths": {
-      "@riflebird/core": ["./index.ts"]
+      "@riflebird/core": ["./index.ts"],
+      "@/*": ["./src/*"],
+      "@models/*": ["./src/models/*"],
+      "@helpers/*": ["./src/helpers/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@config/*": ["./src/config/*"],
+      "@adapters/*": ["./src/adapters/*"],
+      "@commands/*": ["./src/commands/*"]
     }
   },
   "include": ["**/*.ts"],
