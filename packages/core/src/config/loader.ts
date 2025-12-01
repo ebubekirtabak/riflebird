@@ -1,5 +1,4 @@
-// packages/core/src/config/loader.ts
-import { pathToFileURL } from 'url';
+import { pathToFileURL, fileURLToPath } from 'url';
 import { RiflebirdConfigSchema, RiflebirdConfig } from './schema';
 import fs from 'fs/promises';
 import path from 'path';
@@ -7,7 +6,6 @@ import path from 'path';
 export async function loadConfig(
   configPath?: string
 ): Promise<RiflebirdConfig> {
-  // Find config file
   const configFile = configPath || (await findConfigFile());
 
   if (!configFile) {
@@ -16,14 +14,52 @@ export async function loadConfig(
     );
   }
 
-  // Load config
-  const configModule = await import(pathToFileURL(configFile).href);
-  const userConfig = configModule.default || configModule;
+  let userConfig: unknown;
 
-  // Validate with Zod
-  const validatedConfig = RiflebirdConfigSchema.parse(userConfig);
+  try {
+    if (configFile.endsWith('.ts')) {
+      userConfig = await loadConfigWithJiti(configFile);
+    } else {
+      // Load .js or .mjs files via dynamic import with cache busting
+      const fileUrl = `${pathToFileURL(configFile).href}?t=${Date.now()}`;
+      const configModule = await import(fileUrl);
+      userConfig = configModule.default ?? configModule;
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to load config from ${configFile}: ${message}`
+    );
+  }
 
-  return validatedConfig;
+  try {
+    return RiflebirdConfigSchema.parse(userConfig);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Invalid configuration in ${configFile}: ${message}`
+    );
+  }
+}
+
+async function loadConfigWithJiti(configFile: string): Promise<unknown> {
+  const { createJiti } = await import('jiti');
+  const callerPath = getCallerPath();
+  const jiti = createJiti(callerPath, {
+    interopDefault: true,
+    moduleCache: false,
+    requireCache: false,
+  });
+
+  return jiti.import(configFile);
+}
+
+function getCallerPath(): string {
+  try {
+    return fileURLToPath(import.meta.url);
+  } catch {
+    return __filename;
+  }
 }
 
 async function findConfigFile(): Promise<string | null> {
