@@ -1,1 +1,5 @@
-pnpm lint-staged
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Use npx to run pnpm (works even if pnpm not in PATH)
+npx --yes pnpm lint-staged
