@@ -1,12 +1,10 @@
 import type OpenAI from 'openai';
 import { RiflebirdConfig } from '@config/schema';
 import type { AIClient, AIClientResult } from '@models/ai-client';
-import type { FetchResponse } from '@models/fetch';
 
 // Re-export types for convenience
 export type { ChatMessage, ChatCompletionOptions } from '@models/chat';
 export type { AIClient, AIClientResult } from '@models/ai-client';
-export type { FetchResponse } from '@models/fetch';
 
 export async function createAIClient(
   ai: RiflebirdConfig['ai']
@@ -58,11 +56,8 @@ async function createLocalClient(
   ai: RiflebirdConfig['ai']
 ): Promise<AIClientResult> {
   const baseUrl = ai.url ?? process.env.LOCAL_API_URL ?? 'http://127.0.0.1:11434';
-  const fetchFn = (
-    globalThis as unknown as { fetch?: (...args: unknown[]) => Promise<unknown> }
-  ).fetch;
 
-  if (!fetchFn) {
+  if (typeof fetch !== 'function') {
     throw new Error(
       'Global fetch is not available in this Node runtime. Please run on Node 18+ or provide a fetch polyfill.'
     );
@@ -70,7 +65,7 @@ async function createLocalClient(
 
   const client: AIClient = {
     createChatCompletion: async (opts) => {
-      const response = (await fetchFn(`${baseUrl}/api/chat`, {
+      const response = await fetch(`${baseUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +78,7 @@ async function createLocalClient(
             temperature: opts.temperature,
           },
         }),
-      })) as unknown as FetchResponse;
+      });
 
       if (!response.ok) {
         const text = await response.text();
