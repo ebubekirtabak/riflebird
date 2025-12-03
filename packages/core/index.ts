@@ -42,6 +42,20 @@ export {
   RIFLEBIRD_TEMPLATES_DIR,
   RIFLEBIRD_CONFIG_DIR,
 } from './src/utils/constants';
+
+// Export project path utilities
+export {
+  findProjectRoot,
+  getProjectPaths,
+  ensureRiflebirdDirs,
+  riflebirdDirExists,
+  listCustomPrompts,
+  readCustomPrompt,
+  writeCustomPrompt,
+} from './src/utils/project-paths';
+export type { ProjectPaths } from './src/utils/project-paths';
+
+// Export AI client helpers
 export { createAIClient } from './src/helpers/ai-client';
 
 // Export AI models
