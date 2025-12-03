@@ -1,4 +1,3 @@
-import type OpenAI from 'openai';
 import { RiflebirdConfig } from '@config/schema';
 import type { AIClient, AIClientResult } from '@models/ai-client';
 
@@ -28,20 +27,12 @@ async function createOpenAIClient(
   ai: RiflebirdConfig['ai']
 ): Promise<AIClientResult> {
   const OpenAIModule = await import('openai');
-  const OpenAIConstructor = OpenAIModule.default as unknown as {
-    new (opts: { apiKey?: string }): OpenAI;
-  };
-  const openaiInstance = new OpenAIConstructor({ apiKey: ai.apiKey });
+  const OpenAIClass = OpenAIModule.default;
+  const openaiInstance = new OpenAIClass({ apiKey: ai.apiKey });
 
   const client: AIClient = {
     createChatCompletion: async (opts) => {
-      const openaiRec = openaiInstance as unknown as Record<string, unknown>;
-      const chatRec = openaiRec['chat'] as unknown as Record<string, unknown>;
-      const completionsRec = chatRec['completions'] as unknown as {
-        create: (payload: unknown) => Promise<unknown>;
-      };
-
-      return await completionsRec.create({
+      return await openaiInstance.chat.completions.create({
         model: opts.model,
         temperature: opts.temperature,
         messages: opts.messages,
