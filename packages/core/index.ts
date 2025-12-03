@@ -10,7 +10,11 @@ export { defineConfig } from './src/config/loader';
 
 // Export adapters
 export { PlaywrightAdapter } from './src/adapters/playwright';
-export { CypressAdapter } from './src/adapters/cypress';// Export AI client helpers
+export { CypressAdapter } from './src/adapters/cypress';
+
+// Export file tree utilities
+export { getFileTree, formatFileTree, flattenFileTree } from './src/utils/file-tree';
+export type { FileNode, FileTreeOptions } from './src/models/file-tree';
 // Export common constants
 export {
   COMMON_EXCLUDE_DIRS,
