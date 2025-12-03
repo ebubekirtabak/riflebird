@@ -43,3 +43,9 @@ export const CONFIG_FILE_PATTERNS = [
   'tailwind.config.js',
   'eslint.config.js',
 ] as const;
+
+// Riflebird directory structure in user's project
+export const RIFLEBIRD_DIR = '.riflebird' as const;
+export const RIFLEBIRD_PROMPTS_DIR = 'prompts' as const;
+export const RIFLEBIRD_TEMPLATES_DIR = 'templates' as const;
+export const RIFLEBIRD_CONFIG_DIR = 'config' as const;
