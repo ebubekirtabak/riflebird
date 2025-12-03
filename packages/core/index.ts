@@ -15,6 +15,22 @@ export { CypressAdapter } from './src/adapters/cypress';
 // Export file tree utilities
 export { getFileTree, formatFileTree, flattenFileTree } from './src/utils/file-tree';
 export type { FileNode, FileTreeOptions } from './src/models/file-tree';
+
+// Export file finder utilities
+export {
+  findFilesByType,
+  findFilesByPattern,
+  findFilesByTypes,
+  getFileStats,
+  FILE_PATTERNS,
+} from './src/utils/file-finder';
+export type {
+  FilePattern,
+  FileType,
+  FindFilesByPatternOptions,
+  FileStats,
+} from './src/utils/file-finder';
+
 // Export common constants
 export {
   COMMON_EXCLUDE_DIRS,
