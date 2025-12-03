@@ -31,7 +31,7 @@ export async function aimCommand(description: string, options: any) {
     console.log(chalk.cyan(`\n💡 Run with: riflebird fire ${outputPath}\n`));
   } catch (error) {
     spinner.fail('Failed to generate test');
-    console.error(chalk.red(error.message));
+    console.error(chalk.red(error instanceof Error ? error.message : String(error)));
     process.exit(1);
   }
 }
