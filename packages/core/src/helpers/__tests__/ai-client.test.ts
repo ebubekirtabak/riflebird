@@ -254,7 +254,12 @@ describe('ai-client', () => {
 
     it('should throw error when fetch is not available', async () => {
       const originalFetch = globalThis.fetch;
-      delete (globalThis as Record<string, unknown>)['fetch'];
+      // Temporarily set fetch to undefined to simulate missing fetch
+      Object.defineProperty(globalThis, 'fetch', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
 
       const config: RiflebirdConfig['ai'] = {
         provider: 'local',
@@ -266,7 +271,12 @@ describe('ai-client', () => {
         'Global fetch is not available in this Node runtime. Please run on Node 18+ or provide a fetch polyfill.'
       );
 
-      globalThis.fetch = originalFetch;
+      // Restore original fetch
+      Object.defineProperty(globalThis, 'fetch', {
+        value: originalFetch,
+        configurable: true,
+        writable: true,
+      });
     });
 
     it('should call local API with correct payload', async () => {
