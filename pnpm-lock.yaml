@@ -56,6 +56,9 @@ importers:
       ora:
         specifier: ^7.0.1
         version: 7.0.1
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/inquirer':
         specifier: ^9.0.7
