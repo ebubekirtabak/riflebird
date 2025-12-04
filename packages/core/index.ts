@@ -62,3 +62,23 @@ export { createAIClient } from './src/helpers/ai-client';
 export type { ChatMessage, ChatCompletionOptions } from './src/models/chat';
 export type { AIClient, AIClientResult } from './src/models/ai-client';
 export type { FetchResponse } from './src/models/fetch';
+
+// Export commands
+export {
+  Command,
+  AimCommand,
+  FireCommand,
+  TargetCommand,
+  ReloadCommand,
+} from './src/commands';
+export type {
+  CommandContext,
+  AimInput,
+  AimOutput,
+  FireInput,
+  FireOutput,
+  TargetInput,
+  TargetOutput,
+  ReloadInput,
+  ReloadOutput,
+} from './src/commands';
