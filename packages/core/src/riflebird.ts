@@ -1,14 +1,29 @@
 import { loadConfig } from './config/loader';
-import { RiflebirdConfig } from './config/schema';
-import { TestFrameworkAdapter, TestPlan } from './adapters/base';
+import type { RiflebirdConfig } from './config/schema';
+import type { TestFrameworkAdapter } from './adapters/base';
 import { PlaywrightAdapter } from './adapters/playwright';
 import { CypressAdapter } from './adapters/cypress';
-import OpenAI from 'openai';
+import type OpenAI from 'openai';
+import { createAIClient, type AIClient } from './helpers/ai-client';
+import {
+  AimCommand,
+  FireCommand,
+  TargetCommand,
+  ReloadCommand,
+  type CommandContext,
+} from './commands';
 
 export class Riflebird {
   private config!: RiflebirdConfig;
   private adapter!: TestFrameworkAdapter;
-  private ai!: OpenAI;
+  private aiClient!: AIClient;
+  private _openaiInstance?: OpenAI;
+  
+  // Command instances
+  private aimCommand!: AimCommand;
+  private fireCommand!: FireCommand;
+  private targetCommand!: TargetCommand;
+  private reloadCommand!: ReloadCommand;
 
   constructor(_configPath?: string) {
     // Config loaded during init
@@ -16,12 +31,27 @@ export class Riflebird {
 
   async init(configPath?: string) {
     this.config = await loadConfig(configPath);
-
-    this.ai = new OpenAI({ apiKey: this.config.ai.apiKey });
+    
+    // Initialize AI client using helper
+    const { client, openaiInstance } = await createAIClient(this.config.ai);
+    this.aiClient = client;
+    this._openaiInstance = openaiInstance;
 
     this.adapter = this.createAdapter();
 
     await this.adapter.init(this.config);
+    
+    // Initialize commands with shared context
+    const context: CommandContext = {
+      config: this.config,
+      adapter: this.adapter,
+      aiClient: this.aiClient,
+    };
+    
+    this.aimCommand = new AimCommand(context);
+    this.fireCommand = new FireCommand(context);
+    this.targetCommand = new TargetCommand(context);
+    this.reloadCommand = new ReloadCommand(context);
   }
 
   private createAdapter(): TestFrameworkAdapter {
@@ -31,68 +61,46 @@ export class Riflebird {
       case 'cypress':
         return new CypressAdapter(this.config);
       case 'puppeteer':
-        // return new PuppeteerAdapter(this.config);
         throw new Error('Puppeteer adapter not implemented yet');
       case 'webdriverio':
-        // return new WebDriverIOAdapter(this.config);
         throw new Error('WebDriverIO adapter not implemented yet');
       default:
         throw new Error(`Unknown framework: ${this.config.framework}`);
     }
   }
 
+  /**
+   * Generate test code from natural language description
+   */
   async aim(description: string): Promise<string> {
-    // Generate test plan with AI
-    const testPlan = await this.generateTestPlan(description);
-
-    // Convert to framework-specific code
-    const testCode = await this.adapter.generateTestCode(testPlan);
-
-    return testCode;
+    const result = await this.aimCommand.execute({ description });
+    return result.testCode;
   }
 
-  async fire(_testPath: string): Promise<void> {
-    // Execute test (framework-specific)
-    // For Playwright: actually run
-    // For Cypress: generate command to run
-    throw new Error('fire method not yet implemented');
+  /**
+   * Execute tests and analyze project structure
+   */
+  async fire(testPath: string): Promise<void> {
+    await this.fireCommand.execute({ testPath });
   }
 
+  async watch(): Promise<void> {  
+    throw new Error('Watch mode not yet implemented');
+  }
+
+  /**
+   * Find element selector using AI
+   */
   async target(description: string): Promise<string> {
-    // AI finds best selector
-    return await this.adapter.findElement(description);
+    const result = await this.targetCommand.execute({ description });
+    return result.selector;
   }
 
-  async reload(_testPath: string): Promise<string> {
-    // AI heals broken test
-    // ... healing logic
-    throw new Error('reload method not yet implemented');
-  }
-
-  private async generateTestPlan(description: string): Promise<TestPlan> {
-    await this.ai.chat.completions.create({
-      model: this.config.ai.model,
-      temperature: this.config.ai.temperature,
-      messages: [
-        {
-          role: 'system',
-          content: `You are a test planning expert for ${this.config.framework}. Generate a structured test plan from the description.`,
-        },
-        {
-          role: 'user',
-          content: `Create a test plan for: ${description}`,
-        },
-      ],
-    });
-
-    // Parse AI response into TestPlan
-    // For now, return a placeholder
-    const testPlan: TestPlan = {
-      description,
-      steps: [],
-      assertions: [],
-    };
-
-    return testPlan;
+  /**
+   * Heal broken tests using AI
+   */
+  async reload(testPath: string): Promise<string> {
+    const result = await this.reloadCommand.execute({ testPath });
+    return result.fixedTestCode;
   }
 }
