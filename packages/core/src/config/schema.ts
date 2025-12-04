@@ -119,6 +119,40 @@ export const RiflebirdConfigSchema = z.object({
       failFast: z.boolean().default(false),
     })
     .optional(),
+
+  unitTesting: z
+    .object({
+      enabled: z.boolean().default(false),
+      framework: z.enum(['vitest', 'jest', 'mocha', 'ava']).default('vitest'),
+      testDir: z.string().default('tests/unit'),
+      testMatch: z.array(z.string()).default(['**/*.test.ts', '**/*.spec.ts']),
+      coverage: z
+        .object({
+          enabled: z.boolean().default(true),
+          provider: z.enum(['v8', 'istanbul']).default('v8'),
+          threshold: z
+            .object({
+              lines: z.number().min(0).max(100).default(80),
+              functions: z.number().min(0).max(100).default(80),
+              branches: z.number().min(0).max(100).default(80),
+              statements: z.number().min(0).max(100).default(80),
+            })
+            .optional(),
+          include: z.array(z.string()).default(['src/**/*.ts']),
+          exclude: z.array(z.string()).default(['**/*.test.ts', '**/*.spec.ts', '**/node_modules/**']),
+          reporter: z.array(z.enum(['text', 'html', 'json', 'lcov'])).default(['text', 'html']),
+        })
+        .optional(),
+      watch: z.boolean().default(false),
+      globals: z.boolean().default(true),
+      environment: z.enum(['node', 'jsdom', 'happy-dom']).default('node'),
+      setupFiles: z.array(z.string()).default([]),
+      mockReset: z.boolean().default(true),
+      restoreMocks: z.boolean().default(true),
+      clearMocks: z.boolean().default(true),
+      timeout: z.number().default(5000),
+    })
+    .optional(),
 });
 
 export type RiflebirdConfig = z.infer<typeof RiflebirdConfigSchema>;
