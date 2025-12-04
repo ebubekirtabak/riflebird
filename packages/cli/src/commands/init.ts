@@ -1,14 +1,25 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import fs from 'fs/promises';
+import type { z } from 'zod';
+import {
+  AIProviderSchema,
+  FrameworkSchema,
+  UnitTestFrameworkSchema,
+  DEFAULT_UNIT_TEST_PATTERNS,
+  DEFAULT_COVERAGE_INCLUDE,
+  DEFAULT_COVERAGE_EXCLUDE,
+} from '@riflebird/core';
 
 export type InitAnswers = {
-  framework: 'playwright' | 'cypress' | 'puppeteer' | 'webdriverio';
-  aiProvider: 'openai' | 'anthropic' | 'local';
+  framework: z.infer<typeof FrameworkSchema>;
+  aiProvider: z.infer<typeof AIProviderSchema>;
   apiKey?: string;
   outputDir: string;
   healing: boolean;
   visual: boolean;
+  unitTesting: boolean;
+  unitTestFramework?: z.infer<typeof UnitTestFrameworkSchema>;
 };
 
 export async function initCommand() {
@@ -60,6 +71,24 @@ export async function initCommand() {
       message: 'Enable visual testing with AI?',
       default: true,
     },
+    {
+      type: 'confirm',
+      name: 'unitTesting',
+      message: 'Enable unit testing configuration?',
+      default: false,
+    },
+    {
+      type: 'list',
+      name: 'unitTestFramework',
+      message: 'Select unit testing framework:',
+      choices: [
+        { name: 'Vitest', value: 'vitest' },
+        { name: 'Jest', value: 'jest' },
+        { name: 'Mocha', value: 'mocha' },
+        { name: 'AVA', value: 'ava' },
+      ],
+      when: (answers: InitAnswers) => answers.unitTesting,
+    },
   ]);
 
   // Generate config file
@@ -77,7 +106,7 @@ export async function initCommand() {
 
 function generateConfigFile(answers: InitAnswers): string {
   const envVar = `${answers.aiProvider.toUpperCase()}_API_KEY`;
-  
+
   return `import { defineConfig } from '@riflebird/core';
 
 export default defineConfig({
@@ -138,6 +167,38 @@ export default defineConfig({
     video: 'on-failure',
     aiSummary: true,
   },
+${
+    answers.unitTesting
+      ? `
+  unitTesting: {
+    enabled: true,
+    framework: '${answers.unitTestFramework || 'vitest'}',
+    testDir: 'tests/unit',
+    testMatch: ${JSON.stringify([...DEFAULT_UNIT_TEST_PATTERNS])},
+    coverage: {
+      enabled: true,
+      provider: 'v8',
+      threshold: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+      },
+      include: ${JSON.stringify([...DEFAULT_COVERAGE_INCLUDE])},
+      exclude: ${JSON.stringify([...DEFAULT_COVERAGE_EXCLUDE])},
+      reporter: ['text', 'html'],
+    },
+    watch: false,
+    globals: true,
+    environment: 'node',
+    setupFiles: [],
+    mockReset: true,
+    restoreMocks: true,
+    clearMocks: true,
+    timeout: 5000,
+  },`
+      : ''
+  }
 });
 `;
 }
