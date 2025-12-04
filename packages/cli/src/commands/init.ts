@@ -3,8 +3,8 @@ import chalk from 'chalk';
 import fs from 'fs/promises';
 
 export type InitAnswers = {
-  framework: string;
-  aiProvider: string;
+  framework: 'playwright' | 'cypress' | 'puppeteer' | 'webdriverio';
+  aiProvider: 'openai' | 'anthropic' | 'local';
   apiKey?: string;
   outputDir: string;
   healing: boolean;
@@ -14,7 +14,7 @@ export type InitAnswers = {
 export async function initCommand() {
   console.log(chalk.blue.bold('\n🎯 Riflebird Configuration Setup\n'));
 
-  const answers = await inquirer.prompt([
+  const answers = await inquirer.prompt<InitAnswers>([
     {
       type: 'list',
       name: 'framework',
@@ -40,7 +40,7 @@ export async function initCommand() {
       type: 'password',
       name: 'apiKey',
       message: 'Enter your AI API key (or set as environment variable):',
-      when: (answers) => answers.aiProvider !== 'local',
+      when: (answers: InitAnswers) => answers.aiProvider !== 'local',
     },
     {
       type: 'input',
