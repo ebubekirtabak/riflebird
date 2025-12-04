@@ -9,6 +9,32 @@ export const FrameworkSchema = z.enum([
   'webdriverio',
 ]);
 
+export const UnitTestFrameworkSchema = z.enum(['vitest', 'jest', 'mocha', 'ava']);
+
+export const CoverageProviderSchema = z.enum(['v8', 'istanbul']);
+
+export const CoverageReporterSchema = z.enum(['text', 'html', 'json', 'lcov']);
+
+export const TestEnvironmentSchema = z.enum(['node', 'jsdom', 'happy-dom']);
+
+// Test file patterns
+export const DEFAULT_UNIT_TEST_PATTERNS = ['**/*.test.ts', '**/*.spec.ts'] as const;
+export const DEFAULT_E2E_TEST_PATTERNS = ['**/*.e2e.ts', '**/*.e2e-spec.ts'] as const;
+
+// Coverage patterns
+export const DEFAULT_COVERAGE_INCLUDE = ['src/**/*.ts', 'src/**/*.tsx'] as const;
+export const DEFAULT_COVERAGE_EXCLUDE = [
+  '**/*.test.ts',
+  '**/*.spec.ts',
+  '**/*.e2e.ts',
+  '**/*.e2e-spec.ts',
+  '**/node_modules/**',
+  '**/dist/**',
+  '**/coverage/**',
+  '**/__tests__/**',
+  '**/__mocks__/**',
+] as const;
+
 export const RiflebirdConfigSchema = z.object({
   // AI Configuration
   ai: z.object({
@@ -123,13 +149,13 @@ export const RiflebirdConfigSchema = z.object({
   unitTesting: z
     .object({
       enabled: z.boolean().default(false),
-      framework: z.enum(['vitest', 'jest', 'mocha', 'ava']).default('vitest'),
+      framework: UnitTestFrameworkSchema.default('vitest'),
       testDir: z.string().default('tests/unit'),
-      testMatch: z.array(z.string()).default(['**/*.test.ts', '**/*.spec.ts']),
+      testMatch: z.array(z.string()).default([...DEFAULT_UNIT_TEST_PATTERNS]),
       coverage: z
         .object({
           enabled: z.boolean().default(true),
-          provider: z.enum(['v8', 'istanbul']).default('v8'),
+          provider: CoverageProviderSchema.default('v8'),
           threshold: z
             .object({
               lines: z.number().min(0).max(100).default(80),
@@ -138,14 +164,14 @@ export const RiflebirdConfigSchema = z.object({
               statements: z.number().min(0).max(100).default(80),
             })
             .optional(),
-          include: z.array(z.string()).default(['src/**/*.ts']),
-          exclude: z.array(z.string()).default(['**/*.test.ts', '**/*.spec.ts', '**/node_modules/**']),
-          reporter: z.array(z.enum(['text', 'html', 'json', 'lcov'])).default(['text', 'html']),
+          include: z.array(z.string()).default([...DEFAULT_COVERAGE_INCLUDE]),
+          exclude: z.array(z.string()).default([...DEFAULT_COVERAGE_EXCLUDE]),
+          reporter: z.array(CoverageReporterSchema).default(['text', 'html']),
         })
         .optional(),
       watch: z.boolean().default(false),
       globals: z.boolean().default(true),
-      environment: z.enum(['node', 'jsdom', 'happy-dom']).default('node'),
+      environment: TestEnvironmentSchema.default('node'),
       setupFiles: z.array(z.string()).default([]),
       mockReset: z.boolean().default(true),
       restoreMocks: z.boolean().default(true),
