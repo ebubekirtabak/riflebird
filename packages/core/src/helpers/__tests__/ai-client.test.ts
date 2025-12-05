@@ -354,15 +354,26 @@ describe('ai-client', () => {
     });
 
     it('should return JSON response from local API', async () => {
-      const mockResponse = {
-        message: { content: 'Hello from Ollama!' },
+      const mockOllamaResponse = {
+        message: {
+          role: 'assistant',
+          content: 'Hello from Ollama!'
+        },
         model: 'llama2',
         done: true,
+        done_reason: 'stop',
+        created_at: '2025-12-06T00:00:00.000Z',
+        prompt_eval_count: 10,
+        eval_count: 5,
+        total_duration: 1000,
+        load_duration: 100,
+        prompt_eval_duration: 200,
+        eval_duration: 300,
       };
 
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => mockResponse,
+        json: async () => mockOllamaResponse,
         text: async () => '',
       });
 
@@ -382,7 +393,26 @@ describe('ai-client', () => {
         messages: [{ role: 'user', content: 'Hi' }],
       });
 
-      expect(response).toEqual(mockResponse);
+      // Verify the response is transformed to OpenAI format
+      expect(response).toMatchObject({
+        model: 'llama2',
+        object: 'chat.completion',
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: 'Hello from Ollama!',
+          },
+          finish_reason: 'stop',
+        }],
+        usage: {
+          prompt_tokens: 10,
+          completion_tokens: 5,
+          total_tokens: 15,
+        },
+      });
+      expect(response.id).toMatch(/^ollama-\d+$/);
+      expect(response.created).toBeGreaterThan(0);
     });
   });
 });

@@ -34,3 +34,37 @@ export type ChatCompletionOptions = {
   response_format?: ResponseFormat;
   format?: 'json' | 'json_schema' | 'text' | object;
 };
+
+export type OpenAIChatCompletionResponse = {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: ChatMessage;
+    finish_reason: string;
+  }>;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+};
+
+export type OllamaChatCompletionResponse = {
+  model: string;
+  created_at: string;
+  message: {
+    role: string;
+    content: string;
+  };
+  done: boolean;
+  done_reason: string;
+  total_duration: number;
+  load_duration: number;
+  prompt_eval_count: number;
+  prompt_eval_duration: number;
+  eval_count: number;
+  eval_duration: number;
+};

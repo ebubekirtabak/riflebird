@@ -1,9 +1,12 @@
 import { RiflebirdConfig } from '@config/schema';
 import type { AIClient, AIClientResult } from '@models/ai-client';
-
-// Re-export types for convenience
-export type { ChatMessage, ChatCompletionOptions } from '@models/chat';
+import {
+  OllamaChatCompletionResponse,
+  OpenAIChatCompletionResponse,
+  ChatMessage
+} from '@models/chat';
 export type { AIClient, AIClientResult } from '@models/ai-client';
+export type { ChatCompletionOptions } from '@models/chat';
 
 export async function createAIClient(
   ai: RiflebirdConfig['ai']
@@ -31,7 +34,7 @@ async function createOpenAIClient(
   const openaiInstance = new OpenAIClass({ apiKey: ai.apiKey });
 
   const client: AIClient = {
-    createChatCompletion: async (opts) => {
+    createChatCompletion: async (opts): Promise<OpenAIChatCompletionResponse> => {
       return await openaiInstance.chat.completions.create({
         ...opts,
       });
@@ -39,6 +42,33 @@ async function createOpenAIClient(
   };
 
   return { client, openaiInstance };
+};
+
+function mapOllamaToOpenAI(ollamaResult: OllamaChatCompletionResponse): OpenAIChatCompletionResponse {
+  const { content, role } = ollamaResult.message;
+  const { done_reason, model, created_at, prompt_eval_count, eval_count } = ollamaResult;
+
+  const message: ChatMessage = {
+    role: role as 'assistant' | 'user' | 'system',
+    content,
+  };
+
+  return {
+    id: `ollama-${Date.now()}`,
+    object: 'chat.completion',
+    created: Math.floor(new Date(created_at).getTime() / 1000),
+    model,
+    choices: [{
+      index: 0,
+      message,
+      finish_reason: done_reason,
+    }],
+    usage: {
+      prompt_tokens: prompt_eval_count,
+      completion_tokens: eval_count,
+      total_tokens: prompt_eval_count + eval_count,
+    },
+  };
 }
 
 async function createLocalClient(
@@ -53,7 +83,7 @@ async function createLocalClient(
   }
 
   const client: AIClient = {
-    createChatCompletion: async (opts) => {
+    createChatCompletion: async (opts): Promise<OpenAIChatCompletionResponse> => {
       const response = await fetch(`${baseUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -73,7 +103,8 @@ async function createLocalClient(
         throw new Error(`Local AI provider error: ${response.status} ${text}`);
       }
 
-      return await response.json();
+      const ollamaResult = await response.json() as OllamaChatCompletionResponse;
+      return mapOllamaToOpenAI(ollamaResult);
     },
   };
 
