@@ -24,7 +24,8 @@
       "@utils/*": ["./src/utils/*"],
       "@config/*": ["./src/config/*"],
       "@adapters/*": ["./src/adapters/*"],
-      "@commands/*": ["./src/commands/*"]
+      "@commands/*": ["./src/commands/*"],
+      "@prompts/*": ["./src/prompts/*"]
     }
   },
   "include": ["**/*.ts"],
