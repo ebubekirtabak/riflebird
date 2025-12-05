@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@toon-format/toon':
+        specifier: ^2.0.1
+        version: 2.0.1
     devDependencies:
       '@changesets/cli':
         specifier: ^2.27.0
@@ -712,6 +716,9 @@ packages:
 
   '@sinclair/typebox@0.27.8':
     resolution: {integrity: sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA==}
+
+  '@toon-format/toon@2.0.1':
+    resolution: {integrity: sha512-0oohzByDG/VTvsPT7iCfUdoB6yndopkPulh9Kk76fhV6YReVSGqr6ni5EMSxn3umNyfwylI0nOjLYtjJTIiT0w==}
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
@@ -2797,6 +2804,8 @@ snapshots:
     optional: true
 
   '@sinclair/typebox@0.27.8': {}
+
+  '@toon-format/toon@2.0.1': {}
 
   '@types/estree@1.0.8': {}
 
