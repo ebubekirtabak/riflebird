@@ -10,7 +10,9 @@ vi.mock('../config/loader', () => {
       model: 'test-model',
       temperature: 0.2,
     },
-    framework: 'playwright',
+    e2e: {
+      framework: 'playwright',
+    },
   };
 
   return {

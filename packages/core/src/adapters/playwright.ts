@@ -1,5 +1,5 @@
 // packages/core/src/adapters/playwright.ts
-import { chromium, Browser, Page } from 'playwright';
+import { chromium, Browser, Page, PageScreenshotOptions } from 'playwright';
 import { TestFrameworkAdapter, TestPlan } from './base';
 import { RiflebirdConfig } from '../config/schema';
 
@@ -7,25 +7,25 @@ export class PlaywrightAdapter implements TestFrameworkAdapter {
   name = 'playwright';
   private browser?: Browser;
   private page?: Page;
-  private config: RiflebirdConfig['playwright'] | undefined;
+  private config: RiflebirdConfig['e2e'];
 
   constructor(config: RiflebirdConfig) {
-    this.config = config.playwright;
+    this.config = config.e2e;
   }
 
   async init() {
     this.browser = await chromium.launch({
-      headless: this.config?.headless ?? false,
+      headless: this.config?.playwright?.headless ?? false,
     });
-    
+
     const context = await this.browser.newContext({
-      viewport: this.config?.viewport,
+      viewport: this.config?.playwright?.viewport,
     });
-    
+
     this.page = await context.newPage();
-    
-    if (this.config?.baseURL) {
-      this.page.setDefaultTimeout(this.config?.timeout ?? 30000);
+
+    if (this.config?.playwright?.baseURL) {
+      this.page.setDefaultTimeout(this.config?.playwright?.timeout ?? 30000);
     }
   }
 
@@ -62,7 +62,7 @@ export class PlaywrightAdapter implements TestFrameworkAdapter {
     await this.page!.waitForURL(pattern);
   }
 
-  async screenshot(options?: any): Promise<Buffer> {
+  async screenshot(options?: PageScreenshotOptions): Promise<Buffer> {
     return await this.page!.screenshot(options);
   }
 
@@ -78,9 +78,9 @@ export class PlaywrightAdapter implements TestFrameworkAdapter {
 
   async generateTestCode(testPlan: TestPlan): Promise<string> {
     const imports = `import { test, expect } from '@playwright/test';\n\n`;
-    
+
     const testBody = `test('${testPlan.description}', async ({ page }) => {\n`;
-    
+
     const steps = testPlan.steps
       .map((step) => {
         switch (step.type) {
@@ -97,7 +97,7 @@ export class PlaywrightAdapter implements TestFrameworkAdapter {
         }
       })
       .join('\n');
-    
+
     const assertions = testPlan.assertions
       .map((assertion) => {
         switch (assertion.type) {
@@ -112,7 +112,7 @@ export class PlaywrightAdapter implements TestFrameworkAdapter {
         }
       })
       .join('\n');
-    
+
     return `${imports}${testBody}${steps}\n\n${assertions}\n});`;
   }
 }

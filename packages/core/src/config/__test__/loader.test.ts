@@ -42,7 +42,9 @@ describe('config/loader', () => {
           temperature: 0.2,
           apiKey: 'test-key',
         },
-        framework: 'playwright' as const,
+        e2e: {
+          framework: 'playwright' as const,
+        },
       } satisfies RiflebirdConfig;
 
       const result = defineConfig(config);

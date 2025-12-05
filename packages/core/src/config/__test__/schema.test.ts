@@ -11,13 +11,15 @@ describe('config/schema', () => {
           model: 'gpt-4',
           temperature: 0.2,
         },
-        framework: 'playwright' as const,
+        e2e: {
+          framework: 'playwright' as const,
+        },
       };
 
       const result = RiflebirdConfigSchema.parse(config);
 
       expect(result.ai.provider).toBe('openai');
-      expect(result.framework).toBe('playwright');
+      expect(result.e2e?.framework).toBe('playwright');
     });
 
     it('should apply default values for optional fields', () => {
@@ -27,7 +29,9 @@ describe('config/schema', () => {
           model: 'gpt-4',
           temperature: 0.2,
         },
-        framework: 'playwright' as const,
+        e2e: {
+          framework: 'playwright' as const,
+        },
       };
 
       const result = RiflebirdConfigSchema.parse(config);
@@ -43,7 +47,9 @@ describe('config/schema', () => {
           model: 'gpt-4',
           temperature: 0.2,
         },
-        framework: 'playwright',
+        e2e: {
+          framework: 'playwright',
+        },
         unitTesting: {
           enabled: true,
           framework: 'vitest',
@@ -90,7 +96,9 @@ describe('config/schema', () => {
           model: 'gpt-4',
           temperature: 0.2,
         },
-        framework: 'playwright' as const,
+        e2e: {
+          framework: 'playwright' as const,
+        },
         unitTesting: {
           enabled: true,
         },
@@ -113,7 +121,9 @@ describe('config/schema', () => {
           model: 'gpt-4',
           temperature: 0.2,
         },
-        framework: 'playwright' as const,
+        e2e: {
+          framework: 'playwright' as const,
+        },
         unitTesting: {
           enabled: true,
           coverage: {
@@ -183,7 +193,9 @@ describe('config/schema', () => {
           model: 'gpt-4',
           temperature: 0.2,
         },
-        framework: 'playwright' as const,
+        e2e: {
+          framework: 'playwright' as const,
+        },
         generation: {
           outputDir: 'e2e/tests',
           naming: 'camelCase' as const,

@@ -44,49 +44,53 @@ export const RiflebirdConfigSchema = z.object({
     url: z.string().url().optional(),
     temperature: z.number().min(0).max(2).default(0.2),
   }),
-  framework: FrameworkSchema,
-  playwright: z
+  e2e: z
     .object({
-      browser: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
-      headless: z.boolean().default(false),
-      viewport: z
+      framework: FrameworkSchema,
+      playwright: z
         .object({
-          width: z.number().default(1280),
-          height: z.number().default(720),
+          browser: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
+          headless: z.boolean().default(false),
+          viewport: z
+            .object({
+              width: z.number().default(1280),
+              height: z.number().default(720),
+            })
+            .optional(),
+          baseURL: z.string().url().optional(),
+          timeout: z.number().default(30000),
         })
         .optional(),
-      baseURL: z.string().url().optional(),
-      timeout: z.number().default(30000),
-    })
-    .optional(),
 
-  cypress: z
-    .object({
-      baseUrl: z.string().url().optional(),
-      viewportWidth: z.number().default(1280),
-      viewportHeight: z.number().default(720),
-      video: z.boolean().default(false),
-      screenshotOnRunFailure: z.boolean().default(true),
-    })
-    .optional(),
-
-  puppeteer: z
-    .object({
-      headless: z.boolean().default(false),
-      defaultViewport: z
+      cypress: z
         .object({
-          width: z.number().default(1280),
-          height: z.number().default(720),
+          baseUrl: z.string().url().optional(),
+          viewportWidth: z.number().default(1280),
+          viewportHeight: z.number().default(720),
+          video: z.boolean().default(false),
+          screenshotOnRunFailure: z.boolean().default(true),
         })
         .optional(),
-      args: z.array(z.string()).default([]),
-    })
-    .optional(),
 
-  webdriverio: z
-    .object({
-      baseUrl: z.string().url().optional(),
-      capabilities: z.object({}).passthrough().optional(),
+      puppeteer: z
+        .object({
+          headless: z.boolean().default(false),
+          defaultViewport: z
+            .object({
+              width: z.number().default(1280),
+              height: z.number().default(720),
+            })
+            .optional(),
+          args: z.array(z.string()).default([]),
+        })
+        .optional(),
+
+      webdriverio: z
+        .object({
+          baseUrl: z.string().url().optional(),
+          capabilities: z.object({}).passthrough().optional(),
+        })
+        .optional(),
     })
     .optional(),
 

@@ -4,10 +4,10 @@ import { RiflebirdConfig } from '../config/schema';
 
 export class CypressAdapter implements TestFrameworkAdapter {
   name = 'cypress';
-  private config: RiflebirdConfig['cypress'] | undefined;
+  private config: RiflebirdConfig['e2e'];
 
   constructor(config: RiflebirdConfig) {
-    this.config = config.cypress;
+    this.config = config.e2e;
   }
 
   async init() {
@@ -60,7 +60,7 @@ export class CypressAdapter implements TestFrameworkAdapter {
 
   async generateTestCode(testPlan: TestPlan): Promise<string> {
     const testBody = `describe('${testPlan.description}', () => {\n  it('should complete the flow', () => {\n`;
-    
+
     const steps = testPlan.steps
       .map((step) => {
         switch (step.type) {
@@ -77,7 +77,7 @@ export class CypressAdapter implements TestFrameworkAdapter {
         }
       })
       .join('\n');
-    
+
     const assertions = testPlan.assertions
       .map((assertion) => {
         switch (assertion.type) {
@@ -92,7 +92,7 @@ export class CypressAdapter implements TestFrameworkAdapter {
         }
       })
       .join('\n');
-    
+
     return `${testBody}${steps}\n\n${assertions}\n  });\n});`;
   }
 }

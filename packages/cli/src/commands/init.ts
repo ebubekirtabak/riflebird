@@ -117,9 +117,10 @@ export default defineConfig({
     temperature: 0.2,
   },
 
-  framework: '${answers.framework}',
+  e2e: {
+    framework: '${answers.framework}',
 
-  ${answers.framework}: {
+    ${answers.framework}: {
     ${
       answers.framework === 'playwright'
         ? `browser: 'chromium',
@@ -136,6 +137,7 @@ export default defineConfig({
         : `headless: false,
     baseUrl: 'http://localhost:3000',`
     }
+    },
   },
 
   generation: {

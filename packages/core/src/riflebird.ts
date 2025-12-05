@@ -18,7 +18,7 @@ export class Riflebird {
   private adapter!: TestFrameworkAdapter;
   private aiClient!: AIClient;
   private _openaiInstance?: OpenAI;
-  
+
   // Command instances
   private aimCommand!: AimCommand;
   private fireCommand!: FireCommand;
@@ -31,7 +31,7 @@ export class Riflebird {
 
   async init(configPath?: string) {
     this.config = await loadConfig(configPath);
-    
+
     // Initialize AI client using helper
     const { client, openaiInstance } = await createAIClient(this.config.ai);
     this.aiClient = client;
@@ -40,14 +40,14 @@ export class Riflebird {
     this.adapter = this.createAdapter();
 
     await this.adapter.init(this.config);
-    
+
     // Initialize commands with shared context
     const context: CommandContext = {
       config: this.config,
       adapter: this.adapter,
       aiClient: this.aiClient,
     };
-    
+
     this.aimCommand = new AimCommand(context);
     this.fireCommand = new FireCommand(context);
     this.targetCommand = new TargetCommand(context);
@@ -55,7 +55,12 @@ export class Riflebird {
   }
 
   private createAdapter(): TestFrameworkAdapter {
-    switch (this.config.framework) {
+    const framework = this.config.e2e?.framework;
+    if (!framework) {
+      throw new Error('E2E framework not configured');
+    }
+
+    switch (framework) {
       case 'playwright':
         return new PlaywrightAdapter(this.config);
       case 'cypress':
@@ -65,7 +70,7 @@ export class Riflebird {
       case 'webdriverio':
         throw new Error('WebDriverIO adapter not implemented yet');
       default:
-        throw new Error(`Unknown framework: ${this.config.framework}`);
+        throw new Error(`Unknown framework: ${framework}`);
     }
   }
 
@@ -84,7 +89,7 @@ export class Riflebird {
     await this.fireCommand.execute({ testPath });
   }
 
-  async watch(): Promise<void> {  
+  async watch(): Promise<void> {
     throw new Error('Watch mode not yet implemented');
   }
 

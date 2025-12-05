@@ -12,7 +12,7 @@ export type AimOutput = {
 
 /**
  * Aim command - Generate test code from natural language description
- * 
+ *
  * Example:
  * ```ts
  * const result = await aimCommand.execute({
@@ -59,7 +59,7 @@ export class AimCommand extends Command<AimInput, AimOutput> {
         messages: [
           {
             role: 'system',
-            content: `You are a test planning expert for ${this.context.config.framework}. Generate a structured test plan from the description.`,
+            content: `You are a test planning expert for ${this.context.config.e2e?.framework ?? 'E2E testing'}. Generate a structured test plan from the description.`,
           },
           {
             role: 'user',
