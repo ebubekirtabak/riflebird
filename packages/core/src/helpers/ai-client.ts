@@ -33,9 +33,7 @@ async function createOpenAIClient(
   const client: AIClient = {
     createChatCompletion: async (opts) => {
       return await openaiInstance.chat.completions.create({
-        model: opts.model,
-        temperature: opts.temperature,
-        messages: opts.messages,
+        ...opts,
       });
     },
   };
@@ -62,8 +60,7 @@ async function createLocalClient(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: opts.model,
-          messages: opts.messages,
+          ...opts,
           stream: false,
           options: {
             temperature: opts.temperature,

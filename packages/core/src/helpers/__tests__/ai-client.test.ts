@@ -316,6 +316,7 @@ describe('ai-client', () => {
           },
           body: JSON.stringify({
             model: 'llama2',
+            temperature: 0.8,
             messages,
             stream: false,
             options: {
