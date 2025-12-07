@@ -28,6 +28,11 @@ export class FireCommand extends Command<FireInput, FireOutput> {
 
   async execute(input: FireInput): Promise<FireOutput> {
     this.validate(input);
+    const { testPath } = input;
+
+    if (testPath.trim().length === 0) {
+      throw new Error('Riflebird Fire Command: testPath cannot be empty, we are not supporting running the entire test suite yet.');
+    }
 
     try {
       const projectRoot = await findProjectRoot();
