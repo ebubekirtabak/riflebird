@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM"],
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+    "outDir": "./dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@riflebird/core": ["index.ts"],
+      "@/*": ["src/*"],
+      "@models/*": ["src/models/*"],
+      "@helpers/*": ["src/helpers/*"],
+      "@utils": ["src/utils/index.ts"],
+      "@utils/*": ["src/utils/*"],
+      "@config/*": ["src/config/*"],
+      "@adapters/*": ["src/adapters/*"],
+      "@commands/*": ["src/commands/*"],
+      "@prompts/*": ["src/prompts/*"],
+      "@providers/*": ["src/providers/*"]
+    }
+  },
+  "include": ["src/**/*", "index.ts"],
+  "exclude": ["node_modules", "dist"]
+}

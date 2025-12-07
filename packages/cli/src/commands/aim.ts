@@ -1,0 +1,42 @@
+import { Riflebird } from '@riflebird/core';
+import chalk from 'chalk';
+import ora from 'ora';
+import fs from 'fs/promises';
+import path from 'path';
+
+export type AimOptions = {
+  output?: string;
+  framework?: string;
+};
+
+export async function aimCommand(description: string, options: AimOptions) {
+  const spinner = ora('🎯 Targeting test flow...').start();
+
+  try {
+    // Initialize Riflebird with user config
+    const riflebird = new Riflebird();
+    await riflebird.init();
+
+    // Generate test
+    const testCode = await riflebird.aim(description);
+
+    spinner.succeed('Test generated successfully!');
+
+    // Save to file
+    const outputPath = options.output || 'generated-test.spec.ts';
+    const fullPath = path.join(process.cwd(), outputPath);
+    
+    await fs.writeFile(fullPath, testCode);
+
+    console.log(chalk.green(`\n✓ Test saved to: ${outputPath}\n`));
+    console.log(chalk.gray('Preview:\n'));
+    console.log(testCode);
+
+    console.log(chalk.cyan(`\n💡 Run with: riflebird fire ${outputPath}\n`));
+  } catch (error) {
+    spinner.fail('Failed to generate test');
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(chalk.red(message));
+    process.exit(1);
+  }
+}

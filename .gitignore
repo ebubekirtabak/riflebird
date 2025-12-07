@@ -1,0 +1,14 @@
+.turbo
+node_modules
+dist
+*.log
+.DS_Store
+test-results
+tests/e2e
+riflebird.config.ts
+.env
+
+# Test coverage
+coverage
+*.lcov
+.nyc_output

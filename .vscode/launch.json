@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch CLI (build + inspect)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/cli/dist/index.js",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--inspect-brk", "--enable-source-maps"],
+      "args": [],
+      "preLaunchTask": "build-core-and-cli",
+      "console": "integratedTerminal",
+      "outFiles": [
+        "${workspaceFolder}/packages/**/dist/**/*.js",
+        "${workspaceFolder}/packages/**/dist/**/*.mjs"
+      ]
+    },
+    {
+      "name": "Launch CLI 'fire' command (build + inspect)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/cli/dist/index.js",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--inspect-brk", "--enable-source-maps"],
+      "args": ["fire"],
+      "preLaunchTask": "build-core-and-cli",
+      "console": "integratedTerminal",
+      "outFiles": [
+        "${workspaceFolder}/packages/**/dist/**/*.js",
+        "${workspaceFolder}/packages/**/dist/**/*.mjs"
+      ]
+    },
+    {
+      "name": "Launch CLI (no build, attach later)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/cli/dist/index.js",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--enable-source-maps"],
+      "args": [],
+      "console": "integratedTerminal",
+      "outFiles": [
+        "${workspaceFolder}/packages/**/dist/**/*.js",
+        "${workspaceFolder}/packages/**/dist/**/*.mjs"
+      ]
+    },
+    {
+      "name": "Attach to Node (9229)",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": false,
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": null
+    }
+  ]
+}

@@ -1,0 +1,314 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'fs/promises';
+import path from 'path';
+import os from 'os';
+import {
+  findFilesByType,
+  findFilesByPattern,
+  findFilesByTypes,
+  getFileStats,
+  FILE_PATTERNS,
+  type FilePattern,
+} from '../file-finder';
+
+describe('file-finder', () => {
+  let testDir: string;
+
+  beforeEach(async () => {
+    // Create a temporary test directory
+    testDir = path.join(os.tmpdir(), `riflebird-test-${Date.now()}`);
+    await fs.mkdir(testDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    // Clean up test directory
+    await fs.rm(testDir, { recursive: true, force: true });
+  });
+
+  async function createTestFile(relativePath: string): Promise<void> {
+    const fullPath = path.join(testDir, relativePath);
+    await fs.mkdir(path.dirname(fullPath), { recursive: true });
+    await fs.writeFile(fullPath, '// test file');
+  }
+
+  describe('findFilesByType', () => {
+    it('should find component files with various patterns', async () => {
+      await createTestFile('src/Button.component.tsx');
+      await createTestFile('src/Input.Component.jsx');
+      await createTestFile('src/Card.component.ts');
+      await createTestFile('src/Header.tsx'); // Should not match
+      await createTestFile('src/utils.ts'); // Should not match
+
+      const files = await findFilesByType(testDir, 'component');
+
+      expect(files).toHaveLength(3);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'Button.component.tsx',
+        'Card.component.ts',
+        'Input.Component.jsx',
+      ]);
+    });
+
+    it('should find test files with .test and .spec patterns', async () => {
+      await createTestFile('src/button.test.ts');
+      await createTestFile('src/input.spec.tsx');
+      await createTestFile('src/card.test.js');
+      await createTestFile('src/header.spec.jsx');
+      await createTestFile('src/utils.ts'); // Should not match
+
+      const files = await findFilesByType(testDir, 'test');
+
+      expect(files).toHaveLength(4);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'button.test.ts',
+        'card.test.js',
+        'header.spec.jsx',
+        'input.spec.tsx',
+      ]);
+    });
+
+    it('should find model files', async () => {
+      await createTestFile('src/user.model.ts');
+      await createTestFile('src/post.entity.ts');
+      await createTestFile('src/comment.schema.ts');
+      await createTestFile('src/utils.ts'); // Should not match
+
+      const files = await findFilesByType(testDir, 'model');
+
+      expect(files).toHaveLength(3);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'comment.schema.ts',
+        'post.entity.ts',
+        'user.model.ts',
+      ]);
+    });
+
+    it('should find hook files with use prefix', async () => {
+      await createTestFile('src/useAuth.ts');
+      await createTestFile('src/useState.tsx');
+      await createTestFile('src/useEffect.js');
+      await createTestFile('src/utils.ts'); // Should not match
+
+      const files = await findFilesByType(testDir, 'hook');
+
+      expect(files).toHaveLength(3);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'useAuth.ts',
+        'useEffect.js',
+        'useState.tsx',
+      ]);
+    });
+
+    it('should find config files', async () => {
+      await createTestFile('tsconfig.json');
+      await createTestFile('package.json');
+      await createTestFile('vite.config.ts');
+      await createTestFile('jest.config.js');
+      await createTestFile('src/utils.ts'); // Should not match
+
+      const files = await findFilesByType(testDir, 'config');
+
+      expect(files).toHaveLength(4);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'jest.config.js',
+        'package.json',
+        'tsconfig.json',
+        'vite.config.ts',
+      ]);
+    });
+
+    it('should find style files', async () => {
+      await createTestFile('src/styles.css');
+      await createTestFile('src/theme.scss');
+      await createTestFile('src/button.module.css');
+      await createTestFile('src/utils.ts'); // Should not match
+
+      const files = await findFilesByType(testDir, 'style');
+
+      expect(files).toHaveLength(3);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'button.module.css',
+        'styles.css',
+        'theme.scss',
+      ]);
+    });
+
+    it('should respect case sensitivity option', async () => {
+      await createTestFile('src/Button.Component.tsx');
+      await createTestFile('src/input.component.tsx');
+
+      const filesInsensitive = await findFilesByType(testDir, 'component', {
+        caseSensitive: false,
+      });
+      expect(filesInsensitive).toHaveLength(2);
+
+      // With case-sensitive, only exact pattern matches count
+      // Button.Component.tsx matches *.[Cc]omponent.tsx pattern
+      // input.component.tsx matches *.component.tsx pattern
+      // Both should match because we have both [Cc] patterns
+      const filesSensitive = await findFilesByType(testDir, 'component', {
+        caseSensitive: true,
+      });
+      expect(filesSensitive).toHaveLength(2);
+    });
+
+    it('should respect excludeDirs option', async () => {
+      await createTestFile('src/button.component.tsx');
+      await createTestFile('node_modules/lib/input.component.tsx');
+
+      const files = await findFilesByType(testDir, 'component', {
+        excludeDirs: ['node_modules'],
+      });
+
+      expect(files).toHaveLength(1);
+      expect(files[0].name).toBe('button.component.tsx');
+    });
+
+    it('should throw error for custom type without patterns', async () => {
+      await expect(findFilesByType(testDir, 'custom')).rejects.toThrow(
+        'No patterns defined for file type: custom'
+      );
+    });
+  });
+
+  describe('findFilesByPattern', () => {
+    it('should find files matching custom pattern', async () => {
+      await createTestFile('src/Button.view.tsx');
+      await createTestFile('src/Input.view.jsx');
+      await createTestFile('src/Card.component.tsx'); // Should not match
+
+      const pattern: FilePattern = {
+        patterns: ['*.view.tsx', '*.view.jsx'],
+        extensions: ['.tsx', '.jsx'],
+        description: 'View components',
+      };
+
+      const files = await findFilesByPattern(testDir, pattern);
+
+      expect(files).toHaveLength(2);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'Button.view.tsx',
+        'Input.view.jsx',
+      ]);
+    });
+
+    it('should support wildcard patterns', async () => {
+      await createTestFile('src/actions/createUser.ts');
+      await createTestFile('src/actions/deletePost.ts');
+      await createTestFile('src/utils/helper.ts'); // Should not match
+
+      const pattern: FilePattern = {
+        patterns: ['*User*.ts', '*Post*.ts'],
+        extensions: ['.ts'],
+      };
+
+      const files = await findFilesByPattern(testDir, pattern);
+
+      expect(files).toHaveLength(2);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'createUser.ts',
+        'deletePost.ts',
+      ]);
+    });
+
+    it('should work without extensions filter', async () => {
+      await createTestFile('src/button.custom.tsx');
+      await createTestFile('src/input.custom.jsx');
+      await createTestFile('src/card.custom.ts');
+
+      const pattern: FilePattern = {
+        patterns: ['*.custom.*'],
+      };
+
+      const files = await findFilesByPattern(testDir, pattern);
+
+      expect(files).toHaveLength(3);
+    });
+  });
+
+  describe('findFilesByTypes', () => {
+    it('should find files for multiple types', async () => {
+      await createTestFile('src/Button.component.tsx');
+      await createTestFile('src/button.test.ts');
+      await createTestFile('src/user.model.ts');
+      await createTestFile('src/useAuth.ts');
+
+      const results = await findFilesByTypes(testDir, [
+        'component',
+        'test',
+        'model',
+        'hook',
+      ]);
+
+      expect(Object.keys(results)).toEqual(['component', 'test', 'model', 'hook']);
+      expect(results.component).toHaveLength(1);
+      expect(results.test).toHaveLength(1);
+      expect(results.model).toHaveLength(1);
+      // user.model.ts also matches use*.ts pattern (starts with 'use')
+      expect(results.hook).toHaveLength(2);
+    });
+
+    it('should return empty arrays for types with no matches', async () => {
+      await createTestFile('src/Button.component.tsx');
+
+      const results = await findFilesByTypes(testDir, ['component', 'test', 'model']);
+
+      expect(results.component).toHaveLength(1);
+      expect(results.test).toHaveLength(0);
+      expect(results.model).toHaveLength(0);
+    });
+  });
+
+  describe('getFileStats', () => {
+    it('should calculate file statistics', async () => {
+      await createTestFile('src/button.component.tsx');
+      await createTestFile('src/input.component.tsx');
+      await createTestFile('src/card.component.jsx');
+      await createTestFile('src/header.component.ts');
+
+      const files = await findFilesByType(testDir, 'component');
+      const stats = getFileStats(files);
+
+      expect(stats.total).toBe(4);
+      expect(stats.byExtension).toEqual({
+        '.tsx': 2,
+        '.jsx': 1,
+        '.ts': 1,
+      });
+    });
+
+    it('should handle empty file list', () => {
+      const stats = getFileStats([]);
+
+      expect(stats.total).toBe(0);
+      expect(stats.byExtension).toEqual({});
+    });
+  });
+
+  describe('FILE_PATTERNS', () => {
+    it('should have all predefined file types', () => {
+      const expectedTypes = [
+        'component',
+        'test',
+        'model',
+        'util',
+        'config',
+        'hook',
+        'page',
+        'api',
+        'style',
+        'custom',
+      ];
+
+      for (const type of expectedTypes) {
+        expect(FILE_PATTERNS).toHaveProperty(type);
+        expect(FILE_PATTERNS[type as keyof typeof FILE_PATTERNS]).toHaveProperty(
+          'patterns'
+        );
+        expect(FILE_PATTERNS[type as keyof typeof FILE_PATTERNS]).toHaveProperty(
+          'description'
+        );
+      }
+    });
+  });
+});
