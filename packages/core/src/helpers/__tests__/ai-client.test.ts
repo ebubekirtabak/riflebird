@@ -215,7 +215,7 @@ describe('ai-client', () => {
 
     it('should use environment variable for URL when not provided', async () => {
       const originalEnv = process.env.LOCAL_API_URL;
-      process.env.LOCAL_API_URL = 'http://custom-env-url:9999';
+      process.env.LOCAL_API_URL = 'http://localhost:9999';
 
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -240,7 +240,7 @@ describe('ai-client', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://custom-env-url:9999/api/chat',
+        'http://localhost:9999/api/chat',
         expect.anything()
       );
 
@@ -354,6 +354,10 @@ describe('ai-client', () => {
     });
 
     it('should return JSON response from local API', async () => {
+      // Clear environment variable to use default localhost
+      const originalEnv = process.env.LOCAL_API_URL;
+      delete process.env.LOCAL_API_URL;
+
       const mockOllamaResponse = {
         message: {
           role: 'assistant',
@@ -413,6 +417,147 @@ describe('ai-client', () => {
       });
       expect(response.id).toMatch(/^ollama-\d+$/);
       expect(response.created).toBeGreaterThan(0);
+
+      // Restore environment variable
+      if (originalEnv) {
+        process.env.LOCAL_API_URL = originalEnv;
+      }
+    });
+
+    it('should reject non-localhost URLs to prevent SSRF attacks', async () => {
+      const config: RiflebirdConfig['ai'] = {
+        provider: 'local',
+        model: 'llama2',
+        temperature: 0.5,
+        url: 'http://external-server.com:11434',
+      };
+
+      await expect(createAIClient(config)).rejects.toThrow(
+        'Security error: Local provider URL must be a localhost address'
+      );
+    });
+
+    it('should accept localhost URL', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          message: { role: 'assistant', content: 'test' },
+          done_reason: 'stop',
+          model: 'llama2',
+          created_at: new Date().toISOString(),
+          prompt_eval_count: 10,
+          eval_count: 5,
+        }),
+      });
+      globalThis.fetch = mockFetch as unknown as typeof globalThis.fetch;
+
+      const config: RiflebirdConfig['ai'] = {
+        provider: 'local',
+        model: 'llama2',
+        temperature: 0.5,
+        url: 'http://localhost:11434',
+      };
+
+      const result = await createAIClient(config);
+      expect(result.client).toBeDefined();
+    });
+
+    it('should accept 127.0.0.1 URL', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          message: { role: 'assistant', content: 'test' },
+          done_reason: 'stop',
+          model: 'llama2',
+          created_at: new Date().toISOString(),
+          prompt_eval_count: 10,
+          eval_count: 5,
+        }),
+      });
+      globalThis.fetch = mockFetch as unknown as typeof globalThis.fetch;
+
+      const config: RiflebirdConfig['ai'] = {
+        provider: 'local',
+        model: 'llama2',
+        temperature: 0.5,
+        url: 'http://127.0.0.1:11434',
+      };
+
+      const result = await createAIClient(config);
+      expect(result.client).toBeDefined();
+    });
+
+    it('should accept IPv6 localhost URL', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          message: { role: 'assistant', content: 'test' },
+          done_reason: 'stop',
+          model: 'llama2',
+          created_at: new Date().toISOString(),
+          prompt_eval_count: 10,
+          eval_count: 5,
+        }),
+      });
+      globalThis.fetch = mockFetch as unknown as typeof globalThis.fetch;
+
+      const config: RiflebirdConfig['ai'] = {
+        provider: 'local',
+        model: 'llama2',
+        temperature: 0.5,
+        url: 'http://[::1]:11434',
+      };
+
+      const result = await createAIClient(config);
+      expect(result.client).toBeDefined();
+    });
+
+    it('should reject IP address outside 127.0.0.0/8 range', async () => {
+      const config: RiflebirdConfig['ai'] = {
+        provider: 'local',
+        model: 'llama2',
+        temperature: 0.5,
+        url: 'http://192.168.1.100:11434',
+      };
+
+      await expect(createAIClient(config)).rejects.toThrow(
+        'Security error: Local provider URL must be a localhost address'
+      );
+    });
+
+    it('should use default localhost URL when no URL is provided', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          message: { role: 'assistant', content: 'test' },
+          done_reason: 'stop',
+          model: 'llama2',
+          created_at: new Date().toISOString(),
+          prompt_eval_count: 10,
+          eval_count: 5,
+        }),
+      });
+      globalThis.fetch = mockFetch as unknown as typeof globalThis.fetch;
+
+      const config: RiflebirdConfig['ai'] = {
+        provider: 'local',
+        model: 'llama2',
+        temperature: 0.5,
+      };
+
+      const result = await createAIClient(config);
+
+      await result.client.createChatCompletion({
+        model: 'llama2',
+        temperature: 0.5,
+        messages: [{ role: 'user', content: 'Hi' }],
+      });
+
+      // Verify fetch was called with default localhost URL
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:11434/api/chat',
+        expect.any(Object)
+      );
     });
   });
 });

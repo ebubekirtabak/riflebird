@@ -71,10 +71,36 @@ function mapOllamaToOpenAI(ollamaResult: OllamaChatCompletionResponse): OpenAICh
   };
 }
 
+function isLocalURL(urlString: string): boolean {
+  try {
+    const url = new globalThis.URL(urlString);
+    const hostname = url.hostname.toLowerCase();
+
+    // Allow localhost, 127.x.x.x, and ::1 (IPv6 localhost)
+    const isLocalhost =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('127.') ||
+      hostname === '[::1]' ||
+      hostname === '::1';
+
+    return isLocalhost;
+  } catch {
+    return false;
+  }
+}
+
 async function createLocalClient(
   ai: RiflebirdConfig['ai']
 ): Promise<AIClientResult> {
   const baseUrl = ai.url ?? process.env.LOCAL_API_URL ?? 'http://127.0.0.1:11434';
+
+  // Validate that the URL is actually a local/trusted endpoint to prevent SSRF attacks
+  if (!isLocalURL(baseUrl)) {
+    throw new Error(
+      `Security error: Local provider URL must be a localhost address. Got: ${baseUrl}`
+    );
+  }
 
   if (typeof fetch !== 'function') {
     throw new Error(
