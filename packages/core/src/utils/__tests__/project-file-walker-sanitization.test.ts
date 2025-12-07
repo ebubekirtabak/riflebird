@@ -183,14 +183,14 @@ class ApiClient {
   describe('Edge Cases', () => {
     /**
      * Edge case tests verify robust secret detection across various contexts.
-     * 
+     *
      * Pattern capabilities:
      * - ✅ Standalone detection: sk- API keys, GitHub tokens, AWS keys, DB URLs, JWT, Stripe, SendGrid, Twilio, Mailgun
      * - ✅ Context-aware: Generic API keys with context keywords (apiKey, api_key, apikey)
      * - ✅ Works in: comments, URLs, JSON, template literals, different quote types
      * - ✅ Multiline: Private keys, certificates
      * - ⚠️  Limitation: Base64 encoded secrets not detected (can't detect all encodings)
-     * 
+     *
      * Design philosophy: Maximize detection while maintaining precision.
      * Standalone patterns for known formats (sk-, ghp_, AKIA, SG., etc.)
      * reduce false positives without sacrificing security.
@@ -220,7 +220,7 @@ class ApiClient {
       const testFile = 'commented-secrets.ts';
       const code = `
 // TODO: Replace with actual key: sk-1234567890abcdefghijklmnopqrstuvwxyz123456
-/* 
+/*
  * Production AWS key: AKIAINVALIDKEY000003
  * Don't commit this!
  */

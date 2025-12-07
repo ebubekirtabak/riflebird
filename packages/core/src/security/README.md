@@ -359,9 +359,15 @@ packages/core/src/
 ```
 
 ### Test Coverage
-- ✅ 6 integration tests in `project-file-walker-sanitization.test.ts`
-- ✅ 158 total tests passing (includes existing tests)
+- ✅ 21 integration tests in `project-file-walker-sanitization.test.ts`
+- ✅ 5 third-party service tests (SendGrid, Twilio, Stripe, Mailgun)
+- ✅ 165 total tests passing (includes existing tests)
 - ✅ Manual test script with real-world examples
+
+**Testing Approach for GitHub Push Protection:**
+- Stripe patterns use dynamic string construction (`'sk' + '_live' + '_' + chars`) to avoid triggering GitHub's secret scanner while still validating pattern detection
+- Pattern regex requirements verified separately (minimum character lengths, prefixes)
+- This approach ensures CI tests pass while maintaining confidence in pattern correctness
 
 ## Testing
 

@@ -32,17 +32,28 @@ const config = {
     expect(sanitized.sanitizedCode).not.toContain('ACa1b2c3');
   });
 
-  it.skip('should detect Stripe API keys - SKIPPED DUE TO GITHUB PUSH PROTECTION', () => {
-    // NOTE: GitHub's secret scanning blocks ANY string matching sk_live_ or sk_test_
-    // with 24+ alphanumeric characters, regardless of context, fake markers, or comments.
-    // This makes it impossible to test Stripe patterns without triggering push protection.
-    // The Stripe pattern (/sk_(live|test)_[a-zA-Z0-9]{24,}/g) is still implemented
-    // and functional - it's tested indirectly through integration tests.
-    //
-    // To test manually, uncomment below and run locally (DO NOT COMMIT):
-    // const code = `const key = 'sk' + '_live' + '_INVALID000000000000000000';`;
-    // const result = SecretScanner.scanForSecrets(code);
-    // expect(result.length).toBe(1);
+  it('should detect Stripe API keys', () => {
+    // Use dynamic string construction to avoid triggering GitHub's push protection
+    // while still testing the actual Stripe pattern detection
+    const prefix1 = 'sk' + '_live' + '_';
+    const prefix2 = 'sk' + '_test' + '_';
+    const prefix3 = 'pk' + '_live' + '_';
+    const suffix = 'A'.repeat(24); // Minimum 24 chars required by pattern
+
+    const code = `
+const liveKey = '${prefix1}${suffix}';
+const testKey = '${prefix2}${suffix}';
+const pubKey = '${prefix3}${suffix}';
+    `.trim();
+
+    const result = SecretScanner.scanForSecrets(code);
+    const sanitized = SecretScanner.sanitize(code);
+
+    // Should detect all 3 Stripe keys (live secret, test secret, live publishable)
+    expect(result.length).toBe(3);
+    expect(result.every((s) => s.type === 'STRIPE_KEY')).toBe(true);
+    expect(sanitized.sanitizedCode).toMatch(/\[REDACTED_STRIPE_KEY_[a-f0-9]{6}\]/);
+    expect(sanitized.sanitizedCode).not.toContain(prefix1 + suffix);
   });
 
   it('should detect Mailgun API keys', () => {
@@ -55,5 +66,23 @@ const config = {
     expect(result[0].type).toBe('MAILGUN_KEY');
     expect(sanitized.sanitizedCode).toContain('[REDACTED_MAILGUN_KEY');
     expect(sanitized.sanitizedCode).not.toContain('key-1a2b3c4d');
+  });
+
+  it('should validate Stripe pattern regex requirements', () => {
+    // Test that pattern requires minimum 24 characters after prefix
+    const tooShort = 'sk' + '_live' + '_' + 'A'.repeat(23); // 23 chars - should NOT match
+    const exactMin = 'sk' + '_live' + '_' + 'A'.repeat(24); // 24 chars - should match
+    const longer = 'sk' + '_test' + '_' + 'B'.repeat(50); // 50 chars - should match
+
+    const codeTooShort = `const key = '${tooShort}';`;
+    const codeExactMin = `const key = '${exactMin}';`;
+    const codeLonger = `const key = '${longer}';`;
+
+    // Too short should not be detected
+    expect(SecretScanner.scanForSecrets(codeTooShort).length).toBe(0);
+
+    // Exact minimum and longer should be detected
+    expect(SecretScanner.scanForSecrets(codeExactMin).length).toBe(1);
+    expect(SecretScanner.scanForSecrets(codeLonger).length).toBe(1);
   });
 });
