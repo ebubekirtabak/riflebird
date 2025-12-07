@@ -6,6 +6,7 @@ import { fireCommand } from './commands/fire.js';
 import { initCommand } from './commands/init.js';
 import { targetCommand } from './commands/target.js';
 import { reloadCommand } from './commands/reload.js';
+import { interactiveMode } from './interactivite.js';
 
 const program = new Command();
 
@@ -31,7 +32,7 @@ program
 // Execute test
 program
   .command('fire [testPath]')
-  .description('Execute generated tests')
+  .description('Generate test cases and analyze project structure')
   .option('-h, --headless', 'Run in headless mode')
   .option('-b, --browser <browser>', 'Browser to use (chromium, firefox, webkit)')
   .action(fireCommand);
@@ -49,5 +50,11 @@ program
   .description('Auto-heal broken test with AI')
   .option('--dry-run', 'Show fixes without applying')
   .action(reloadCommand);
+
+// expose interactive mode as a top-level command
+program
+  .command('interactive')
+  .description('Run interactive CLI')
+  .action(interactiveMode);
 
 program.parse();

@@ -79,14 +79,14 @@ Notes:
 riflebird init
 ```
 
-2. Generate a test from natural language:
+2. Generate a test for all files:
 ```bash
-riflebird aim "Test user login with valid credentials"
+riflebird fire --all
 ```
 
-3. Run the generated test:
+or Generate a test for single file:
 ```bash
-riflebird fire
+riflebird fire ./src/components/card/PeopleCard/PeopleCard.component.tsx
 ```
 
 ## Features
@@ -100,10 +100,7 @@ riflebird fire
 ## Commands
 
 - `riflebird init` - Initialize configuration
-- `riflebird aim <description>` - Generate test from description
-- `riflebird fire [path]` - Execute tests
-- `riflebird target <description>` - Find element selector
-- `riflebird reload <test>` - Auto-heal broken test
+- `riflebird fire [path]` - Generate test from description
 
 ## Development
 
