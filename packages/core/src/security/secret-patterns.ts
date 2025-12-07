@@ -74,7 +74,7 @@ export const SECRET_PATTERNS: SecretPattern[] = [
   // Twilio API Keys
   {
     type: 'TWILIO_KEY',
-    pattern: /AC[a-z0-9]{32}/g,
+    pattern: /AC[a-fA-F0-9]{32}/g,
     description: 'Twilio Account SID',
   },
   {
