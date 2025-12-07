@@ -63,7 +63,6 @@ export class FireCommand extends Command<FireInput, FireOutput> {
         info(`Unit test file written to: ${testFilePath}`);
       }
 
-
       return {
         success: true,
         result: 'Test execution completed',
