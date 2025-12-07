@@ -18,6 +18,10 @@
   ],
   "author": "Ebubekir Tabak",
   "license": "MIT",
+  "homepage": "https://github.com/ebubekirtabak/riflebird#readme",
+  "bugs": {
+    "url": "https://github.com/ebubekirtabak/riflebird/issues"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",

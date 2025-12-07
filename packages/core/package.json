@@ -49,5 +49,14 @@
     "automation"
   ],
   "author": "Ebubekir Tabak",
-  "license": "MIT"
+  "license": "MIT",
+  "homepage": "https://github.com/ebubekirtabak/riflebird#readme",
+  "bugs": {
+    "url": "https://github.com/ebubekirtabak/riflebird/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ebubekirtabak/riflebird",
+    "directory": "packages/core"
+  }
 }
