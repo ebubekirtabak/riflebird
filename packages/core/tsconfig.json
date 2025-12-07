@@ -3,7 +3,7 @@
     "target": "ES2020",
     "module": "ESNext",
     "lib": ["ES2020", "DOM"],
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "allowJs": true,
     "checkJs": false,
@@ -17,17 +17,18 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@riflebird/core": ["./index.ts"],
-      "@/*": ["./src/*"],
-      "@models/*": ["./src/models/*"],
-      "@helpers/*": ["./src/helpers/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@config/*": ["./src/config/*"],
-      "@adapters/*": ["./src/adapters/*"],
-      "@commands/*": ["./src/commands/*"],
-      "@prompts/*": ["./src/prompts/*"]
+      "@riflebird/core": ["index.ts"],
+      "@/*": ["src/*"],
+      "@models/*": ["src/models/*"],
+      "@helpers/*": ["src/helpers/*"],
+      "@utils": ["src/utils/index.ts"],
+      "@utils/*": ["src/utils/*"],
+      "@config/*": ["src/config/*"],
+      "@adapters/*": ["src/adapters/*"],
+      "@commands/*": ["src/commands/*"],
+      "@prompts/*": ["src/prompts/*"]
     }
   },
-  "include": ["**/*.ts"],
+  "include": ["src/**/*", "index.ts"],
   "exclude": ["node_modules", "dist"]
 }

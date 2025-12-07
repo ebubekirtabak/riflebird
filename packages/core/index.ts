@@ -5,6 +5,20 @@ export { Riflebird } from './src/riflebird';
 export type { RiflebirdConfig } from './src/config/schema';
 export type { TestFrameworkAdapter, TestPlan, TestStep, Assertion } from './src/adapters/base';
 
+// Export config schemas
+export {
+  AIProviderSchema,
+  FrameworkSchema,
+  UnitTestFrameworkSchema,
+  CoverageProviderSchema,
+  CoverageReporterSchema,
+  TestEnvironmentSchema,
+  DEFAULT_UNIT_TEST_PATTERNS,
+  DEFAULT_E2E_TEST_PATTERNS,
+  DEFAULT_COVERAGE_INCLUDE,
+  DEFAULT_COVERAGE_EXCLUDE,
+} from './src/config/schema';
+
 // Export config helper
 export { defineConfig } from './src/config/loader';
 
