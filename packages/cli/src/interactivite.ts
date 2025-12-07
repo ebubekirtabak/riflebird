@@ -1,23 +1,15 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import figlet from 'figlet';
 import { fireCommand } from './commands/fire.js';
 import { initCommand } from './commands/init.js';
 import { targetCommand } from './commands/target.js';
 import { reloadCommand } from './commands/reload.js';
+import { ASCII_LOGO } from './logo.js';
 
 export async function interactiveMode() {
   console.clear();
 
-  // ASCII art logo
-  console.log(
-    chalk.blue(
-      figlet.textSync('RIFLEBIRD', {
-        font: 'Standard',
-      })
-    )
-  );
-
+  console.log(chalk.blue(ASCII_LOGO));
   console.log(chalk.gray('🎯 Precision Testing with AI\n'));
 
   const { action } = await inquirer.prompt([
