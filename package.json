@@ -29,8 +29,7 @@
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint -- --fix",
     "publish": "pnpm changeset publish",
-    "prepare": "husky",
-    "pack:local": "pnpm --filter @riflebird/core pack --pack-destination ../../ && pnpm --filter riflebird pack --pack-destination ../../"
+    "prepare": "husky"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
