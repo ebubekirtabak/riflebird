@@ -16,6 +16,68 @@ export async function getFileTree(
   return await buildFileTree(rootPath, '', excludeDirs, includeExtensions, 0, maxDepth);
 }
 
+export async function buildFlattenFileTree(
+  rootPath: string,
+  relativePath: string,
+  excludeDirs: string[],
+  includeExtensions: string[] | undefined,
+  depth: number,
+  maxDepth: number
+): Promise<FileNode[]> {
+  if (depth > maxDepth) {
+    return [];
+  }
+
+  const currentPath = path.join(rootPath, relativePath);
+  const files: FileNode[] = [];
+
+  try {
+    const entries = await fs.readdir(currentPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const entryRelativePath = path.join(relativePath, entry.name);
+
+      if (entry.isDirectory()) {
+        // Skip excluded directories
+        if (excludeDirs.includes(entry.name)) {
+          continue;
+        }
+
+        // Recursively collect files from subdirectories
+        const childFiles = await buildFlattenFileTree(
+          rootPath,
+          entryRelativePath,
+          excludeDirs,
+          includeExtensions,
+          depth + 1,
+          maxDepth
+        );
+
+        files.push(...childFiles);
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name);
+
+        // Filter by extensions if specified
+        if (includeExtensions && !includeExtensions.includes(ext)) {
+          continue;
+        }
+
+        files.push({
+          name: entry.name,
+          path: entryRelativePath,
+          type: 'file',
+          extension: ext,
+        });
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to read directory ${currentPath}: ${message}`);
+  }
+
+  return files;
+}
+
 async function buildFileTree(
   rootPath: string,
   relativePath: string,

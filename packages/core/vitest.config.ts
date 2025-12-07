@@ -35,6 +35,7 @@ export default defineConfig({
       '@commands': resolve(__dirname, './src/commands'),
       '@prompts': resolve(__dirname, './src/prompts'),
       '@providers': resolve(__dirname, './src/providers'),
+      '@security': resolve(__dirname, './src/security'),
     },
   },
 });

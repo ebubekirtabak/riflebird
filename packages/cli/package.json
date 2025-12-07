@@ -10,7 +10,9 @@
     "dev": "tsup --watch",
     "build": "tsup",
     "test": "vitest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "debug": "node --inspect-brk --enable-source-maps ./dist/index.js",
+    "debug:fire": "node --inspect-brk --enable-source-maps ./dist/index.js fire"
   },
   "dependencies": {
     "@riflebird/core": "workspace:*",
@@ -21,7 +23,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    
+
     "@types/inquirer": "^9.0.7",
     "@types/node": "^20.10.5",
     "@vitest/coverage-v8": "^1.0.4",

@@ -1,4 +1,3 @@
-// packages/core/src/adapters/playwright.ts
 import { chromium, Browser, Page, PageScreenshotOptions } from 'playwright';
 import { TestFrameworkAdapter, TestPlan } from './base';
 import { RiflebirdConfig } from '../config/schema';
