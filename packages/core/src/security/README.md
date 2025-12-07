@@ -121,7 +121,7 @@ When Riflebird reads code from a user's project to generate tests or analyze con
 
 **Key Security Points:**
 - ✅ Secrets never leave the local machine in plaintext
-- ✅ Double protection: file reading + LLM message sanitization
+- ✅ Single-layer protection: file reading secret sanitization
 - ✅ Logging never includes actual secret values
 - ✅ Redacted values use SHA-256 hash identifiers (no actual secret characters exposed)
 - ✅ Hash-based placeholders maintain uniqueness while preventing reconstruction
