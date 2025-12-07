@@ -59,8 +59,8 @@ These are internal, approximate success rates for Riflebird's test-generation ta
 
 | Model | Provider | Tested For | Success Rate | Notes |
 |---|---|---:|---:|---|
-| Gemini 3 Pro | Google | Test generation (unit / e2e) | N/A | 
-| GPT-4 | OpenAI | Test generation (unit / e2e) | N/A | 
+| Gemini 3 Pro | Google | Test generation (unit / e2e) | N/A | |
+| GPT-4 | OpenAI | Test generation (unit / e2e) | N/A |  |
 | GPT-4o | OpenAI | Test generation | N/A | |
 | gpt-3.5-turbo | OpenAI | Test generation | N/A |  |
 | Claude 2 | Anthropic | Test generation | N/A | |
