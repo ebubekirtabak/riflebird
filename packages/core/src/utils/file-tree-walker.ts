@@ -13,11 +13,7 @@ export type FileTreeWalkerContext = {
 };
 
 export class FileTreeWalker {
-  context: FileTreeWalkerContext;
-
-  constructor(context: FileTreeWalkerContext) {
-    this.context = context;
-  }
+  constructor(private context: FileTreeWalkerContext) {}
 
   async findConfigFiles(): Promise<ProjectConfigFiles> {
     debug(`Here is the file tree of the project:\n\n${encode(this.context.fileTree)}`);
