@@ -48,9 +48,6 @@ importers:
       '@riflebird/core':
         specifier: workspace:*
         version: link:../core
-      '@types/figlet':
-        specifier: ^1.7.0
-        version: 1.7.0
       chalk:
         specifier: ^5.3.0
         version: 5.6.2
@@ -70,6 +67,9 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
+      '@types/figlet':
+        specifier: ^1.7.0
+        version: 1.7.0
       '@types/inquirer':
         specifier: ^9.0.7
         version: 9.0.9
