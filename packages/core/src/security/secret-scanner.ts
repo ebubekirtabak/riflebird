@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import {
   SECRET_PATTERNS,
   FALSE_POSITIVE_PATTERNS,
@@ -57,15 +58,17 @@ export class SecretScanner {
 
   /**
    * Create redacted placeholder for a secret
+   * Uses a hash-based identifier instead of exposing actual secret characters
    */
   private static createRedactedValue(
     type: SecretType,
     originalValue: string,
     preserveLength = false
   ): string {
-    // Keep last 3 characters for debugging (if safe)
-    const suffix = originalValue.length > 3 ? originalValue.slice(-3) : 'xxx';
-    const placeholder = `[REDACTED_${type}_${suffix}]`;
+    // Use SHA-256 hash for a stable, unique identifier that doesn't expose secret content
+    // Take first 6 characters of hash for readability while maintaining uniqueness
+    const hash = crypto.createHash('sha256').update(originalValue).digest('hex').slice(0, 6);
+    const placeholder = `[REDACTED_${type}_${hash}]`;
 
     if (preserveLength && originalValue.length > placeholder.length) {
       // Pad with asterisks to match original length

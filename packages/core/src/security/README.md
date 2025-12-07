@@ -123,7 +123,8 @@ When Riflebird reads code from a user's project to generate tests or analyze con
 - ✅ Secrets never leave the local machine in plaintext
 - ✅ Double protection: file reading + LLM message sanitization
 - ✅ Logging never includes actual secret values
-- ✅ Redacted values preserve last 3 chars for debugging
+- ✅ Redacted values use SHA-256 hash identifiers (no actual secret characters exposed)
+- ✅ Hash-based placeholders maintain uniqueness while preventing reconstruction
 - ✅ Original files on disk remain unchanged
 
 **Supported Secret Types:**
@@ -268,8 +269,30 @@ console.log(`Found ${secrets.length} secrets`);
 const result = SecretScanner.sanitize(code);
 console.log(result.sanitizedCode);
 // Output:
-// const apiKey = "[REDACTED_API_KEY_456]";
-// const dbUrl = "[REDACTED_DATABASE_URL_/db]";
+// const apiKey = "[REDACTED_API_KEY_3f810a]";
+// const dbUrl = "[REDACTED_DATABASE_URL_f8a2b1]";
+```
+
+**Security Note: Hash-Based Identifiers**
+
+Redacted placeholders use SHA-256 hash identifiers instead of exposing actual secret characters:
+- ✅ `[REDACTED_API_KEY_3f810a]` - First 6 chars of SHA-256 hash
+- ❌ ~~`[REDACTED_API_KEY_456]`~~ - Would expose last 3 chars of secret
+
+**Why hash-based?**
+- **Prevents reconstruction**: Attackers cannot reverse-engineer secrets from suffixes
+- **Maintains uniqueness**: Same secret = same hash, different secrets = different hashes
+- **Debugging friendly**: Stable identifiers help track same secrets across files
+- **No information leakage**: Hash provides no clues about actual secret content
+
+**Security comparison:**
+```typescript
+// ❌ UNSAFE: Exposes last 3 characters
+const secret = "sk-abc123xyz456";
+const unsafe = "[REDACTED_API_KEY_456]"; // Leaks "456"
+
+// ✅ SAFE: Hash-based identifier
+const safe = "[REDACTED_API_KEY_3f810a]"; // SHA-256 hash, no secret content
 ```
 
 ### Check for Secrets

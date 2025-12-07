@@ -40,11 +40,11 @@ export const config = {
     // Read through ProjectFileWalker (should sanitize)
     const sanitizedContent = await fileWalker.readFileFromProject(testFile);
 
-    // Verify secrets are redacted
-    expect(sanitizedContent).toContain('[REDACTED_API_KEY_456]');
-    expect(sanitizedContent).toContain('[REDACTED_AWS_KEY_001]');
-    expect(sanitizedContent).toContain('[REDACTED_GITHUB_TOKEN_xyz]');
-    expect(sanitizedContent).toContain('[REDACTED_DATABASE_URL');
+    // Verify secrets are redacted (using hash-based identifiers, not specific suffixes)
+    expect(sanitizedContent).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
+    expect(sanitizedContent).toMatch(/\[REDACTED_AWS_KEY_[a-f0-9]{6}\]/);
+    expect(sanitizedContent).toMatch(/\[REDACTED_GITHUB_TOKEN_[a-f0-9]{6}\]/);
+    expect(sanitizedContent).toMatch(/\[REDACTED_DATABASE_URL_[a-f0-9]{6}\]/);
 
     // Verify original secrets are NOT in sanitized content
     expect(sanitizedContent).not.toContain('sk-1234567890abcdefghijklmnopqrstuvwxyz123456');
@@ -137,10 +137,10 @@ module.exports = {
     // Check that at least some secrets were detected and redacted
     expect(result).toContain('[REDACTED_');
 
-    // Verify specific ones we know match current patterns
-    expect(result).toContain('[REDACTED_API_KEY_456]');
-    expect(result).toContain('[REDACTED_DATABASE_URL');
-    expect(result).toContain('[REDACTED_JWT_TOKEN_');
+    // Verify specific ones we know match current patterns (hash-based identifiers)
+    expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
+    expect(result).toMatch(/\[REDACTED_DATABASE_URL_[a-f0-9]{6}\]/);
+    expect(result).toMatch(/\[REDACTED_JWT_TOKEN_[a-f0-9]{6}\]/);
 
     // Original secrets should not be present
     expect(result).not.toContain('sk-1234567890abcdefghijklmnopqrstuvwxyz123456');
@@ -175,8 +175,8 @@ class ApiClient {
     expect(result).toContain('constructor()');
     expect(result).toContain('async fetchData()');
 
-    // Secret should be redacted
-    expect(result).toContain('[REDACTED_API_KEY_456]');
+    // Secret should be redacted (hash-based identifier)
+    expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
     expect(result).not.toContain('sk-1234567890abcdefghijklmnopqrstuvwxyz123456');
   });
 
@@ -232,8 +232,8 @@ const placeholder = "safe-value";
       const result = await fileWalker.readFileFromProject(testFile);
 
       // Both secrets should be detected - AWS keys and sk- API keys have standalone patterns
-      expect(result).toContain('[REDACTED_AWS_KEY_003]');
-      expect(result).toContain('[REDACTED_API_KEY_456]');
+      expect(result).toMatch(/\[REDACTED_AWS_KEY_[a-f0-9]{6}\]/);
+      expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
       expect(result).not.toContain('AKIAINVALIDKEY000003');
       expect(result).not.toContain('sk-1234567890abcdefghijklmnopqrstuvwxyz123456');
     });
@@ -250,8 +250,8 @@ const msg = \`Token: ghp_1234567890abcdefghijklmnopqrstuvwxyz\`;
       const result = await fileWalker.readFileFromProject(testFile);
 
       // Both secrets detected with standalone patterns
-      expect(result).toContain('[REDACTED_GITHUB_TOKEN_xyz]');
-      expect(result).toContain('[REDACTED_API_KEY_456]');
+      expect(result).toMatch(/\[REDACTED_GITHUB_TOKEN_[a-f0-9]{6}\]/);
+      expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
       expect(result).not.toContain('sk-1234567890abcdefghijklmnopqrstuvwxyz123456');
       expect(result).not.toContain('ghp_1234567890abcdefghijklmnopqrstuvwxyz');
     });
@@ -271,9 +271,9 @@ const msg = \`Token: ghp_1234567890abcdefghijklmnopqrstuvwxyz\`;
       const result = await fileWalker.readFileFromProject(testFile);
 
       // All three secrets detected - GitHub token, DB URL, and sk- API key
-      expect(result).toContain('[REDACTED_GITHUB_TOKEN_xyz]');
+      expect(result).toMatch(/\[REDACTED_GITHUB_TOKEN_[a-f0-9]{6}\]/);
       expect(result).toContain('[REDACTED_DATABASE_URL');
-      expect(result).toContain('[REDACTED_API_KEY_456]');
+      expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
       expect(result).not.toContain('sk-1234567890abcdefghijklmnopqrstuvwxyz123456');
       expect(result).not.toContain('password123');
     });
@@ -287,8 +287,8 @@ const msg = \`Token: ghp_1234567890abcdefghijklmnopqrstuvwxyz\`;
       const result = await fileWalker.readFileFromProject(testFile);
 
       // Both secrets detected with standalone patterns
-      expect(result).toContain('[REDACTED_GITHUB_TOKEN_xyz]');
-      expect(result).toContain('[REDACTED_API_KEY_456]');
+      expect(result).toMatch(/\[REDACTED_GITHUB_TOKEN_[a-f0-9]{6}\]/);
+      expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
       expect(result).not.toContain('ghp_1234567890abcdefghijklmnopqrstuvwxyz');
       expect(result).not.toContain('sk-1234567890abcdefghijklmnopqrstuvwxyz123456');
     });
@@ -304,9 +304,8 @@ ThisIsNotARealPrivateKeyJustForTestingPurposesInvalidData123
 
       const result = await fileWalker.readFileFromProject(testFile);
 
-      // Private key should be detected and redacted
-      // Suffix comes from last 3 chars of matched content (which includes "-----END")
-      expect(result).toContain('[REDACTED_PRIVATE_KEY_---]');
+      // Private key should be detected and redacted (hash-based identifier)
+      expect(result).toMatch(/\[REDACTED_PRIVATE_KEY_[a-f0-9]{6}\]/);
       expect(result).not.toContain('ThisIsNotARealPrivateKey');
       expect(result).not.toContain('BEGIN RSA PRIVATE KEY');
     });
@@ -339,7 +338,7 @@ const apiKey = "sk-1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij";
 
       const result = await fileWalker.readFileFromProject(testFile);
 
-      expect(result).toContain('[REDACTED_API_KEY_456]');
+      expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
       expect(result).not.toContain('sk-1234567890abcdefghijklmnopqrstuvwxyz123456');
     });
 
@@ -356,9 +355,9 @@ const key3 = "sk-3333333333333333333333333333333333333333";
       const result = await fileWalker.readFileFromProject(testFile);
 
       // All three sk- prefixed keys detected with standalone pattern
-      expect(result).toContain('[REDACTED_API_KEY_111]');
-      expect(result).toContain('[REDACTED_API_KEY_222]');
-      expect(result).toContain('[REDACTED_API_KEY_333]');
+      expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
+      expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
+      expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
       expect(result).not.toContain('sk-1111111111111111111111111111111111111111');
       expect(result).not.toContain('sk-2222222222222222222222222222222222222222');
       expect(result).not.toContain('sk-3333333333333333333333333333333333333333');
@@ -376,8 +375,8 @@ const backtick = \`sk-1234567890abcdefghijklmnopqrstuvwxyz123456\`;
 
       const result = await fileWalker.readFileFromProject(testFile);
 
-      // All three quotes should have sk- API key detected
-      const redactedCount = (result.match(/\[REDACTED_API_KEY_456\]/g) || []).length;
+      // All three quotes should have sk- API key detected (all same value = same hash)
+      const redactedCount = (result.match(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/g) || []).length;
       expect(redactedCount).toBe(3);
       expect(result).not.toContain('sk-1234567890abcdefghijklmnopqrstuvwxyz123456');
     });
@@ -395,7 +394,7 @@ const raw = "sk-1234567890abcdefghijklmnopqrstuvwxyz123456";
       const result = await fileWalker.readFileFromProject(testFile);
 
       // Raw sk- key is detected with standalone pattern
-      expect(result).toContain('[REDACTED_API_KEY_456]');
+      expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
       expect(result).not.toContain('sk-1234567890abcdefghijklmnopqrstuvwxyz123456');
       // Base64 won't match pattern (expected - can't detect all encodings)
       expect(result).toContain('c2stMTIzNDU2Nzg5MGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6MTIzNDU2');
@@ -427,8 +426,8 @@ const database_url = "postgres://user:password@localhost:5432/mydb";
     it('should handle already redacted values', async () => {
       const testFile = 'already-sanitized.ts';
       const code = `
-const key1 = "[REDACTED_API_KEY_456]";
-const key2 = "[REDACTED_AWS_KEY_XYZ]";
+const key1 = "[REDACTED_API_KEY_abc123]";
+const key2 = "[REDACTED_AWS_KEY_def456]";
       `.trim();
 
       await fs.writeFile(path.join(tempDir, testFile), code, 'utf-8');
@@ -451,7 +450,7 @@ const message = "Hello 世界 🌍";
 
       const result = await fileWalker.readFileFromProject(testFile);
 
-      expect(result).toContain('[REDACTED_API_KEY_456]');
+      expect(result).toMatch(/\[REDACTED_API_KEY_[a-f0-9]{6}\]/);
       expect(result).toContain('🔑');
       expect(result).toContain('世界');
       expect(result).toContain('🌍');
