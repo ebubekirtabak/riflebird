@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/riflebird-logo.svg" alt="Riflebird Logo" width="200" height="200">
+  <img src=".github/riflebird-logo.png" alt="Riflebird Logo" width="200" height="200">
 </p>
 
 <h1 align="center">Riflebird</h1>
