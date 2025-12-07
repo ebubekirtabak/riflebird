@@ -10,7 +10,6 @@ export * from './project-paths';
 export * from './log-util';
 
 // Parsing utilities
-export * from './json-extractor';
 export * from './markdown-util';
 
 // Constants
