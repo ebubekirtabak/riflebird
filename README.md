@@ -146,9 +146,9 @@ Riflebird includes a built-in security layer that automatically detects and reda
              ▼
     ┌────────────────────────────────────┐
     │   3. Sanitized Code                │
-    │   apiKey = "[REDACTED_API_KEY_ef]" │
-    │   awsKey = "[REDACTED_AWS_KEY_YZ]" │
-    │   token = "[REDACTED_GITHUB_...]"  │
+    │   apiKey = "[REDACTED_API_KEY_3f810a]" │
+    │   awsKey = "[REDACTED_AWS_KEY_f8a2b1]" │
+    │   token = "[REDACTED_GITHUB_4b9d2e]"  │
     └────────┬───────────────────────────┘
              │
              │ 🔒 Safe to analyze
@@ -160,6 +160,8 @@ Riflebird includes a built-in security layer that automatically detects and reda
 
              ✅ Your secrets never leave your machine in plaintext
              📊 Only detection stats logged: "Sanitized 3 secrets from api-client.ts"
+
+             NOTE: Sanitization previously performed inside the `ai-client` helper was removed to avoid double-sanitization. Riflebird performs sanitization at a single entry point: `ProjectFileWalker.readFileFromProject()` — all code is sanitized there before being passed to downstream components.
 ```
 
 **Protected secret types:**

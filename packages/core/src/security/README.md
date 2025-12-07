@@ -17,6 +17,8 @@ The Riflebird security layer prevents sensitive data (API keys, tokens, password
 
 When Riflebird reads code from a user's project to generate tests or analyze context, it automatically sanitizes any detected secrets before sending the code to AI providers (OpenAI, Anthropic, local LLMs).
 
+Note: Sanitization previously existed in the `ai-client` helper but has been removed to avoid double-sanitization. Riflebird now performs sanitization at a single entry point: `ProjectFileWalker.readFileFromProject()` (see "ProjectFileWalker integration"), and downstream components should expect already-sanitized content.
+
 **This protection is automatic and always active** - you don't need to configure anything. Think of it as a safety net for human error.
 
 ## Features
@@ -102,14 +104,7 @@ When Riflebird reads code from a user's project to generate tests or analyze con
     │  - Context provider                     │
     └────────────┬───────────────────────────┘
                  │
-                 │ 6. Additional sanitization before LLM
-                 ▼
-        ┌─────────────────────────┐
-        │    AI Client Wrapper     │
-        │  sanitizeMessages()      │
-        └────────┬────────────────┘
-                 │
-                 │ 7. Send sanitized content
+                 │ 6. Send sanitized content to LLM
                  ▼
     ┌────────────────────────────────────────┐
     │         LLM PROVIDERS                   │
@@ -121,11 +116,12 @@ When Riflebird reads code from a user's project to generate tests or analyze con
 
 **Key Security Points:**
 - ✅ Secrets never leave the local machine in plaintext
-- ✅ Single-layer protection: file reading secret sanitization
+- ✅ Single protection layer at file reading - all code sanitized at entry point
 - ✅ Logging never includes actual secret values
 - ✅ Redacted values use SHA-256 hash identifiers (no actual secret characters exposed)
 - ✅ Hash-based placeholders maintain uniqueness while preventing reconstruction
 - ✅ Original files on disk remain unchanged
+- ✅ All user code passes through ProjectFileWalker for consistent protection
 
 **Supported Secret Types:**
 - 🔑 **API Keys** - Generic API keys with context
@@ -159,46 +155,33 @@ When Riflebird reads code from a user's project to generate tests or analyze con
    - **Never** logs actual secret values
    - Provides statistics and history
 
-4. **`project-file-walker.ts`** integration (Primary entry point)
+4. **`project-file-walker.ts`** integration (Single entry point)
    - **All file reads from user projects pass through here**
    - `readFileFromProject()` automatically sanitizes content
    - Used by: `AimCommand`, `FireCommand`, `ProjectContextProvider`
-   - Ensures secrets never reach Riflebird's processing pipeline
-
-5. **`ai-client.ts`** integration (Secondary protection)
-   - Wraps AI client with `sanitizeMessages()`
-   - Sanitizes before LLM calls as additional safety layer
-   - Works with OpenAI, Anthropic, local providers
+   - Single-layer protection ensures secrets never reach processing pipeline or LLM
+   - No additional sanitization needed downstream
 
 ## Usage
 
 ### Automatic (Default)
-
-Sanitization happens automatically at two levels:
-
-**1. File Reading (Primary Protection)**
+✅ **Secure Redaction** - Replaces secrets with:
+- Format: `[REDACTED_{TYPE}_{hash}]`
+- Hash: First 6 hex characters of SHA-256(original)
+- Example: `sk-abc123...xyz456` → `[REDACTED_API_KEY_3f810a]`
 ```typescript
 import { ProjectFileWalker } from '@riflebird/core/utils';
-
-// Automatically sanitizes when reading user code
-const walker = new ProjectFileWalker({ projectRoot: '/path/to/project' });
-const content = await walker.readFileFromProject('src/api-client.ts');
-// content is already sanitized - secrets replaced with [REDACTED_*]
-```
-
-**2. LLM Communication (Secondary Protection)**
-```typescript
-const riflebird = new Riflebird();
-await riflebird.init();
-
-// Any secrets in descriptions or code are sanitized before LLM
-await riflebird.aim('Test login with key: sk-abc123xyz456');
-await riflebird.fire('tests/api.test.ts'); // Reads and sanitizes test file
-```
-
+**Key Security Points:**
+- ✅ Secrets never leave the local machine in plaintext
+- ✅ Single protection layer at file reading - all code sanitized at entry point
+- ✅ Logging never includes actual secret values
+- ✅ Redacted values use SHA-256 hash identifiers (no actual secret characters exposed)
+- ✅ Hash-based placeholders maintain uniqueness while preventing reconstruction
+- ✅ Original files on disk remain unchanged
+- ✅ All user code passes through ProjectFileWalker for consistent protection
 **How it works in practice:**
 ```typescript
-// User's project file: api-client.ts
+  │  [REDACTED_API_KEY_3f810a]  │
 const API_KEY = "sk-1234567890abcdefghijklmnopqrstuvwxyz123456";
 const AWS_KEY = "AKIAIOSFODNN7PRODXYZ";
 
@@ -354,8 +337,6 @@ packages/core/src/
 │   └── __tests__/
 │       ├── project-file-walker.test.ts
 │       └── project-file-walker-sanitization.test.ts  # Integration tests
-└── helpers/
-    └── ai-client.ts                # 🔒 SECONDARY: LLM message sanitization
 ```
 
 ### Test Coverage
