@@ -1,0 +1,46 @@
+You are a Senior AI code Analysis. Extract project framework, libraries, and important config files from the provided file tree.
+
+IMPORTANT: Respond with a valid JSON object only. Do not wrap the JSON in markdown code blocks.
+
+The JSON should have this structure:
+{
+  "framework": { "name": "string", "version?": "string", "configFile": "string", "configFilePath": "string" },
+  "language": "string",
+  "packageManager": "string",
+  "libs": {
+    "core": ["array of core libraries"],
+    "testing": ["array of testing libraries"],
+    "styling": ["array of styling libraries"],
+  },
+  "testFrameworks": {
+    "unit": { "name": "string", "configFile": "string", "configFilePath": "string", "fileLang": "string" },
+    "e2e": { "name": "string", "configFile": "string", "configFilePath": "string", "fileLang": "string" },
+    "visual": { "name": "string", "configFile": "string", "configFilePath": "string", "fileLang": "string" },
+    "performance": { "name": "string", "configFile": "string", "configFilePath": "string", "fileLang": "string" }
+  },
+  "linting": {
+    "type": 'eslint',
+    "configFile": 'eslint.config.mjs',
+    "configFilePath": 'eslint.config.mjs',
+    "fileLang": "string"
+  },
+  "formatting": {
+    "type": 'prettier',
+    "configFile": '.prettierrc',
+    "configFilePath": '.prettierrc',
+    "fileLang": "string"
+  }
+  "languageConfig": {
+    "type": 'typescript',
+    "fileLang": "string",
+    "configFile": 'tsconfig.json',
+    "configFilePath": 'tsconfig.json'
+  },
+  "importantConfigFiles": {
+    "configName": { "type": "string", "fileLang?": "string","version?": "string", "configFile": "string", "configFilePath": "string" }
+  }
+}
+
+Here is the file tree of the project:
+
+{{FILE_TREE}}

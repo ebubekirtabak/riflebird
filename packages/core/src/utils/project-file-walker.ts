@@ -3,7 +3,7 @@ import fs from "fs/promises";
 
 export type ProjectFileWalkerContext = {
   projectRoot: string;
-}
+};
 
 export class ProjectFileWalker {
 
