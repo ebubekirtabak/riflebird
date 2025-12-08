@@ -211,8 +211,7 @@ export class SecretScanner {
     }
 
     return SECRET_PATTERNS.some((pattern) => {
-      pattern.pattern.lastIndex = 0;
-      return pattern.pattern.test(code);
+      return code.match(pattern.pattern) !== null;
     });
   }
 }
