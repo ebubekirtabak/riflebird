@@ -145,7 +145,7 @@ export const SECRET_PATTERNS: SecretPattern[] = [
   // Passwords in code
   {
     type: 'PASSWORD',
-    pattern: /(?:password|passwd|pwd)\s*[:=]\s*["']([^"'\s]{6,})["']/gi,
+    pattern: /(?:password|passwd|pwd)\s*[:=]\s*["']([A-Za-z0-9!@#$%^&*()_+\-=[\]{};:,.<>?]{8,128})["']/gi,
     description: 'Password',
     contextRequired: true, // Need to verify it's not a placeholder
   },
