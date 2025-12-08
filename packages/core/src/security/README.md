@@ -40,9 +40,9 @@ Note: Sanitization previously existed in the `ai-client` helper but has been rem
 - Already redacted values (`[REDACTED_*]`)
 
 ✅ **Secure Redaction** - Replaces secrets with:
-- Format: `[REDACTED_{TYPE}_{suffix}]`
-- Suffix: Last 3 characters of original (for debugging)
-- Example: `sk-abc123...xyz456` → `[REDACTED_API_KEY_456]`
+- Format: `[REDACTED_{TYPE}_{hash}]`
+- Hash: First 6 characters of SHA-256 hash (for debugging without exposing content)
+- Example: `sk-abc123...xyz456` → `[REDACTED_API_KEY_3f810a]`
 
 ✅ **Safe Logging** - Logs sanitization events without exposing secrets:
 ```
