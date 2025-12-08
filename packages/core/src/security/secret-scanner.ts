@@ -156,27 +156,49 @@ export class SecretScanner {
   static sanitize(code: string, options: ScanOptions = {}): SanitizationResult {
     const originalLength = code.length;
     const secrets = this.scanForSecrets(code, options);
+    // Build sanitized output by iterating the original code and applying
+    // non-overlapping replacements. This avoids index-shift problems when
+    // multiple detected secrets overlap. We prefer the earliest detection
+    // and in case of identical starts, the longest match.
+    const original = code;
 
-    let sanitizedCode = code;
+    // Sort ascending by start, and prefer longer matches when starts are equal
+    const ordered = [...secrets].sort((a, b) => {
+      if (a.start !== b.start) return a.start - b.start;
+      return b.end - a.end; // longer first
+    });
 
-    // Replace secrets from end to start (to preserve indices)
-    for (const secret of secrets) {
-      const before = sanitizedCode.substring(0, secret.start);
-      const after = sanitizedCode.substring(secret.end);
+    let result = '';
+    let cursor = 0;
+    const appliedSecrets: DetectedSecret[] = [];
 
-      // Replace the secret value within the match
-      const originalSegment = sanitizedCode.substring(secret.start, secret.end);
+    for (const secret of ordered) {
+      // Skip if this secret overlaps with previously applied replacement
+      if (secret.start < cursor) continue;
+
+      // Append unchanged text up to the secret
+      result += original.slice(cursor, secret.start);
+
+      // Extract the original segment and replace the detected secret value
+      const originalSegment = original.slice(secret.start, secret.end);
       const sanitizedSegment = originalSegment.replace(secret.value, secret.redactedValue);
 
-      sanitizedCode = before + sanitizedSegment + after;
+      result += sanitizedSegment;
+      appliedSecrets.push(secret);
+
+      // Advance cursor past the replaced segment
+      cursor = secret.end;
     }
 
+    // Append any remaining text
+    result += original.slice(cursor);
+
     return {
-      sanitizedCode,
-      secretsDetected: secrets.length,
-      secrets,
+      sanitizedCode: result,
+      secretsDetected: appliedSecrets.length,
+      secrets: appliedSecrets,
       originalLength,
-      sanitizedLength: sanitizedCode.length,
+      sanitizedLength: result.length,
     };
   }
 
