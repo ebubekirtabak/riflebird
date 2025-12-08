@@ -86,14 +86,15 @@ export function calculateTotal(items: number[]): number {
 
     await fs.writeFile(path.join(tempDir, testFile), cleanCode, 'utf-8');
 
+    const statsBefore = sanitizationLogger.getStatistics();
     const result = await fileWalker.readFileFromProject(testFile);
+    const statsAfter = sanitizationLogger.getStatistics();
 
     // Should return unchanged
     expect(result).toBe(cleanCode);
 
     // Should not log any sanitization
-    const stats = sanitizationLogger.getStatistics();
-    expect(stats.totalSecretsDetected).toBe(0);
+    expect(statsAfter.totalSecretsDetected).toBe(statsBefore.totalSecretsDetected);
   });
 
   it('should ignore false positive patterns', async () => {
