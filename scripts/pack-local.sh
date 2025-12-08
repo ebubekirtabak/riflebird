@@ -14,7 +14,7 @@ cd ../..
 # Pack CLI package
 cd packages/cli
 pnpm pack
-CLI_TGZ=$(ls riflebird-*.tgz 2>/dev/null || ls *.tgz)
+CLI_TGZ=$(ls -t riflebird-*.tgz 2>/dev/null | head -n 1 || ls -t *.tgz | head -n 1)
 echo "✓ CLI packed: $CLI_TGZ"
 cd ../..
 
