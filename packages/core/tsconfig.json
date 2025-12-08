@@ -27,7 +27,9 @@
       "@adapters/*": ["src/adapters/*"],
       "@commands/*": ["src/commands/*"],
       "@prompts/*": ["src/prompts/*"],
-      "@providers/*": ["src/providers/*"]
+      "@providers/*": ["src/providers/*"],
+      "@security/*": ["src/security/*"],
+      "@security": ["src/security/index.ts"]
     }
   },
   "include": ["src/**/*", "index.ts"],

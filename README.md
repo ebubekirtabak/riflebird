@@ -86,7 +86,7 @@ riflebird fire --all
 
 or Generate a test for single file:
 ```bash
-riflebird fire ./src/components/card/PeopleCard/PeopleCard.component.tsx
+riflebird fire ./src/components/cards/PeopleCard/PeopleCard.component.tsx
 ```
 
 ## Features
@@ -96,11 +96,98 @@ riflebird fire ./src/components/card/PeopleCard/PeopleCard.component.tsx
 - 🎨 **Visual Testing** - AI-powered visual regression testing
 - 🧠 **Smart Selectors** - Intelligent element targeting
 - 🚀 **Multi-Framework** - Supports Playwright, Cypress, Puppeteer, WebdriverIO
+- 🔒 **Secret Sanitization** - Automatically detects and redacts API keys, tokens, and credentials before sending code to LLM providers ([learn more](packages/core/src/security/README.md))
 
 ## Commands
 
 - `riflebird init` - Initialize configuration
 - `riflebird fire [path]` - Generate test from description
+
+## Security
+
+### Automatic Secret Sanitization 🔒
+
+**Humans make mistakes. We've got you covered.**
+
+Riflebird includes a built-in security layer that automatically detects and redacts sensitive data before sending code to AI providers. Even if secrets accidentally end up in your code (we know it happens!), they won't reach the LLM.
+
+#### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    YOUR PROJECT FILES                       │
+│  📄 api-client.ts                                           │
+│     const apiKey = "sk-1234567890abcdef..."                 │
+│     const awsKey = "AKIAIOSFODNN7PRODXYZ"                   │
+│  📄 config.json                                             │
+│     { "githubToken": "ghp_abc123xyz..." }                   │
+│  📄 .env                                                    │
+│     DATABASE_URL=postgres://user:pass@host/db              │
+└────────────┬────────────────────────────────────────────────┘
+             │
+             │ riflebird fire --all
+             ▼
+    ┌────────────────────────────────────┐
+    │   1. Read Files                    │
+    │   ProjectFileWalker                │
+    └────────┬───────────────────────────┘
+             │
+             │ 🔍 Scan for patterns
+             ▼
+    ┌────────────────────────────────────┐
+    │   2. Detect Secrets                │
+    │   • API keys (sk-, AKIA...)        │
+    │   • Tokens (ghp_, jwt...)          │
+    │   • Passwords, DB URLs             │
+    │   • SSH keys                       │
+    └────────┬───────────────────────────┘
+             │
+             │ ✂️ Redact values
+             ▼
+    ┌────────────────────────────────────────────┐
+    │   3. Sanitized Code                        │
+    │   apiKey = "[REDACTED_API_KEY_3f810a]"     │
+    │   awsKey = "[REDACTED_AWS_KEY_f8a2b1]"     │
+    │   token = "[REDACTED_GITHUB_TOKEN_4b9d2e]" │
+    └────────┬───────────────────────────────────┘
+             │
+             │ 🔒 Safe to analyze
+             ▼
+    ┌────────────────────────────────────┐
+    │   4. Send to LLM                   │
+    │   OpenAI / Anthropic / Local       │
+    └────────────────────────────────────┘
+
+             ✅ Your secrets never leave your machine in plaintext
+             📊 Only detection stats logged: "Sanitized 3 secrets from api-client.ts"
+
+             NOTE: Sanitization previously performed inside the `ai-client` helper was removed to avoid double-sanitization. Riflebird performs sanitization at a single entry point: `ProjectFileWalker.readFileFromProject()` — all code is sanitized there before being passed to downstream components.
+```
+
+**Protected secret types:**
+- API Keys (OpenAI, Anthropic, generic)
+- AWS Access Keys & Secret Keys
+- GitHub Tokens
+- SSH Private Keys
+- Database URLs (PostgreSQL, MySQL, MongoDB, Redis)
+- JWT Tokens
+- OAuth Tokens
+- Passwords & Environment Variables
+
+**Why this matters:**
+- 🔴 Developers accidentally commit secrets (it happens to everyone!)
+- 🔴 Test files sometimes contain real credentials during development
+- 🔴 Config files may have production passwords temporarily
+- 🛡️ **Riflebird protects you automatically** - no configuration needed
+
+**Key features:**
+- ✅ Secrets never leave your machine in plaintext
+- ✅ Automatic detection with smart false-positive filtering
+- ✅ Safe logging (only counts, never actual values)
+- ✅ Original files unchanged on disk
+- ✅ **Always active** - protection you can forget about
+
+[→ Read full security documentation](packages/core/src/security/README.md)
 
 ## Development
 
