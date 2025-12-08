@@ -165,23 +165,22 @@ Note: Sanitization previously existed in the `ai-client` helper but has been rem
 ## Usage
 
 ### Automatic (Default)
-✅ **Secure Redaction** - Replaces secrets with:
-- Format: `[REDACTED_{TYPE}_{hash}]`
-- Hash: First 6 hex characters of SHA-256(original)
-- Example: `sk-abc123...xyz456` → `[REDACTED_API_KEY_3f810a]`
+
+Sanitization happens automatically when reading files. The `ProjectFileWalker` performs the primary protection by scanning and redacting secrets before returning file contents to downstream components.
+
+File Reading (Primary Protection)
 ```typescript
 import { ProjectFileWalker } from '@riflebird/core/utils';
-**Key Security Points:**
-- ✅ Secrets never leave the local machine in plaintext
-- ✅ Single protection layer at file reading - all code sanitized at entry point
-- ✅ Logging never includes actual secret values
-- ✅ Redacted values use SHA-256 hash identifiers (no actual secret characters exposed)
-- ✅ Hash-based placeholders maintain uniqueness while preventing reconstruction
-- ✅ Original files on disk remain unchanged
-- ✅ All user code passes through ProjectFileWalker for consistent protection
-**How it works in practice:**
-```typescript
-  │  [REDACTED_API_KEY_3f810a]  │
+
+// Automatically sanitizes when reading user code
+const walker = new ProjectFileWalker({ projectRoot: '/path/to/project' });
+const content = await walker.readFileFromProject('src/api-client.ts');
+// `content` is already sanitized - secrets replaced with `[REDACTED_*]`
+```
+
+How it works in practice:
+```text
+// User's project file: api-client.ts
 const API_KEY = "sk-1234567890abcdefghijklmnopqrstuvwxyz123456";
 const AWS_KEY = "AKIAIOSFODNN7PRODXYZ";
 
