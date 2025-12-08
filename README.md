@@ -86,7 +86,7 @@ riflebird fire --all
 
 or Generate a test for single file:
 ```bash
-riflebird fire ./src/components/card/PeopleCard/PeopleCard.component.tsx
+riflebird fire ./src/components/cards/PeopleCard/PeopleCard.component.tsx
 ```
 
 ## Features
