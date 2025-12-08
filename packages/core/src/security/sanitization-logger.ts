@@ -5,7 +5,8 @@ export type SanitizationEvent = {
   timestamp: Date;
   filePath?: string;
   secretsDetected: number;
-  secretTypes: Record<SecretType, number>;
+  // Not all secret types will be present in every event; use Partial
+  secretTypes: Partial<Record<SecretType, number>>;
   originalLength: number;
   sanitizedLength: number;
 };
@@ -27,7 +28,7 @@ export class SanitizationLogger {
         acc[secret.type] = (acc[secret.type] || 0) + 1;
         return acc;
       },
-      {} as Record<SecretType, number>
+      {} as Partial<Record<SecretType, number>>
     );
 
     const event: SanitizationEvent = {
@@ -109,7 +110,8 @@ export class SanitizationLogger {
     const secretsByType = this.events.reduce(
       (acc, event) => {
         for (const [type, count] of Object.entries(event.secretTypes)) {
-          acc[type as SecretType] = (acc[type as SecretType] || 0) + count;
+          const cnt = typeof count === 'number' ? count : Number(count) || 0;
+          acc[type as SecretType] = (acc[type as SecretType] || 0) + cnt;
         }
         return acc;
       },
