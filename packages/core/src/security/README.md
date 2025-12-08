@@ -319,7 +319,7 @@ Automatically skips:
 ### Security Layer Components
 ```
 packages/core/src/security/
-├── secret-patterns.ts              # Pattern definitions (11 patterns, 9 types)
+├── secret-patterns.ts              # Pattern definitions (16 patterns, 13 types)
 ├── secret-scanner.ts               # Core scanning & redaction logic
 ├── sanitization-logger.ts          # Safe event logging (no secrets)
 ├── index.ts                        # Public exports
