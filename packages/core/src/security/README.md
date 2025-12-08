@@ -190,8 +190,8 @@ const AWS_KEY = "AKIAIOSFODNN7PRODXYZ";
 // ↓ Redaction engine replaces them
 
 // What Riflebird sees:
-const API_KEY = "[REDACTED_API_KEY_456]";
-const AWS_KEY = "[REDACTED_AWS_KEY_XYZ]";
+const API_KEY = "[REDACTED_API_KEY_3f810a]";
+const AWS_KEY = "[REDACTED_AWS_KEY_7e2c1b]";
 
 // ✅ Secrets never exposed to LLM providers
 // ✅ Original file on disk unchanged
