@@ -26,6 +26,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@riflebird/core': resolve(__dirname, 'index.ts'),
       '@': resolve(__dirname, './src'),
       '@models': resolve(__dirname, './src/models'),
       '@helpers': resolve(__dirname, './src/helpers'),

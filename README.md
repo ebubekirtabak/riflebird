@@ -8,6 +8,9 @@
   <a href="https://github.com/ebubekirtabak/riflebird/actions/workflows/test.yml">
     <img src="https://github.com/ebubekirtabak/riflebird/actions/workflows/test.yml/badge.svg" alt="Test">
   </a>
+  <a href="https://codecov.io/gh/ebubekirtabak/riflebird">
+    <img src="https://codecov.io/gh/ebubekirtabak/riflebird/branch/master/graph/badge.svg" alt="Coverage">
+  </a>
   <a href="https://opensource.org/licenses/MIT">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
   </a>
@@ -110,7 +113,7 @@ Configure the CLI command and any static arguments in your `riflebird.config.ts`
 export default defineConfig({
   ai: {
     provider: 'copilot-cli',
-    model: 'copilot',
+    model: 'gpt-5-mini',
     copilotCli: {
       // `cmd` is fixed to the official `copilot` executable. Configure any
       // static subcommands / flags here.
