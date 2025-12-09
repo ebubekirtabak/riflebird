@@ -5,6 +5,7 @@ import {
   OpenAIChatCompletionResponse,
   ChatMessage
 } from '@models/chat';
+import { createCopilotCliClient } from './copilot-cli-client';
 export type { AIClient, AIClientResult } from '@models/ai-client';
 export type { ChatCompletionOptions } from '@models/chat';
 
@@ -17,6 +18,9 @@ export async function createAIClient(
 
     case 'local':
       return await createLocalClient(ai);
+
+    case 'copilot-cli':
+      return await createCopilotCliClient(ai);
 
     case 'anthropic':
       throw new Error('Anthropic provider support is not implemented yet');
@@ -136,3 +140,4 @@ async function createLocalClient(
 
   return { client };
 }
+

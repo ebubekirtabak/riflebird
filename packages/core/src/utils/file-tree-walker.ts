@@ -4,6 +4,7 @@ import type { RiflebirdConfig } from '@config/schema';
 import { ProjectConfigFiles } from '@models/project-config-files';
 import { encode } from '@toon-format/toon';
 import { debug } from '@utils/log-util';
+import { convertMarkdownToJSON } from './markdown-util';
 
 export type FileTreeWalkerContext = {
   projectRoot: string;
@@ -37,7 +38,7 @@ export class FileTreeWalker {
     let parsedContent: unknown = content;
 
     if (content && typeof content === 'string') {
-      parsedContent = JSON.parse(content);
+      parsedContent = convertMarkdownToJSON(content);
     }
 
     debug('AI response for config files:', parsedContent);

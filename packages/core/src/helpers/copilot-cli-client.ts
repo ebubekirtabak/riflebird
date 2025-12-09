@@ -1,0 +1,120 @@
+import { RiflebirdConfig } from '@config/schema';
+import type { AIClient, AIClientResult } from '@models/ai-client';
+import { OpenAIChatCompletionResponse, ChatMessage } from '@models/chat';
+import { spawn, spawnSync } from 'child_process';
+import { once } from 'events';
+
+
+const COPILOT_CLI_CMD = 'copilot';
+const COPILOT_CLI_DEFAULT_MODEL = 'gpt-4o-mini';
+
+function ensureCommandExists(cmd: string) {
+  // Try `which` first (macOS/Linux), then fall back to shell `command -v`.
+  try {
+    const which = spawnSync('which', [cmd]);
+    if (which.status === 0) return true;
+  } catch (_err) {
+    void _err;
+  }
+
+  try {
+    const check = spawnSync(`command -v ${cmd}`, { shell: true });
+    if (check.status === 0) return true;
+  } catch (_err) {
+    void _err;
+  }
+
+  const installUrl = 'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli';
+  throw new Error([
+    `Copilot CLI not found: please install the Copilot CLI to use the 'copilot-cli' provider.`,
+    `Install instructions: ${installUrl}`,
+    `If you have a custom path, set the environment variable 'COPILOT_CLI_CMD' to the executable path.`,
+  ].join('\n'));
+}
+
+function ensureLoggedIn(cmd: string) {
+  const loginUrl = 'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli#authenticate-with-github';
+  try {
+    const res = spawnSync(cmd, ['auth', 'status']);
+    // If the CLI supports `auth status` it should exit 0 when authenticated.
+    if (res.status === 0) return true;
+
+    const out = String(res.stdout || '').toLowerCase();
+    const err = String(res.stderr || '').toLowerCase();
+    throw new Error([
+      `Copilot CLI is not authenticated. Please run 'copilot auth login' to authenticate.`,
+      `More info: ${loginUrl}`,
+      `stderr: ${err.trim()}`,
+      `stdout: ${out.trim()}`,
+    ].join('\n'));
+  } catch (e) {
+    // If spawnSync throws or the command isn't supported, surface a helpful message
+    throw new Error([
+      `Unable to confirm Copilot CLI authentication. Run 'copilot auth login' and try again.`,
+      `More info: ${loginUrl}`,
+      `Error: ${String(e)}`,
+    ].join('\n'));
+  }
+}
+
+export async function createCopilotCliClient(
+  ai: RiflebirdConfig['ai']
+): Promise<AIClientResult> {
+  ensureCommandExists(COPILOT_CLI_CMD);
+  ensureLoggedIn(COPILOT_CLI_CMD);
+  const hasModelArg = ai.copilotCli?.args?.some((a: string) => a === '--model' || a.startsWith('--model='));
+  const spawnArgs = hasModelArg
+    ? ai.copilotCli?.args ?? []
+    : [...(ai.copilotCli?.args ?? []), '--model', String(ai.model ?? COPILOT_CLI_DEFAULT_MODEL)];
+
+  const client: AIClient = {
+    createChatCompletion: async (opts): Promise<OpenAIChatCompletionResponse> => {
+      // Build a simple plaintext prompt from chat messages
+      const promptText = opts.messages
+        .map((m) => `${m.role.toString()}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
+        .join('\n\n');
+
+      const proc = spawn(COPILOT_CLI_CMD, spawnArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
+
+      let stdout = '';
+      let stderr = '';
+      proc.stdout.setEncoding('utf8');
+      proc.stderr.setEncoding('utf8');
+      proc.stdout.on('data', (d: string) => (stdout += d));
+      proc.stderr.on('data', (d: string) => (stderr += d));
+
+      // write prompt and close stdin
+      proc.stdin.write(promptText);
+      proc.stdin.end();
+
+      const [code] = await once(proc, 'exit') as unknown as [number | null, string | null];
+
+      if (code !== 0) {
+        throw new Error(`Copilot CLI failed (exit ${code}): ${stderr.trim()}`);
+      }
+
+      const content = stdout.trim();
+
+      const message: ChatMessage = {
+        role: 'assistant',
+        content,
+      };
+
+      return {
+        id: `copilot-cli-${Date.now()}`,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: opts.model ?? 'copilot-cli',
+        choices: [
+          {
+            index: 0,
+            message,
+            finish_reason: 'stop',
+          },
+        ],
+      };
+    },
+  };
+
+  return { client };
+}
