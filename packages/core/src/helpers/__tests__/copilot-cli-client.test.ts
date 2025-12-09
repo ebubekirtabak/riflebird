@@ -82,6 +82,7 @@ describe('createCopilotCliClient', () => {
 
     // Reset spawnSync to default success behavior for each test
     const mockSpawnSync = vi.mocked(spawnSync);
+    // @ts-expect-error - Mock return type doesn't match exact signature
     mockSpawnSync.mockImplementation((cmd: string, args?: unknown): SpawnSyncReturns<Buffer> => {
       // Mock successful binary existence checks
       if (cmd === 'which') {
@@ -160,6 +161,7 @@ describe('createCopilotCliClient', () => {
 
     it('should throw error when copilot binary is not found', async () => {
       const mockSpawnSync = vi.mocked(spawnSync);
+      // @ts-expect-error - Mock return type doesn't match exact signature
       mockSpawnSync.mockReturnValue({
         status: 1,
         stdout: Buffer.from(''),
@@ -178,6 +180,7 @@ describe('createCopilotCliClient', () => {
 
     it('should throw error when copilot is not authenticated', async () => {
       const mockSpawnSync = vi.mocked(spawnSync);
+      // @ts-expect-error - Mock return type doesn't match exact signature
       mockSpawnSync.mockImplementation((cmd: string, args?: unknown): SpawnSyncReturns<Buffer> => {
         // Binary exists
         if (cmd === 'which') {
