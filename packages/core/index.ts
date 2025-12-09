@@ -4,6 +4,7 @@ export { Riflebird } from './src/riflebird';
 // Export types
 export type { RiflebirdConfig } from './src/config/schema';
 export type { TestFrameworkAdapter, TestPlan, TestStep, Assertion } from './src/adapters/base';
+export type { TestType, TestScope } from './src/commands/fire-command';
 
 // Export config schemas
 export {
