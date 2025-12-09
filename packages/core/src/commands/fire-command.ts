@@ -3,6 +3,20 @@ import { ProjectContextProvider } from '@providers/project-context-provider';
 import { FrameworkInfo, ProjectContext } from '@models/project-context';
 import { debug, info, generateTestFilePath, stripMarkdownCodeBlocks, ProjectFileWalker, findProjectRoot } from '@utils';
 
+export type TestType = 'e2e' | 'unit' | 'visual' | 'performance';
+
+/**
+ * Scope filter for --all mode
+ * - 'component': React/Vue components (*.tsx, *.vue, *.jsx)
+ * - 'layout': Layout files
+ * - 'page': Page/route files
+ * - 'service': Service/API files
+ * - 'util': Utility/helper files
+ * - 'hook': React hooks
+ * - 'store': State management files
+ */
+export type TestScope = 'component' | 'layout' | 'page' | 'service' | 'util' | 'hook' | 'store';
+
 export type FireInput = {
   testPath: string;
 };
