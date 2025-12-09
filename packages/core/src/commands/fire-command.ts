@@ -1,7 +1,9 @@
 import { Command, type CommandContext } from './base';
 import { ProjectContextProvider } from '@providers/project-context-provider';
-import { FrameworkInfo, ProjectContext } from '@models/project-context';
-import { debug, info, generateTestFilePath, stripMarkdownCodeBlocks, ProjectFileWalker, findProjectRoot } from '@utils';
+import { debug, info, ProjectFileWalker, findProjectRoot } from '@utils';
+import { resolveTestTypes, getScopePatterns } from './fire/fire-command-helpers';
+import { UnitTestWriter } from './fire/unit-test-writer';
+import { ALL_TEST_TYPES, SUPPORTED_TEST_SCOPES } from './fire/constants';
 
 export type TestType = 'e2e' | 'unit' | 'visual' | 'performance';
 
@@ -18,7 +20,10 @@ export type TestType = 'e2e' | 'unit' | 'visual' | 'performance';
 export type TestScope = 'component' | 'layout' | 'page' | 'service' | 'util' | 'hook' | 'store';
 
 export type FireInput = {
-  testPath: string;
+  testPath?: string;
+  all?: boolean;
+  testTypes?: TestType[];
+  scope?: TestScope;
 };
 
 export type FireOutput = {
@@ -38,19 +43,30 @@ export type FireOutput = {
  * ```
  */
 export class FireCommand extends Command<FireInput, FireOutput> {
+  private unitTestWriter: UnitTestWriter;
+
   constructor(context: CommandContext) {
     super(context);
+    this.unitTestWriter = new UnitTestWriter({
+      aiClient: context.aiClient,
+      config: context.config,
+    });
   }
 
   async execute(input: FireInput): Promise<FireOutput> {
     this.validate(input);
-    const { testPath } = input;
+    const { testPath, all, testTypes = [], scope } = input;
+    const activeTestTypes = resolveTestTypes(all, testTypes);
 
-    if (testPath.trim().length === 0) {
-      throw new Error('Riflebird Fire Command: testPath cannot be empty, we are not supporting running the entire test suite yet.');
+    // Build execution info message
+    if (all) {
+      const scopeMsg = scope ? ` (scope: ${scope})` : '';
+      info(`Running all tests for types: ${activeTestTypes.join(', ')}${scopeMsg}`);
+    } else if (testPath) {
+      const isPattern = testPath.includes('*') || testPath.includes('?');
+      const pathType = isPattern ? 'pattern' : 'path';
+      info(`Test ${pathType} to execute: ${testPath} (types: ${activeTestTypes.join(', ')})`);
     }
-
-    info(`Test path to execute: ${testPath}`);
 
     try {
       const projectRoot = await findProjectRoot();
@@ -60,26 +76,62 @@ export class FireCommand extends Command<FireInput, FireOutput> {
       const { testFrameworks } = projectContext;
       debug(`Project context:`, testFrameworks);
 
-      if (testFrameworks?.unit) {
+      const results: string[] = [];
+
+      if (activeTestTypes.includes('unit') && testFrameworks?.unit) {
         debug(`Unit test framework configured: ${testFrameworks.unit.name}`);
-        const fileContent =
-          '```\n// ' + testPath + '\n' + await new ProjectFileWalker({ projectRoot }).readFileFromProject(testPath) + '\n```';
 
-        console.log(`Test file content:\n${fileContent}`);
-        const unitTestCode = await this.writeUnitTestFile(projectContext, fileContent, testFrameworks?.unit);
+        if (all) {
+          // @todo: Implement batch test generation for all files
+          const scopeInfo = input.scope ? ` for ${input.scope} files` : '';
+          info(`Scanning project for files to generate unit tests${scopeInfo}...`);
 
-        // @todo: include test file content when test file already exists
-        const testFilePath = generateTestFilePath(testPath);
-        info(`Generated test file path: ${testFilePath}`);
+          if (input.scope) {
+            const patterns = getScopePatterns(input.scope);
+            info(`Using patterns: ${patterns.join(', ')}`);
+            results.push(`Unit test generation for ${input.scope} files (coming soon)`);
+          } else {
+            results.push('Unit test generation for all files (coming soon)');
+          }
+        } else if (testPath) {
+          const isPattern = testPath.includes('*') || testPath.includes('?');
 
-        await new ProjectFileWalker({ projectRoot }).writeFileToProject(testFilePath, unitTestCode);
+          if (isPattern) {
+            // @todo: Implement glob pattern matching
+            info(`Pattern detected: ${testPath}`);
+            results.push(`Unit test generation for pattern '${testPath}' (coming soon)`);
+          } else {
+            this.unitTestWriter.writeTestFile(
+              projectContext,
+              new ProjectFileWalker({ projectRoot }),
+              testPath,
+              testFrameworks.unit
+            );
+          }
+        }
+      }
 
-        info(`Unit test file written to: ${testFilePath}`);
+      if (activeTestTypes.includes('e2e')) {
+        // @todo: Implement E2E test execution
+        info('E2E test execution (coming soon)');
+        results.push('E2E test execution (coming soon)');
+      }
+
+      if (activeTestTypes.includes('visual')) {
+        // @todo: Implement visual regression testing
+        info('Visual regression testing (coming soon)');
+        results.push('Visual testing (coming soon)');
+      }
+
+      if (activeTestTypes.includes('performance')) {
+        // @todo: Implement performance testing
+        info('Performance testing (coming soon)');
+        results.push('Performance testing (coming soon)');
       }
 
       return {
         success: true,
-        result: 'Test execution completed',
+        result: `Test execution completed:\n${results.join('\n')}`,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -91,49 +143,30 @@ export class FireCommand extends Command<FireInput, FireOutput> {
   }
 
   protected validate(input: FireInput): void {
-    if (!input.testPath || input.testPath.trim().length === 0) {
-      throw new Error('Test path cannot be empty');
-    }
-  }
+    const { testPath, all, testTypes = [], scope } = input;
 
-  protected async writeUnitTestFile(
-    projectContext: ProjectContext,
-    fileContent: string,
-    testFramework?: FrameworkInfo
-  ): Promise<string> {
-    const unitTestWriterPrompt = await import('@prompts/unit-test-prompt.txt');
-    const { languageConfig, linterConfig, formatterConfig } = projectContext;
-
-    const promptTemplate = unitTestWriterPrompt.default
-      .replace(/\{\{TEST_FRAMEWORK\}\}/g, testFramework?.name || 'unknown framework')
-      .replace(/\{\{TEST_FRAMEWORK_CONFIG\}\}/g, '```'+ testFramework?.fileLang + `\n// ${testFramework?.configFilePath}` + `\n${testFramework?.configContent || 'No specific configuration'}` + '```')
-      .replace(/\{\{LANGUAGE_CONFIGURATIONS\}\}/g, '```'+ languageConfig.fileLang + `\n// ${languageConfig.configFilePath}` + `\n${languageConfig.configContent || 'No specific language configuration'}` + '```')
-      .replace(/\{\{FORMATTING_RULES\}\}/g, '```'+ formatterConfig.fileLang + `\n// ${formatterConfig.configFilePath}` + `\n${formatterConfig.configContent || 'Follow project conventions'}` + '```')
-      .replace(/\{\{LINTING_RULES\}\}/g, '```'+ linterConfig.fileLang + `\n// ${linterConfig.configFilePath}` + `\n${linterConfig.configContent || 'Follow project linting rules'}` + '```')
-      .replace(/\{\{CODE_SNIPPET\}\}/g, fileContent);
-
-    const { choices = [] } = await this.context.aiClient.createChatCompletion({
-      model: this.context.config.ai.model,
-      temperature: this.context.config.ai.temperature,
-      response_format: { type: "json_object" },
-      format: 'json',
-      messages: [
-        {
-          role: 'system',
-          content: promptTemplate,
-        }
-      ],
-    });
-
-    if (choices.length === 0) {
-      throw new Error('AI did not return any choices for unit test generation');
+    // Must provide either a path, pattern, or --all flag
+    if (!all && (!testPath || testPath.trim().length === 0)) {
+      throw new Error('Either provide a test path/pattern or use --all flag');
     }
 
-    let { content } = choices[0].message;
+    // Scope can only be used with --all
+    if (scope && !all) {
+      throw new Error('Scope filters (component, layout, etc.) can only be used with --all flag');
+    }
 
-    const cleanContent = stripMarkdownCodeBlocks(content as string);
+    for (const type of testTypes) {
+      if (!ALL_TEST_TYPES.includes(type)) {
+        throw new Error(`Invalid test type: ${type}. Valid types are: ${ALL_TEST_TYPES.join(', ')}`);
+      }
+    }
 
-    return cleanContent;
+    // Validate scope if provided
+    if (scope) {
+      if (!SUPPORTED_TEST_SCOPES.includes(scope)) {
+        throw new Error(`Invalid scope: ${scope}. Valid scopes are: ${SUPPORTED_TEST_SCOPES.join(', ')}`);
+      }
+    }
   }
 
 }

@@ -85,8 +85,13 @@ export class Riflebird {
   /**
    * Execute tests and analyze project structure
    */
-  async fire(testPath: string): Promise<void> {
-    await this.fireCommand.execute({ testPath });
+  async fire(input: { 
+    testPath?: string; 
+    all?: boolean; 
+    testTypes?: Array<'e2e' | 'unit' | 'visual' | 'performance'>;
+    scope?: 'component' | 'layout' | 'page' | 'service' | 'util' | 'hook' | 'store';
+  }): Promise<void> {
+    await this.fireCommand.execute(input);
   }
 
   async watch(): Promise<void> {
