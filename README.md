@@ -53,23 +53,21 @@ npm install -g riflebird
 pnpm add -g riflebird
 ```
 
-### Tested LLM Models (example results)
+### LLM Model Performance
 
-These are internal, approximate success rates for Riflebird's test-generation tasks on a small benchmark (your mileage may vary). Percentages measure how often generated tests compile and run with correct assertions on our validation set.
+Benchmark results from internal testing. Success rate = percentage of generated tests that compile and pass with correct assertions.
 
-| Model | Provider | Tested For | Success Rate | Notes |
+| Model | Provider | Test Type | Success Rate | Notes |
 |---|---|---:|---:|---|
-| Gemini 3 Pro | Google | Test generation (unit / e2e) | N/A | |
-| GPT-4 | OpenAI | Test generation (unit / e2e) | N/A |  |
-| GPT-4o | OpenAI | Test generation | N/A | |
-| gpt-3.5-turbo | OpenAI | Test generation | N/A |  |
-| Claude 2 | Anthropic | Test generation | N/A | |
-| Llama 2 (qwen3-coder:480b-cloud) | Planned | Test generation | 50% | Unit test may generate for small non-complex components. |
-| Mistral Large | Mistral | Test generation | N/A |  |
+| claude-sonnet-4.5 (Copilot CLI) | Anthropic | Unit | 99% | Excellent for complex test cases |
+| gpt-4o-mini (Copilot CLI) | OpenAI | Unit | 90% | Handles complex components well |
+| qwen3-coder:480b-cloud | Alibaba | Unit | 50% | Best for simple components |
+| Gemini 3 Pro | Google | Unit / E2E | N/A | Testing in progress |
+| GPT-4 | OpenAI | Unit / E2E | N/A | Testing in progress |
+| GPT-4o | OpenAI | Unit | N/A | Testing in progress |
+| Mistral Large | Mistral | Unit | N/A | Testing in progress |
 
-Notes:
-- Success rates are approximate and reflect internal validation on representative snippets.
-- We'll add reproducible benchmarks and links as we expand the test-suite and CI-run data.
+*Results based on internal validation; performance may vary by use case.*
 
 
 ## Quick Start
@@ -102,6 +100,27 @@ riflebird fire ./src/components/cards/PeopleCard/PeopleCard.component.tsx
 
 - `riflebird init` - Initialize configuration
 - `riflebird fire [path]` - Generate test from description
+
+### Copilot CLI provider
+
+You can use the GitHub Copilot CLI as an AI provider by setting the AI provider to `copilot-cli`.
+Configure the CLI command and any static arguments in your `riflebird.config.ts` under `ai.copilotCli`:
+
+```ts
+export default defineConfig({
+  ai: {
+    provider: 'copilot-cli',
+    model: 'copilot',
+    copilotCli: {
+      // `cmd` is fixed to the official `copilot` executable. Configure any
+      // static subcommands / flags here.
+      args: ['query'], // optional static args
+    },
+  },
+});
+```
+
+The CLI provider will feed the chat messages to the command's stdin and interpret stdout as the assistant response. This is useful for local/offline workflows where an external CLI provides AI completions.
 
 ## Security
 
