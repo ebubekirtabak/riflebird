@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs/promises";
 import { SecretScanner, sanitizationLogger } from '@security';
+import { wrapFileContent } from "./markdown-util";
 
 
 export type ProjectFileWalkerContext = {
@@ -13,7 +14,7 @@ export class ProjectFileWalker {
     this.context = context;
   }
 
-  async readFileFromProject(filePath: string): Promise<string> {
+  async readFileFromProject(filePath: string, wrapContent?: boolean): Promise<string> {
     const fullPath = path.join(this.context.projectRoot, filePath);
     const content = await fs.readFile(fullPath, 'utf-8');
 
@@ -23,6 +24,10 @@ export class ProjectFileWalker {
     // Log if secrets were detected
     if (result.secretsDetected > 0) {
       sanitizationLogger.logSanitization(result, filePath);
+    }
+
+    if (wrapContent) {
+      return wrapFileContent(filePath, result.sanitizedCode);
     }
 
     return result.sanitizedCode;

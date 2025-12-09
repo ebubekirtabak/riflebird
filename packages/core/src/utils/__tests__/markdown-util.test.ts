@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripMarkdownCodeBlocks, convertMarkdownToJSON } from '../markdown-util';
+import { stripMarkdownCodeBlocks, convertMarkdownToJSON, wrapFileContent } from '../markdown-util';
 
 describe('stripMarkdownCodeBlocks', () => {
   it('should strip markdown code block with language identifier', () => {
@@ -103,5 +103,39 @@ describe('convertMarkdownToJSON', () => {
     const expected = { text: 'Hello\nWorld', emoji: '🚀' };
 
     expect(convertMarkdownToJSON(input)).toEqual(expected);
+  });
+});
+
+describe('wrapFileContent', () => {
+  it('should wrap content with file path comment', () => {
+    const filePath = 'src/utils/helper.ts';
+    const content = 'export function add(a: number, b: number) {\n  return a + b;\n}';
+    const expected = '```\n// src/utils/helper.ts\nexport function add(a: number, b: number) {\n  return a + b;\n}\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should handle empty content', () => {
+    const filePath = 'src/empty.ts';
+    const content = '';
+    const expected = '```\n// src/empty.ts\n\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should handle multiline content', () => {
+    const filePath = 'src/component.tsx';
+    const content = 'import React from "react";\n\nexport const Button = () => {\n  return <button>Click me</button>;\n};';
+    const expected = '```\n// src/component.tsx\nimport React from "react";\n\nexport const Button = () => {\n  return <button>Click me</button>;\n};\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should preserve content with special characters', () => {
+    const filePath = 'test/data.json';
+    const content = '{"emoji": "🎯", "text": "Hello\\nWorld"}';
+    const expected = '```\n// test/data.json\n{"emoji": "🎯", "text": "Hello\\nWorld"}\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
   });
 });

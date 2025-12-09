@@ -15,3 +15,14 @@ export const convertMarkdownToJSON = (content: string): JSON => {
   const cleanedContent = stripMarkdownCodeBlocks(content);
   return JSON.parse(cleanedContent);
 }
+
+
+/**
+ * Wrap file content in markdown code block with file path comment
+ * @param filePath - Path to the file
+ * @param content - File content
+ * @returns Formatted markdown string
+ */
+export const wrapFileContent = (filePath: string, content: string): string => {
+  return `\`\`\`\n// ${filePath}\n${content}\n\`\`\``;
+}
