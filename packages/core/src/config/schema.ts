@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const AIProviderSchema = z.enum(['openai', 'anthropic', 'local']);
+export const AIProviderSchema = z.enum(['openai', 'anthropic', 'local', 'copilot-cli']);
 
 export const FrameworkSchema = z.enum([
   'playwright',
@@ -43,6 +43,11 @@ export const RiflebirdConfigSchema = z.object({
     model: z.string().default('gpt-4o-mini'),
     url: z.string().url().optional(),
     temperature: z.number().min(0).max(2).default(0.2),
+    copilotCli: z
+      .object({
+        args: z.array(z.string()).default([]),
+      })
+      .optional(),
   }),
   e2e: z
     .object({
