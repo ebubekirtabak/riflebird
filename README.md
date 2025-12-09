@@ -60,7 +60,7 @@ Benchmark results from internal testing. Success rate = percentage of generated 
 | Model | Provider | Test Type | Success Rate | Notes |
 |---|---|---:|---:|---|
 | claude-sonnet-4.5 (Copilot CLI) | Anthropic | Unit | 99% | Excellent for complex test cases |
-| gpt-4o-mini (Copilot CLI) | OpenAI | Unit | 90% | Handles complex components well |
+| gpt-5-mini (Copilot CLI) | OpenAI | Unit | 90% | Handles complex components well |
 | qwen3-coder:480b-cloud | Alibaba | Unit | 50% | Best for simple components |
 | Gemini 3 Pro | Google | Unit / E2E | N/A | Testing in progress |
 | GPT-4 | OpenAI | Unit / E2E | N/A | Testing in progress |
