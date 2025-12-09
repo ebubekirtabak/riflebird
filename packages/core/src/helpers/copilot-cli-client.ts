@@ -33,6 +33,7 @@ function ensureCommandExists(cmd: string) {
 }
 
 function ensureLoggedIn(cmd: string) {
+  const loginUrl = 'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli#authenticate-with-github';
   try {
     const res = spawnSync(cmd, ['auth', 'status']);
     // If the CLI supports `auth status` it should exit 0 when authenticated.
@@ -40,8 +41,6 @@ function ensureLoggedIn(cmd: string) {
 
     const out = String(res.stdout || '').toLowerCase();
     const err = String(res.stderr || '').toLowerCase();
-
-    const loginUrl = 'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli#authenticate-with-github';
     throw new Error([
       `Copilot CLI is not authenticated. Please run 'copilot auth login' to authenticate.`,
       `More info: ${loginUrl}`,
@@ -50,7 +49,6 @@ function ensureLoggedIn(cmd: string) {
     ].join('\n'));
   } catch (e) {
     // If spawnSync throws or the command isn't supported, surface a helpful message
-    const loginUrl = 'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli#authenticate-with-github';
     throw new Error([
       `Unable to confirm Copilot CLI authentication. Run 'copilot auth login' and try again.`,
       `More info: ${loginUrl}`,
