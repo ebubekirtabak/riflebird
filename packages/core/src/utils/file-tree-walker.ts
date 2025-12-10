@@ -16,6 +16,10 @@ export type FileTreeWalkerContext = {
 export class FileTreeWalker {
   constructor(private context: FileTreeWalkerContext) {}
 
+  async getFileTree(): Promise<FileNode[]> {
+    return this.context.fileTree;
+  }
+
   async findConfigFiles(): Promise<ProjectConfigFiles> {
     debug(`Here is the file tree of the project:\n\n${encode(this.context.fileTree)}`);
     const projectConfigPrompt = await import('@prompts/project-configuration.txt');
