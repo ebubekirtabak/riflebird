@@ -137,26 +137,38 @@ export type FindFilesByPatternOptions = FileTreeOptions & {
 };
 
 /**
- * Check if a filename matches any of the given patterns
+ * Check if a filename or path matches any of the given patterns
+ * Supports both filename patterns (*.component.tsx) and path patterns (src/**\/*.tsx)
  */
 function matchesPattern(
   filename: string,
+  filePath: string,
   patterns: string[],
   caseSensitive = false
 ): boolean {
   const name = caseSensitive ? filename : filename.toLowerCase();
+  const path = caseSensitive ? filePath : filePath.toLowerCase();
 
   return patterns.some((pattern) => {
     const pat = caseSensitive ? pattern : pattern.toLowerCase();
 
+    // Check if pattern contains path separators (/) or directory wildcards (**)
+    const isPathPattern = pat.includes('/') || pat.includes('**');
+    const targetString = isPathPattern ? path : name;
+
     // Convert glob pattern to regex
-    const regexPattern = pat
-      .replace(/\./g, '\\.')
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
+    let regexPattern = pat
+      .replace(/\./g, '\\.')     // Escape dots
+      .replace(/\*\*/g, '@@DOUBLESTAR@@')  // Temporarily replace **
+      .replace(/\*/g, '[^/]*')   // * matches anything except /
+      .replace(/@@DOUBLESTAR@@/g, '.*')   // ** matches any depth
+      .replace(/\?/g, '[^/]');   // ? matches single char except /
+
+    // Remove leading ./ if present
+    regexPattern = regexPattern.replace(/^\\.\//, '');
 
     const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(name);
+    return regex.test(targetString);
   });
 }
 
@@ -175,6 +187,22 @@ export async function findFilesByType(
   }
 
   return await findFilesByPattern(rootPath, pattern, options);
+}
+
+/**
+ * wrap string pattern to FilePattern and find files
+ */
+export async function findFilesByStringPattern(
+  rootPath: string,
+  pattern: string,
+  options: FindFilesByPatternOptions = {}
+): Promise<FileNode[]> {
+  const filePattern: FilePattern = {
+    patterns: [pattern],  // Array of string patterns
+    description: 'User-provided pattern'
+  };
+
+  return await findFilesByPattern(rootPath, filePattern, options);
 }
 
 /**
@@ -226,7 +254,7 @@ function flattenAndFilterFiles(
   const result: FileNode[] = [];
 
   for (const node of nodes) {
-    if (node.type === 'file' && matchesPattern(node.name, patterns, caseSensitive)) {
+    if (node.type === 'file' && matchesPattern(node.name, node.path, patterns, caseSensitive)) {
       result.push(node);
     }
 

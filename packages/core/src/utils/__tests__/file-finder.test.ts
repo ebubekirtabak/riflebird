@@ -224,6 +224,59 @@ describe('file-finder', () => {
 
       expect(files).toHaveLength(3);
     });
+
+    it('should match files with specific directory path patterns', async () => {
+      await createTestFile('src/components/UserSettings/CertificateSection/Certificate.component.tsx');
+      await createTestFile('src/components/UserSettings/CertificateSection/Upload.component.tsx');
+      await createTestFile('src/components/UserSettings/ProfileSection/Profile.component.tsx');
+      await createTestFile('src/components/Dashboard/Widget.component.tsx');
+
+      const pattern: FilePattern = {
+        patterns: ['src/components/UserSettings/CertificateSection/*.component.tsx'],
+        description: 'CertificateSection components',
+      };
+
+      const files = await findFilesByPattern(testDir, pattern);
+
+      expect(files).toHaveLength(2);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'Certificate.component.tsx',
+        'Upload.component.tsx',
+      ]);
+    });
+
+    it('should match files with ** wildcard for nested directories', async () => {
+      await createTestFile('src/components/UserSettings/CertificateSection/Certificate.component.tsx');
+      await createTestFile('src/components/UserSettings/CertificateSection/nested/Upload.component.tsx');
+      await createTestFile('src/components/Dashboard/Widget.component.tsx');
+
+      const pattern: FilePattern = {
+        patterns: ['src/components/UserSettings/**/*.component.tsx'],
+        description: 'All UserSettings components',
+      };
+
+      const files = await findFilesByPattern(testDir, pattern);
+
+      expect(files).toHaveLength(2);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'Certificate.component.tsx',
+        'Upload.component.tsx',
+      ]);
+    });
+
+    it('should handle patterns with leading ./ correctly', async () => {
+      await createTestFile('src/components/Button.component.tsx');
+      await createTestFile('src/utils/helper.ts');
+
+      const pattern: FilePattern = {
+        patterns: ['./src/components/*.component.tsx'],
+      };
+
+      const files = await findFilesByPattern(testDir, pattern);
+
+      expect(files).toHaveLength(1);
+      expect(files[0].name).toBe('Button.component.tsx');
+    });
   });
 
   describe('findFilesByTypes', () => {

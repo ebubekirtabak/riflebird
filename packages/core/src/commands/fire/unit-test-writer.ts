@@ -1,5 +1,5 @@
 import type { ProjectContext, FrameworkInfo } from '@models/project-context';
-import { generateTestFilePath, info, ProjectFileWalker, stripMarkdownCodeBlocks } from '@utils';
+import { findFilesByStringPattern, generateTestFilePath, info, ProjectFileWalker, stripMarkdownCodeBlocks } from '@utils';
 import type { AIClient } from '@models/ai-client';
 import type { RiflebirdConfig } from '@config/schema';
 import { PromptTemplateBuilder } from './prompt-template-builder';
@@ -17,6 +17,32 @@ export class UnitTestWriter {
     this.promptBuilder = new PromptTemplateBuilder();
   }
 
+  async writeTestByPattern(
+    projectContext: ProjectContext,
+    fileWalker: ProjectFileWalker,
+    pattern: string,
+    testFramework?: FrameworkInfo
+  ): Promise<string[]> {
+    const { projectRoot } = projectContext;
+    const matchedFiles = await findFilesByStringPattern(projectRoot, pattern);
+    const results: string[] = [];
+
+    for (const file of matchedFiles) {
+      const success = await this.writeTestFile(
+        projectContext,
+        fileWalker,
+        file.path,
+        testFramework
+      );
+      if (success) {
+        const testFilePath = generateTestFilePath(file.path);
+        results.push(`Unit test: ${testFilePath}`);
+      }
+    }
+
+    return results;
+  }
+
   async writeTestFile(
     projectContext: ProjectContext,
     fileWalker: ProjectFileWalker,
@@ -26,7 +52,7 @@ export class UnitTestWriter {
     try {
       const fileContent = await fileWalker.readFileFromProject(testPath, true);
       console.log(`Test file content:\n${fileContent}`);
-      const unitTestCode = await this.generateTest(projectContext, fileContent, '', testFramework?.unit);
+      const unitTestCode = await this.generateTest(projectContext, fileContent, '', testFramework);
       // @todo: include test file content when test file already exists
       const testFilePath = generateTestFilePath(testPath);
       info(`Generated test file path: ${testFilePath}`);

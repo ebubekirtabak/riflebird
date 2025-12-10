@@ -56,6 +56,7 @@ export class ProjectContextProvider {
         languageConfig: await this.readConfigFile(languageConfig),
         linterConfig: await this.readConfigFile(linting),
         formatterConfig: await this.readConfigFile(formatting),
+        projectRoot: this.projectRoot,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

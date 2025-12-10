@@ -99,6 +99,12 @@ export class FireCommand extends Command<FireInput, FireOutput> {
           if (isPattern) {
             // @todo: Implement glob pattern matching
             info(`Pattern detected: ${testPath}`);
+            this.unitTestWriter.writeTestByPattern(
+              projectContext,
+              new ProjectFileWalker({ projectRoot }),
+              testPath,
+              testFrameworks.unit
+            );
             results.push(`Unit test generation for pattern '${testPath}' (coming soon)`);
           } else {
             this.unitTestWriter.writeTestFile(
