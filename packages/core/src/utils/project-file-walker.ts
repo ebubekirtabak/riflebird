@@ -14,28 +14,49 @@ export class ProjectFileWalker {
     this.context = context;
   }
 
-  async readFileFromProject(filePath: string, wrapContent?: boolean): Promise<string> {
-    const fullPath = path.join(this.context.projectRoot, filePath);
-    const content = await fs.readFile(fullPath, 'utf-8');
+  async resolveAndValidatePath(filePath: string): Promise<string> {
+    const fullPath = path.resolve(this.context.projectRoot, filePath);
 
-    // Sanitize the file content before returning
-    const result = SecretScanner.sanitize(content, { filePath });
-
-    // Log if secrets were detected
-    if (result.secretsDetected > 0) {
-      sanitizationLogger.logSanitization(result, filePath);
+    if (!fullPath.startsWith(path.resolve(this.context.projectRoot))) {
+      throw new Error(`Security Error: Access denied for path outside project root: ${filePath}`);
     }
 
-    if (wrapContent) {
-      return wrapFileContent(filePath, result.sanitizedCode);
-    }
-
-    return result.sanitizedCode;
+    return fullPath;
   }
 
-  writeFileToProject(filePath: string, content: string): Promise<void> {
-    const fullPath = path.join(this.context.projectRoot, filePath);
-    return fs.writeFile(fullPath, content, 'utf-8');
+  async readFileFromProject(filePath: string, wrapContent?: boolean): Promise<string> {
+    try {
+      const fullPath = await this.resolveAndValidatePath(filePath);
+      const content = await fs.readFile(fullPath, 'utf-8');
+
+      // Sanitize the file content before returning
+      const result = SecretScanner.sanitize(content, { filePath });
+
+      // Log if secrets were detected
+      if (result.secretsDetected > 0) {
+        sanitizationLogger.logSanitization(result, filePath);
+      }
+
+      if (wrapContent) {
+        return wrapFileContent(filePath, result.sanitizedCode);
+      }
+
+      return result.sanitizedCode;
+    } catch (error) {
+      throw new Error(`Failed to read file ${filePath}: ${(error as Error).message}`);
+    }
+  }
+
+  async writeFileToProject(filePath: string, content: string): Promise<void> {
+    try {
+      const fullPath = await this.resolveAndValidatePath(filePath);
+
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+
+      await fs.writeFile(fullPath, content, 'utf-8');
+    } catch (error) {
+      throw new Error(`Failed to write file ${filePath}: ${(error as Error).message}`);
+    }
   }
 
 }
