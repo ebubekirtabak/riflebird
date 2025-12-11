@@ -1,26 +1,7 @@
-import { FileNode, FileTreeOptions } from '@models/file-tree';
 import { getFileTree } from './file-tree';
-import { FilePattern, FileType, FILE_PATTERNS } from './file/file-patterns';
+import { FileNode } from '@models/file-tree';
+import { FILE_PATTERNS, FilePattern, FileType, FindFilesByPatternOptions } from './file';
 
-export { FilePattern, FileType, FILE_PATTERNS };
-
-export type FindFilesByPatternOptions = FileTreeOptions & {
-  /**
-   * Case-sensitive pattern matching
-   * @default false
-   */
-  caseSensitive?: boolean;
-  /**
-   * Include full file path in results
-   * @default true
-   */
-  includeFullPath?: boolean;
-  /**
-   * Patterns to exclude
-   * Examples: ['*.test.ts', 'dist/**']
-   */
-  excludePatterns?: string[];
-};
 
 /**
  * Check if a filename or path matches any of the given patterns

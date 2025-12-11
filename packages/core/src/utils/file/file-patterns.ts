@@ -1,3 +1,5 @@
+import { FileNode, FileTreeOptions } from "@models/file-tree";
+
 export type FilePattern = {
     /**
      * File naming patterns to match
@@ -118,4 +120,27 @@ export const FILE_PATTERNS: Record<FileType, FilePattern> = {
         extensions: [],
         description: 'Custom pattern',
     },
+};
+
+export type FindFilesByPatternOptions = FileTreeOptions & {
+    /**
+     * Case-sensitive pattern matching
+     * @default false
+     */
+    caseSensitive?: boolean;
+    /**
+     * Include full file path in results
+     * @default true
+     */
+    includeFullPath?: boolean;
+    /**
+     * Patterns to exclude
+     * Examples: ['*.test.ts', 'dist/**']
+     */
+    excludePatterns?: string[];
+    /**
+     * Pre-built file tree to use instead of fetching from rootPath
+     * If provided, rootPath parameter will be ignored
+     */
+    fileTree?: FileNode[];
 };
