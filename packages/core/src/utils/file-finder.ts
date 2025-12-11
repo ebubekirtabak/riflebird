@@ -75,21 +75,29 @@ export async function findFilesByStringPattern(
 
 /**
  * Find files matching custom patterns
+ * @param rootPath - Root path to search (ignored if options.fileTree is provided)
+ * @param pattern - FilePattern to match
+ * @param options - Options including optional pre-built fileTree
  */
 export async function findFilesByPattern(
   rootPath: string,
   pattern: FilePattern,
   options: FindFilesByPatternOptions = {}
 ): Promise<FileNode[]> {
-  const { caseSensitive = false, ...treeOptions } = options;
+  const { caseSensitive = false, fileTree, ...treeOptions } = options;
 
-  // Merge extensions from pattern and options
-  const extensions = pattern.extensions || treeOptions.includeExtensions;
+  // Use provided file tree or fetch it
+  let tree: FileNode[];
+  if (fileTree) {
+    tree = fileTree;
+  } else {
+    const extensions = pattern.extensions || treeOptions.includeExtensions;
 
-  const tree = await getFileTree(rootPath, {
-    ...treeOptions,
-    includeExtensions: extensions,
-  });
+    tree = await getFileTree(rootPath, {
+      ...treeOptions,
+      includeExtensions: extensions,
+    });
+  }
 
   return flattenAndFilterFiles(tree, pattern.patterns, caseSensitive, options.excludePatterns);
 }
