@@ -120,3 +120,88 @@ export function formatFileTree(nodes: FileNode[], indent = ''): string {
 
   return output;
 }
+
+/**
+ * Find files in a file tree that match a glob pattern
+ * @param fileTree - Array of FileNode to search
+ * @param pattern - Glob pattern (supports *, **, ?, [abc], {a,b})
+ * @returns Array of matching FileNode objects
+ *
+ * @example
+ * ```ts
+ * // Find all TypeScript files
+ * findFilesByPattern(tree, '**\/*.ts')
+ *
+ * // Find test files in src directory
+ * findFilesByPattern(tree, 'src/**\/*.test.ts')
+ *
+ * // Find components
+ * findFilesByPattern(tree, 'src/components/**\/*.{tsx,jsx}')
+ * ```
+ */
+export function findFilesByPatternByFileTree(fileTree: FileNode[], pattern: string): FileNode[] {
+  const matches: FileNode[] = [];
+
+  // Convert glob pattern to regex
+  const regexPattern = globToRegex(pattern);
+
+  function searchTree(nodes: FileNode[]): void {
+    for (const node of nodes) {
+      if (node.type === 'file') {
+        // Test against the full path
+        if (regexPattern.test(node.path)) {
+          matches.push(node);
+        }
+      }
+
+      // Recursively search children
+      if (node.children && node.children.length > 0) {
+        searchTree(node.children);
+      }
+    }
+  }
+
+  searchTree(fileTree);
+  return matches;
+}
+
+/**
+ * Convert glob pattern to regex
+ * Supports: *, **, ?, [abc], {a,b}
+ */
+function globToRegex(pattern: string): RegExp {
+  // Escape special regex characters except glob wildcards
+  let regex = pattern
+    .replace(/\./g, '\\.')  // Escape dots
+    .replace(/\+/g, '\\+')  // Escape plus
+    .replace(/\^/g, '\\^')  // Escape caret
+    .replace(/\$/g, '\\$')  // Escape dollar
+    .replace(/\(/g, '\\(')  // Escape parentheses
+    .replace(/\)/g, '\\)'); // Escape parentheses
+
+  // Handle brace expansion {a,b} -> (a|b)
+  regex = regex.replace(/\{([^}]+)\}/g, (_, contents) => {
+    const options = contents.split(',').map((s: string) => s.trim());
+    return `(${options.join('|')})`;
+  });
+
+  // Handle character classes [abc]
+  // Already valid in regex, no change needed
+
+  // Handle ** (match any directory depth)
+  regex = regex.replace(/\*\*/g, '@@DOUBLESTAR@@');
+
+  // Handle * (match anything except /)
+  regex = regex.replace(/\*/g, '[^/]*');
+
+  // Restore ** to match any depth
+  regex = regex.replace(/@@DOUBLESTAR@@/g, '.*');
+
+  // Handle ? (match single character except /)
+  regex = regex.replace(/\?/g, '[^/]');
+
+  // Anchor the pattern
+  regex = `^${regex}$`;
+
+  return new RegExp(regex);
+}

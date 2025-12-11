@@ -6,6 +6,7 @@ import {
   getFileTree,
   flattenFileTree,
   formatFileTree,
+  findFilesByPatternByFileTree,
 } from '../file-tree';
 import type { FileNode } from '@models/file-tree';
 
@@ -132,7 +133,7 @@ describe('file-tree utilities', () => {
       const flattened = flattenFileTree(tree);
 
       expect(flattened.length).toBeGreaterThan(0);
-      
+
       // Should contain only files
       flattened.forEach((node) => {
         expect(node.type).toBe('file');
@@ -223,7 +224,7 @@ describe('file-tree utilities', () => {
       ];
 
       const formatted = formatFileTree(mockTree);
-      
+
       // Check for proper tree structure characters
       expect(formatted).toContain('└──');
       expect(formatted).toContain('parent');
@@ -234,6 +235,187 @@ describe('file-tree utilities', () => {
     it('should return empty string for empty tree', () => {
       const formatted = formatFileTree([]);
       expect(formatted).toBe('');
+    });
+  });
+
+  describe('findFilesByPatternByFileTree', () => {
+    const mockFileTree: FileNode[] = [
+      {
+        name: 'src',
+        path: 'src',
+        type: 'directory',
+        children: [
+          {
+            name: 'components',
+            path: 'src/components',
+            type: 'directory',
+            children: [
+              {
+                name: 'Button.tsx',
+                path: 'src/components/Button.tsx',
+                type: 'file',
+                extension: '.tsx',
+              },
+              {
+                name: 'Button.test.tsx',
+                path: 'src/components/Button.test.tsx',
+                type: 'file',
+                extension: '.tsx',
+              },
+              {
+                name: 'Input.jsx',
+                path: 'src/components/Input.jsx',
+                type: 'file',
+                extension: '.jsx',
+              },
+            ],
+          },
+          {
+            name: 'utils',
+            path: 'src/utils',
+            type: 'directory',
+            children: [
+              {
+                name: 'helpers.ts',
+                path: 'src/utils/helpers.ts',
+                type: 'file',
+                extension: '.ts',
+              },
+              {
+                name: 'helpers.test.ts',
+                path: 'src/utils/helpers.test.ts',
+                type: 'file',
+                extension: '.ts',
+              },
+            ],
+          },
+          {
+            name: 'index.ts',
+            path: 'src/index.ts',
+            type: 'file',
+            extension: '.ts',
+          },
+          {
+            name: 'styles.css',
+            path: 'src/styles.css',
+            type: 'file',
+            extension: '.css',
+          },
+        ],
+      },
+      {
+        name: 'package.json',
+        path: 'package.json',
+        type: 'file',
+        extension: '.json',
+      },
+    ];
+
+    it('should find all TypeScript files with *.ts pattern', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, '*.ts');
+
+      expect(matches).toHaveLength(0); // No files at root level match
+    });
+
+    it('should find all TypeScript files with **/*.ts pattern', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.ts');
+
+      expect(matches).toHaveLength(3);
+      expect(matches.map(f => f.name)).toContain('index.ts');
+      expect(matches.map(f => f.name)).toContain('helpers.ts');
+      expect(matches.map(f => f.name)).toContain('helpers.test.ts');
+    });
+
+    it('should find test files with **/*.test.ts pattern', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.test.ts');
+
+      expect(matches).toHaveLength(1);
+      expect(matches[0].name).toBe('helpers.test.ts');
+    });
+
+    it('should find test files with **/*.test.{ts,tsx} pattern', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.test.{ts,tsx}');
+
+      expect(matches).toHaveLength(2);
+      expect(matches.map(f => f.name)).toContain('helpers.test.ts');
+      expect(matches.map(f => f.name)).toContain('Button.test.tsx');
+    });
+
+    it('should find React components with **/*.{tsx,jsx} pattern', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.{tsx,jsx}');
+
+      expect(matches).toHaveLength(3);
+      expect(matches.map(f => f.name)).toContain('Button.tsx');
+      expect(matches.map(f => f.name)).toContain('Button.test.tsx');
+      expect(matches.map(f => f.name)).toContain('Input.jsx');
+    });
+
+    it('should find files in specific directory with src/components/* pattern', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/components/*');
+
+      expect(matches).toHaveLength(3);
+      expect(matches.every(f => f.path.startsWith('src/components/'))).toBe(true);
+    });
+
+    it('should find files with ? wildcard matching single character', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/utils/helper?.ts');
+
+      expect(matches).toHaveLength(1);
+      expect(matches[0].name).toBe('helpers.ts');
+    });
+
+    it('should find specific file with exact path', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/index.ts');
+
+      expect(matches).toHaveLength(1);
+      expect(matches[0].name).toBe('index.ts');
+      expect(matches[0].path).toBe('src/index.ts');
+    });
+
+    it('should find files with src/** pattern', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/**');
+
+      expect(matches).toHaveLength(7); // All files under src
+    });
+
+    it('should return empty array when no matches found', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.py');
+
+      expect(matches).toHaveLength(0);
+    });
+
+    it('should handle empty file tree', () => {
+      const matches = findFilesByPatternByFileTree([], '**/*.ts');
+
+      expect(matches).toHaveLength(0);
+    });
+
+    it('should match CSS files', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.css');
+
+      expect(matches).toHaveLength(1);
+      expect(matches[0].name).toBe('styles.css');
+    });
+
+    it('should match JSON files at root', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, '*.json');
+
+      expect(matches).toHaveLength(1);
+      expect(matches[0].name).toBe('package.json');
+    });
+
+    it('should handle patterns with multiple directory levels', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/*/Button.tsx');
+
+      expect(matches).toHaveLength(1);
+      expect(matches[0].path).toBe('src/components/Button.tsx');
+    });
+
+    it('should distinguish between files and only return files', () => {
+      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/**');
+
+      // All matches should be files, not directories
+      expect(matches.every(node => node.type === 'file')).toBe(true);
     });
   });
 });
