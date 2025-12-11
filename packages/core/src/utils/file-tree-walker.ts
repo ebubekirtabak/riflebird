@@ -5,6 +5,7 @@ import { ProjectConfigFiles } from '@models/project-config-files';
 import { encode } from '@toon-format/toon';
 import { debug } from '@utils/log-util';
 import { convertMarkdownToJSON } from './markdown-util';
+import { flattenFileTree } from './file-tree';
 
 export type FileTreeWalkerContext = {
   projectRoot: string;
@@ -14,10 +15,20 @@ export type FileTreeWalkerContext = {
 };
 
 export class FileTreeWalker {
-  constructor(private context: FileTreeWalkerContext) {}
+  private flattenedFileTree?: FileNode[];
+  constructor(private context: FileTreeWalkerContext) { }
 
   async getFileTree(): Promise<FileNode[]> {
     return this.context.fileTree;
+  }
+
+  async getFlattenedFileTree(): Promise<FileNode[]> {
+    if (this.flattenedFileTree) {
+      return this.flattenedFileTree;
+    }
+
+    this.flattenedFileTree = flattenFileTree(this.context.fileTree);
+    return this.flattenedFileTree;
   }
 
   async findConfigFiles(): Promise<ProjectConfigFiles> {
