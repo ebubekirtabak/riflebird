@@ -1,5 +1,10 @@
 import { FileNode, FileTreeOptions } from "@models/file-tree";
 
+export type CompiledPattern = {
+    regex: RegExp;
+    isPathPattern: boolean;
+};
+
 export type FilePattern = {
     /**
      * File naming patterns to match
@@ -144,3 +149,34 @@ export type FindFilesByPatternOptions = FileTreeOptions & {
      */
     fileTree?: FileNode[];
 };
+
+const PATTERN_CACHE = new Map<string, CompiledPattern>();
+
+export function getCompiledPattern(pattern: string, caseSensitive: boolean): CompiledPattern {
+    const cacheKey = `${pattern}:${caseSensitive ? 's' : 'i'}`;
+
+    if (PATTERN_CACHE.has(cacheKey)) {
+        return PATTERN_CACHE.get(cacheKey)!;
+    }
+
+    const pat = caseSensitive ? pattern : pattern.toLowerCase();
+    const isPath = pattern.includes('/') || pattern.includes('**');
+
+    // Convert glob pattern to regex
+    let regexPattern = pat
+        .replace(/\./g, '\\.')     // Escape dots
+        .replace(/\*\*/g, '@@DOUBLESTAR@@')  // Temporarily replace **
+        .replace(/\*/g, '[^/]*')   // * matches anything except /
+        .replace(/@@DOUBLESTAR@@/g, '.*')   // ** matches any depth
+        .replace(/\?/g, '[^/]')    // ? matches single char except /
+        .replace(/\{([^}]+)\}/g, (_, group) => `(${group.replace(/,/g, '|')})`); // Handle {a,b} -> (a|b)
+
+    // Remove leading ./ if present
+    regexPattern = regexPattern.replace(/^\\.\//, '');
+
+    const regex = new RegExp(`^${regexPattern}$`);
+    const compiled = { regex, isPathPattern: isPath };
+    PATTERN_CACHE.set(cacheKey, compiled);
+
+    return compiled;
+}

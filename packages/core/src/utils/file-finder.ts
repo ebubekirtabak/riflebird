@@ -1,47 +1,12 @@
-import { getFileTree } from './file-tree';
 import { FileNode } from '@models/file-tree';
-import { FILE_PATTERNS, FilePattern, FileType, FindFilesByPatternOptions } from './file';
-
-
-/**
- * Check if a filename or path matches any of the given patterns
- * Supports both filename patterns (*.component.tsx) and path patterns (src/**\/*.tsx)
- */
-export function matchesPattern(
-  filename: string,
-  filePath: string,
-  patterns: string[],
-  caseSensitive = false
-): boolean {
-  const name = caseSensitive ? filename : filename.toLowerCase();
-  const path = caseSensitive ? filePath : filePath.toLowerCase();
-
-  return patterns.some((pattern) => {
-    const pat = caseSensitive ? pattern : pattern.toLowerCase();
-
-    // Check if pattern contains path separators (/) or directory wildcards (**)
-    const isPathPattern = pat.includes('/') || pat.includes('**');
-    const targetString = isPathPattern ? path : name;
-
-    // Convert glob pattern to regex
-    let regexPattern = pat
-      .replace(/\./g, '\\.')     // Escape dots
-      .replace(/\*\*/g, '@@DOUBLESTAR@@')  // Temporarily replace **
-      .replace(/\*/g, '[^/]*')   // * matches anything except /
-      .replace(/@@DOUBLESTAR@@/g, '.*')   // ** matches any depth
-      .replace(/\?/g, '[^/]')    // ? matches single char except /
-      .replace(/\{([^}]+)\}/g, (_, group) => `(${group.replace(/,/g, '|')})`); // Handle {a,b} -> (a|b)
-
-    // Remove leading ./ if present
-    regexPattern = regexPattern.replace(/^\\.\//, '');
-
-    const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(targetString);
-  });
-}
+import { getFileTree, flattenFileTree } from './file-tree';
+import { FILE_PATTERNS, FilePattern, FileType, FindFilesByPatternOptions, CompiledPattern, getCompiledPattern } from './file';
 
 /**
  * Find files by predefined file type
+ * @param rootPath - Root path to search (ignored if options.fileTree is provided)
+ * @param fileType - Predefined file type to search for
+ * @param options - Options including optional pre-built fileTree
  */
 export async function findFilesByType(
   rootPath: string,
@@ -59,6 +24,9 @@ export async function findFilesByType(
 
 /**
  * wrap string pattern to FilePattern and find files
+ * @param rootPath - Root path to search (ignored if options.fileTree is provided)
+ * @param pattern - String pattern to match
+ * @param options - Options including optional pre-built fileTree
  */
 export async function findFilesByStringPattern(
   rootPath: string,
@@ -99,21 +67,73 @@ export async function findFilesByPattern(
     });
   }
 
-  return flattenAndFilterFiles(tree, pattern.patterns, caseSensitive, options.excludePatterns);
+  // Pre-compile patterns
+  const includePatterns = pattern.patterns.map(p => getCompiledPattern(p, caseSensitive));
+  const excludePatterns = options.excludePatterns
+    ? options.excludePatterns.map(p => getCompiledPattern(p, caseSensitive))
+    : [];
+
+  return flattenAndFilterFiles(tree, includePatterns, excludePatterns, caseSensitive);
 }
 
 /**
  * Find files matching multiple file types
+ * Optimized to fetch the file tree only once
+ * @param rootPath - Root path to search (ignored if options.fileTree is provided)
+ * @param fileTypes - Array of file types to search for
+ * @param options - Options including optional pre-built fileTree
  */
 export async function findFilesByTypes(
   rootPath: string,
   fileTypes: FileType[],
   options: FindFilesByPatternOptions = {}
 ): Promise<Record<FileType, FileNode[]>> {
+  const { caseSensitive = false, fileTree, ...treeOptions } = options;
   const results: Record<string, FileNode[]> = {};
+  const patternsByType = new Map<FileType, CompiledPattern[]>();
+  const allExtensions = new Set<string>();
+  const allIncludePatterns: CompiledPattern[] = [];
+  const allExcludePatterns: CompiledPattern[] = options.excludePatterns
+    ? options.excludePatterns.map(p => getCompiledPattern(p, caseSensitive))
+    : [];
 
+  // Pre-compile all patterns
   for (const fileType of fileTypes) {
-    results[fileType] = await findFilesByType(rootPath, fileType, options);
+    const patternDef = FILE_PATTERNS[fileType];
+    if (patternDef) {
+      results[fileType] = [];
+      (patternDef.extensions || []).forEach(ext => allExtensions.add(ext));
+      patternsByType.set(
+        fileType,
+        patternDef.patterns.map(p => getCompiledPattern(p, caseSensitive))
+      );
+      allIncludePatterns.push(...patternDef.patterns.map(p => getCompiledPattern(p, caseSensitive)));
+    }
+  }
+
+  // Fetch or use provided file tree
+  const tree = fileTree
+    ? fileTree
+    : await getFileTree(rootPath, {
+      ...treeOptions,
+      includeExtensions: allExtensions.size > 0 ? Array.from(allExtensions) : undefined,
+    });
+
+  // Flatten and filter once
+  const allFiles = flattenFileTree(tree);
+  for (const file of allFiles) {
+    const name = caseSensitive ? file.name : file.name.toLowerCase();
+    const path = caseSensitive ? file.path : file.path.toLowerCase();
+    const matchesExclude = allExcludePatterns.some(compiled =>
+      compiled.regex.test(compiled.isPathPattern ? path : name)
+    );
+    if (matchesExclude) continue;
+
+    for (const [fileType, patterns] of patternsByType) {
+      if (patterns.some(compiled => compiled.regex.test(compiled.isPathPattern ? path : name))) {
+        results[fileType].push(file);
+      }
+    }
   }
 
   return results as Record<FileType, FileNode[]>;
@@ -124,24 +144,30 @@ export async function findFilesByTypes(
  */
 function flattenAndFilterFiles(
   nodes: FileNode[],
-  patterns: string[],
-  caseSensitive: boolean,
-  excludePatterns: string[] = []
+  includePatterns: CompiledPattern[],
+  excludePatterns: CompiledPattern[],
+  caseSensitive: boolean
 ): FileNode[] {
   const result: FileNode[] = [];
-
-  for (const node of nodes) {
-    const matches = matchesPattern(node.name, node.path, patterns, caseSensitive);
-    const excluded = excludePatterns.length > 0 && matchesPattern(node.name, node.path, excludePatterns, caseSensitive);
-
-    if (node.type === 'file' && matches && !excluded) {
-      result.push(node);
+  const stack = [...nodes];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (node.type === 'file') {
+      const name = caseSensitive ? node.name : node.name.toLowerCase();
+      const path = caseSensitive ? node.path : node.path.toLowerCase();
+      const matchesInclude = includePatterns.some(compiled =>
+        compiled.regex.test(compiled.isPathPattern ? path : name)
+      );
+      const matchesExclude = excludePatterns.some(compiled =>
+        compiled.regex.test(compiled.isPathPattern ? path : name)
+      );
+      if (matchesInclude && !matchesExclude) {
+        result.push(node);
+      }
     }
-
-    if (node.children && node.children.length > 0) {
-      result.push(...flattenAndFilterFiles(node.children, patterns, caseSensitive, excludePatterns));
+    if (node.children) {
+      stack.push(...node.children);
     }
   }
-
   return result;
 }

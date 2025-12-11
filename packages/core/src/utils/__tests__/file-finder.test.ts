@@ -2,14 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import {
-  findFilesByType,
-  findFilesByPattern,
-  findFilesByTypes,
-  getFileStats,
-  FILE_PATTERNS,
-  type FilePattern,
-} from '../file-finder';
+import { findFilesByPattern, findFilesByType, findFilesByTypes } from '../file-finder';
+import { FILE_PATTERNS, FilePattern } from '../file/file-patterns';
+import { getFileStats } from '../file/file-stats';
 
 describe('file-finder', () => {
   let testDir: string;
