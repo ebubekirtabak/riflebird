@@ -25,10 +25,7 @@ export class ProjectContextProvider {
       return;
     }
 
-    this.fileTree = await getFileTree(this.projectRoot, {
-      excludeDirs: [...COMMON_EXCLUDE_DIRS],
-      maxDepth: 5,
-    });
+    this.fileTree = await this.getFileTree();
 
     this.fileTreeWalkerContext = {
       projectRoot: this.projectRoot,
@@ -41,6 +38,16 @@ export class ProjectContextProvider {
     this.initialized = true;
   }
 
+  async getFileTree(): Promise<FileNode[]> {
+    if (this.initialized) {
+      return this.fileTree;
+    }
+
+    return await getFileTree(this.projectRoot, {
+      excludeDirs: [...COMMON_EXCLUDE_DIRS],
+      maxDepth: 5,
+    });
+  }
   async getContext(): Promise<ProjectContext> {
     await this.init();
 
