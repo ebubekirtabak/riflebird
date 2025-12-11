@@ -134,13 +134,18 @@ export type FindFilesByPatternOptions = FileTreeOptions & {
    * @default true
    */
   includeFullPath?: boolean;
+  /**
+   * Patterns to exclude
+   * Examples: ['*.test.ts', 'dist/**']
+   */
+  excludePatterns?: string[];
 };
 
 /**
  * Check if a filename or path matches any of the given patterns
  * Supports both filename patterns (*.component.tsx) and path patterns (src/**\/*.tsx)
  */
-function matchesPattern(
+export function matchesPattern(
   filename: string,
   filePath: string,
   patterns: string[],
@@ -162,7 +167,8 @@ function matchesPattern(
       .replace(/\*\*/g, '@@DOUBLESTAR@@')  // Temporarily replace **
       .replace(/\*/g, '[^/]*')   // * matches anything except /
       .replace(/@@DOUBLESTAR@@/g, '.*')   // ** matches any depth
-      .replace(/\?/g, '[^/]');   // ? matches single char except /
+      .replace(/\?/g, '[^/]')    // ? matches single char except /
+      .replace(/\{([^}]+)\}/g, (_, group) => `(${group.replace(/,/g, '|')})`); // Handle {a,b} -> (a|b)
 
     // Remove leading ./ if present
     regexPattern = regexPattern.replace(/^\\.\//, '');
@@ -223,7 +229,7 @@ export async function findFilesByPattern(
     includeExtensions: extensions,
   });
 
-  return flattenAndFilterFiles(tree, pattern.patterns, caseSensitive);
+  return flattenAndFilterFiles(tree, pattern.patterns, caseSensitive, options.excludePatterns);
 }
 
 /**
@@ -249,17 +255,21 @@ export async function findFilesByTypes(
 function flattenAndFilterFiles(
   nodes: FileNode[],
   patterns: string[],
-  caseSensitive: boolean
+  caseSensitive: boolean,
+  excludePatterns: string[] = []
 ): FileNode[] {
   const result: FileNode[] = [];
 
   for (const node of nodes) {
-    if (node.type === 'file' && matchesPattern(node.name, node.path, patterns, caseSensitive)) {
+    const matches = matchesPattern(node.name, node.path, patterns, caseSensitive);
+    const excluded = excludePatterns.length > 0 && matchesPattern(node.name, node.path, excludePatterns, caseSensitive);
+
+    if (node.type === 'file' && matches && !excluded) {
       result.push(node);
     }
 
     if (node.children && node.children.length > 0) {
-      result.push(...flattenAndFilterFiles(node.children, patterns, caseSensitive));
+      result.push(...flattenAndFilterFiles(node.children, patterns, caseSensitive, excludePatterns));
     }
   }
 
