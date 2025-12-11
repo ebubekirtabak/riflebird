@@ -48,6 +48,16 @@ export class ProjectContextProvider {
       maxDepth: 5,
     });
   }
+
+  async getFileTreeWalker(): Promise<FileTreeWalker> {
+    if (this.initialized) {
+      return this.fileTreeWalker;
+    }
+
+    await this.init();
+    return this.fileTreeWalker;
+  }
+
   async getContext(): Promise<ProjectContext> {
     await this.init();
 
