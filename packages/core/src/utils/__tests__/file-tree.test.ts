@@ -6,7 +6,7 @@ import {
   getFileTree,
   flattenFileTree,
   formatFileTree,
-  findFilesByPatternByFileTree,
+  findFilesByPatternInFileTree,
 } from '../file-tree';
 import type { FileNode } from '@models/file-tree';
 
@@ -238,7 +238,7 @@ describe('file-tree utilities', () => {
     });
   });
 
-  describe('findFilesByPatternByFileTree', () => {
+  describe('findFilesByPatternInFileTree', () => {
     const mockFileTree: FileNode[] = [
       {
         name: 'src',
@@ -312,13 +312,13 @@ describe('file-tree utilities', () => {
     ];
 
     it('should find all TypeScript files with *.ts pattern', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, '*.ts');
+      const matches = findFilesByPatternInFileTree(mockFileTree, '*.ts');
 
       expect(matches).toHaveLength(0); // No files at root level match
     });
 
     it('should find all TypeScript files with **/*.ts pattern', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.ts');
+      const matches = findFilesByPatternInFileTree(mockFileTree, '**/*.ts');
 
       expect(matches).toHaveLength(3);
       expect(matches.map(f => f.name)).toContain('index.ts');
@@ -327,14 +327,14 @@ describe('file-tree utilities', () => {
     });
 
     it('should find test files with **/*.test.ts pattern', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.test.ts');
+      const matches = findFilesByPatternInFileTree(mockFileTree, '**/*.test.ts');
 
       expect(matches).toHaveLength(1);
       expect(matches[0].name).toBe('helpers.test.ts');
     });
 
     it('should find test files with **/*.test.{ts,tsx} pattern', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.test.{ts,tsx}');
+      const matches = findFilesByPatternInFileTree(mockFileTree, '**/*.test.{ts,tsx}');
 
       expect(matches).toHaveLength(2);
       expect(matches.map(f => f.name)).toContain('helpers.test.ts');
@@ -342,7 +342,7 @@ describe('file-tree utilities', () => {
     });
 
     it('should find React components with **/*.{tsx,jsx} pattern', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.{tsx,jsx}');
+      const matches = findFilesByPatternInFileTree(mockFileTree, '**/*.{tsx,jsx}');
 
       expect(matches).toHaveLength(3);
       expect(matches.map(f => f.name)).toContain('Button.tsx');
@@ -351,21 +351,21 @@ describe('file-tree utilities', () => {
     });
 
     it('should find files in specific directory with src/components/* pattern', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/components/*');
+      const matches = findFilesByPatternInFileTree(mockFileTree, 'src/components/*');
 
       expect(matches).toHaveLength(3);
       expect(matches.every(f => f.path.startsWith('src/components/'))).toBe(true);
     });
 
     it('should find files with ? wildcard matching single character', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/utils/helper?.ts');
+      const matches = findFilesByPatternInFileTree(mockFileTree, 'src/utils/helper?.ts');
 
       expect(matches).toHaveLength(1);
       expect(matches[0].name).toBe('helpers.ts');
     });
 
     it('should find specific file with exact path', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/index.ts');
+      const matches = findFilesByPatternInFileTree(mockFileTree, 'src/index.ts');
 
       expect(matches).toHaveLength(1);
       expect(matches[0].name).toBe('index.ts');
@@ -373,46 +373,46 @@ describe('file-tree utilities', () => {
     });
 
     it('should find files with src/** pattern', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/**');
+      const matches = findFilesByPatternInFileTree(mockFileTree, 'src/**');
 
       expect(matches).toHaveLength(7); // All files under src
     });
 
     it('should return empty array when no matches found', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.py');
+      const matches = findFilesByPatternInFileTree(mockFileTree, '**/*.py');
 
       expect(matches).toHaveLength(0);
     });
 
     it('should handle empty file tree', () => {
-      const matches = findFilesByPatternByFileTree([], '**/*.ts');
+      const matches = findFilesByPatternInFileTree([], '**/*.ts');
 
       expect(matches).toHaveLength(0);
     });
 
     it('should match CSS files', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, '**/*.css');
+      const matches = findFilesByPatternInFileTree(mockFileTree, '**/*.css');
 
       expect(matches).toHaveLength(1);
       expect(matches[0].name).toBe('styles.css');
     });
 
     it('should match JSON files at root', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, '*.json');
+      const matches = findFilesByPatternInFileTree(mockFileTree, '*.json');
 
       expect(matches).toHaveLength(1);
       expect(matches[0].name).toBe('package.json');
     });
 
     it('should handle patterns with multiple directory levels', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/*/Button.tsx');
+      const matches = findFilesByPatternInFileTree(mockFileTree, 'src/*/Button.tsx');
 
       expect(matches).toHaveLength(1);
       expect(matches[0].path).toBe('src/components/Button.tsx');
     });
 
     it('should distinguish between files and only return files', () => {
-      const matches = findFilesByPatternByFileTree(mockFileTree, 'src/**');
+      const matches = findFilesByPatternInFileTree(mockFileTree, 'src/**');
 
       // All matches should be files, not directories
       expect(matches.every(node => node.type === 'file')).toBe(true);

@@ -130,16 +130,16 @@ export function formatFileTree(nodes: FileNode[], indent = ''): string {
  * @example
  * ```ts
  * // Find all TypeScript files
- * findFilesByPattern(tree, '**\/*.ts')
+ * findFilesByPatternInFileTree(tree, '**\/*.ts')
  *
  * // Find test files in src directory
- * findFilesByPattern(tree, 'src/**\/*.test.ts')
+ * findFilesByPatternInFileTree(tree, 'src/**\/*.test.ts')
  *
  * // Find components
- * findFilesByPattern(tree, 'src/components/**\/*.{tsx,jsx}')
+ * findFilesByPatternInFileTree(tree, 'src/components/**\/*.{tsx,jsx}')
  * ```
  */
-export function findFilesByPatternByFileTree(fileTree: FileNode[], pattern: string): FileNode[] {
+export function findFilesByPatternInFileTree(fileTree: FileNode[], pattern: string): FileNode[] {
   const matches: FileNode[] = [];
 
   // Convert glob pattern to regex
