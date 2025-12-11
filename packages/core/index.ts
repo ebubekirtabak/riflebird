@@ -36,15 +36,17 @@ export {
   findFilesByType,
   findFilesByPattern,
   findFilesByTypes,
+} from './src/utils/file-finder';
+export {
   getFileStats,
   FILE_PATTERNS,
-} from './src/utils/file-finder';
+} from './src/utils/file';
 export type {
   FilePattern,
   FileType,
   FindFilesByPatternOptions,
   FileStats,
-} from './src/utils/file-finder';
+} from './src/utils/file';
 
 // Export common constants
 export {
