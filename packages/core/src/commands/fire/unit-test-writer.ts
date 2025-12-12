@@ -2,6 +2,7 @@ import type { ProjectContext, FrameworkInfo } from '@models/project-context';
 import { findFilesByStringPattern, generateTestFilePath, info, ProjectFileWalker, stripMarkdownCodeBlocks } from '@utils';
 import type { AIClient } from '@models/ai-client';
 import type { RiflebirdConfig } from '@config/schema';
+import { DEFAULT_COVERAGE_EXCLUDE, DEFAULT_UNIT_TEST_PATTERNS } from '@config/constants';
 import { PromptTemplateBuilder } from './prompt-template-builder';
 
 
@@ -17,6 +18,13 @@ export class UnitTestWriter {
     this.promptBuilder = new PromptTemplateBuilder();
   }
 
+  getExclusionPatternsForUnitTesting(): string[] {
+    // Combine user-defined and default exclusion patterns
+    const userExcludes = this.options.config.unitTesting?.testMatch || [];
+    return [
+      ...new Set([...userExcludes, ...DEFAULT_UNIT_TEST_PATTERNS, ...DEFAULT_COVERAGE_EXCLUDE]),
+    ];
+  }
   async writeTestByPattern(
     projectContext: ProjectContext,
     fileWalker: ProjectFileWalker,
@@ -24,7 +32,11 @@ export class UnitTestWriter {
     testFramework?: FrameworkInfo
   ): Promise<string[]> {
     const { projectRoot } = projectContext;
-    const matchedFiles = await findFilesByStringPattern(projectRoot, pattern);
+
+    const matchedFiles = await findFilesByStringPattern(projectRoot, pattern, {
+      excludePatterns: [...this.getExclusionPatternsForUnitTesting()],
+    });
+
     const results: string[] = [];
 
     for (const file of matchedFiles) {
