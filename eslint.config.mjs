@@ -23,6 +23,11 @@ export default [
         Request: 'readonly',
         Response: 'readonly',
         Headers: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        NodeJS: 'readonly',
       },
     },
     plugins: {
