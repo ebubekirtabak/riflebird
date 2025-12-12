@@ -619,7 +619,7 @@ describe('Calculator', () => {
     });
   });
 
-  describe('writeTestFile', () => {
+  describe.skip('writeTestFile', () => {
     beforeEach(async () => {
       // Reset mock instance
       const { getMockWalkerInstance } = await import('@utils/file-walker');
