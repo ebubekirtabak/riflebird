@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DEFAULT_COVERAGE_EXCLUDE, DEFAULT_COVERAGE_INCLUDE, DEFAULT_UNIT_TEST_PATTERNS } from './constants';
+import { DEFAULT_FILE_EXCLUDE_PATTERNS, DEFAULT_COVERAGE_INCLUDE, DEFAULT_UNIT_TEST_PATTERNS } from './constants';
 
 export const AIProviderSchema = z.enum(['openai', 'anthropic', 'local', 'copilot-cli']);
 
@@ -157,7 +157,7 @@ export const RiflebirdConfigSchema = z.object({
             })
             .optional(),
           include: z.array(z.string()).default([...DEFAULT_COVERAGE_INCLUDE]),
-          exclude: z.array(z.string()).default([...DEFAULT_COVERAGE_EXCLUDE]),
+          exclude: z.array(z.string()).default([...DEFAULT_FILE_EXCLUDE_PATTERNS]),
           reporter: z.array(CoverageReporterSchema).default(['text', 'html']),
         })
         .optional(),

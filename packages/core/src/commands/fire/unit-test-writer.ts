@@ -13,7 +13,7 @@ import {
 import { ProjectContextProvider } from '@providers/project-context-provider';
 import type { AIClient } from '@models/ai-client';
 import type { RiflebirdConfig } from '@config/schema';
-import { DEFAULT_COVERAGE_EXCLUDE, DEFAULT_UNIT_TEST_PATTERNS } from '@config/constants';
+import { DEFAULT_FILE_EXCLUDE_PATTERNS, DEFAULT_UNIT_TEST_PATTERNS } from '@config/constants';
 import { PromptTemplateBuilder } from './prompt-template-builder';
 
 
@@ -38,7 +38,7 @@ export class UnitTestWriter {
     // Combine user-defined and default exclusion patterns
     const userExcludes = this.options.config.unitTesting?.testMatch || [];
     return [
-      ...new Set([...userExcludes, ...DEFAULT_UNIT_TEST_PATTERNS, ...DEFAULT_COVERAGE_EXCLUDE]),
+      ...new Set([...userExcludes, ...DEFAULT_UNIT_TEST_PATTERNS, ...DEFAULT_FILE_EXCLUDE_PATTERNS]),
     ];
   }
 

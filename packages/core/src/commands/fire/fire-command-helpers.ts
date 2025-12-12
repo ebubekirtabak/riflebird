@@ -1,6 +1,6 @@
 import type { TestType, TestScope } from '../fire-command';
 import { SUPPORTED_TEST_TYPES } from './constants';
-import { DEFAULT_COVERAGE_EXCLUDE } from '../../config/constants';
+import { DEFAULT_FILE_EXCLUDE_PATTERNS } from '../../config/constants';
 import { globToRegex } from '../../utils/file-tree';
 
 /**
@@ -9,7 +9,7 @@ import { globToRegex } from '../../utils/file-tree';
  * @returns Array of exclusion patterns
  */
 export function getFileExcludePatterns(): string[] {
-  return [...DEFAULT_COVERAGE_EXCLUDE];
+  return [...DEFAULT_FILE_EXCLUDE_PATTERNS];
 }
 
 /**
@@ -19,7 +19,7 @@ export function getFileExcludePatterns(): string[] {
  * @returns true if file should be excluded, false otherwise
  */
 export function shouldExcludeFile(filePath: string, excludePatterns?: string[]): boolean {
-  const patterns = excludePatterns || [...DEFAULT_COVERAGE_EXCLUDE];
+  const patterns = excludePatterns || [...DEFAULT_FILE_EXCLUDE_PATTERNS];
 
   return patterns.some((pattern: string) => {
     const regex = globToRegex(pattern);
