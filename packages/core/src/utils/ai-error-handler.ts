@@ -4,13 +4,21 @@ export type AIError = {
     statusCode?: number;
 };
 
+function isAIError(value: unknown): value is AIError {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        ('message' in value || 'status' in value || 'statusCode' in value)
+    );
+}
+
 /**
  * Check if an error is a fatal AI provider error (e.g., Rate Limit, Auth).
  * If it is, throws a descriptive error that should stop execution.
  * If not, returns void (caller should handle or rethrow the original error).
  */
 export function checkAndThrowFatalError(error: unknown): void {
-    const aiError = error as AIError;
+    const aiError = isAIError(error) ? error : null;
     const errorMessage = aiError?.message || String(error);
     const statusCode = aiError?.status || aiError?.statusCode;
 
