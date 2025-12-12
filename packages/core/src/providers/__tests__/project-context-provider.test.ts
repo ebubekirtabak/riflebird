@@ -130,6 +130,55 @@ describe('ProjectContextProvider', () => {
     });
   });
 
+  describe('getFileTree', () => {
+    it('should return cached file tree when already initialized', async () => {
+      await provider.init();
+      const fileTree1 = await provider.getFileTree();
+      const fileTree2 = await provider.getFileTree();
+
+      expect(fileTree1).toBe(fileTree2);
+      expect(coreExports.getFileTree).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fetch file tree when not initialized', async () => {
+      const fileTree = await provider.getFileTree();
+
+      expect(fileTree).toBeDefined();
+      expect(coreExports.getFileTree).toHaveBeenCalledWith(
+        projectRoot,
+        expect.objectContaining({
+          excludeDirs: expect.any(Array),
+          maxDepth: 5,
+        })
+      );
+    });
+  });
+
+  describe('getFileTreeWalker', () => {
+    it('should return file tree walker after initialization', async () => {
+      const walker = await provider.getFileTreeWalker();
+
+      expect(walker).toBeDefined();
+      expect(walker).toHaveProperty('findConfigFiles');
+    });
+
+    it('should initialize if not already initialized', async () => {
+      const initSpy = vi.spyOn(provider, 'init');
+      const walker = await provider.getFileTreeWalker();
+
+      expect(initSpy).toHaveBeenCalled();
+      expect(walker).toBeDefined();
+    });
+
+    it('should return cached walker when already initialized', async () => {
+      await provider.init();
+      const walker1 = await provider.getFileTreeWalker();
+      const walker2 = await provider.getFileTreeWalker();
+
+      expect(walker1).toBe(walker2);
+    });
+  });
+
   describe('getContext', () => {
     it('should return complete project context', async () => {
       const context = await provider.getContext();
@@ -161,10 +210,36 @@ describe('ProjectContextProvider', () => {
 
       await expect(provider.getContext()).rejects.toThrow('File tree error');
     });
+
+    it('should log and rethrow errors from file tree walker', async () => {
+      const errorLogSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      vi.mocked(FileTreeWalker).mockImplementation(() => ({
+        findConfigFiles: vi.fn().mockRejectedValue(new Error('Config files error')),
+      } as unknown as FileTreeWalker));
+
+      provider = new ProjectContextProvider(mockContext, projectRoot);
+
+      await expect(provider.getContext()).rejects.toThrow('Config files error');
+
+      errorLogSpy.mockRestore();
+    });
+
+    it('should handle non-Error exceptions', async () => {
+      vi.mocked(FileTreeWalker).mockImplementation(() => ({
+        findConfigFiles: vi.fn().mockRejectedValue('String error'),
+      } as unknown as FileTreeWalker));
+
+      provider = new ProjectContextProvider(mockContext, projectRoot);
+
+      await expect(provider.getContext()).rejects.toThrow();
+    });
   });
 
   describe('readTestFramework', () => {
     it('should read unit test framework when enabled', async () => {
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
       const testFrameworksConfig = {
         unit: {
           type: 'unit-test',
@@ -181,6 +256,9 @@ describe('ProjectContextProvider', () => {
       expect(result).toHaveProperty('unit');
       expect(result.unit).toHaveProperty('name', 'vitest');
       expect(result.unit).toHaveProperty('configContent', 'mock file content');
+      expect(consoleLogSpy).toHaveBeenCalledWith('Unit test framework detected: vitest at vitest.config.ts');
+
+      consoleLogSpy.mockRestore();
     });
 
     it('should return empty object when unit testing is disabled', async () => {
@@ -211,8 +289,35 @@ describe('ProjectContextProvider', () => {
     });
 
     it('should handle read errors gracefully', async () => {
+      const errorLogSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
       vi.mocked(ProjectFileWalker).mockImplementation(() => ({
         readFileFromProject: vi.fn().mockRejectedValue(new Error('Read error')),
+        writeFileToProject: vi.fn(),
+      } as unknown as ProjectFileWalker));
+
+      provider = new ProjectContextProvider(mockContext, projectRoot);
+
+      const testFrameworksConfig = {
+        unit: {
+          type: 'unit-test',
+          name: 'vitest',
+          configFile: 'vitest.config.ts',
+          configFilePath: 'vitest.config.ts',
+          fileLang: 'typescript' as const,
+        },
+      };
+
+      const result = await provider.readTestFramework(testFrameworksConfig, projectRoot);
+
+      expect(result).toEqual({});
+
+      errorLogSpy.mockRestore();
+    });
+
+    it('should handle non-Error exceptions in readTestFramework', async () => {
+      vi.mocked(ProjectFileWalker).mockImplementation(() => ({
+        readFileFromProject: vi.fn().mockRejectedValue('String error message'),
         writeFileToProject: vi.fn(),
       } as unknown as ProjectFileWalker));
 
