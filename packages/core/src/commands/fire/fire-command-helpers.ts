@@ -19,7 +19,7 @@ export function getFileExcludePatterns(): string[] {
  * @returns true if file should be excluded, false otherwise
  */
 export function shouldExcludeFile(filePath: string, excludePatterns?: string[]): boolean {
-  const patterns = excludePatterns || (DEFAULT_COVERAGE_EXCLUDE as readonly string[] as string[]);
+  const patterns = excludePatterns || [...DEFAULT_COVERAGE_EXCLUDE];
 
   return patterns.some((pattern: string) => {
     const regex = globToRegex(pattern);
