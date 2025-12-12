@@ -187,7 +187,7 @@ export function globToRegex(pattern: string): RegExp {
   let regex = pattern;
 
   // Handle brace expansion {a,b} -> (a|b) FIRST before escaping braces
-  regex = regex.replace(/\{([^}]+)\}/g, (_: string, contents: string) => {
+  regex = regex.replace(/\{([^}]+)\}/g, (_match: string, contents: string) => {
     const options = contents.split(',').map((s: string) => s.trim());
     return `@@BRACE_START@@${options.join('@@BRACE_OR@@')}@@BRACE_END@@`;
   });
