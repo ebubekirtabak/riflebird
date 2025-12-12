@@ -14,11 +14,16 @@ export {
   CoverageProviderSchema,
   CoverageReporterSchema,
   TestEnvironmentSchema,
+} from './src/config/schema';
+
+// Export constants
+export {
   DEFAULT_UNIT_TEST_PATTERNS,
   DEFAULT_E2E_TEST_PATTERNS,
   DEFAULT_COVERAGE_INCLUDE,
   DEFAULT_COVERAGE_EXCLUDE,
-} from './src/config/schema';
+  DEFAULT_FILE_EXCLUDE_PATTERNS,
+} from './src/config/constants';
 
 // Export config helper
 export { defineConfig } from './src/config/loader';
