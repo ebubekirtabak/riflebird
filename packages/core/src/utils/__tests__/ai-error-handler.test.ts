@@ -8,6 +8,11 @@ describe('ai-error-handler', () => {
             expect(() => checkAndThrowFatalError(error)).toThrow(/Rate Limit Exceeded/);
         });
 
+        it('should throw Rate Limit Exceeded error for 429 statusCode', () => {
+            const error = { statusCode: 429, message: 'Too Many Requests' };
+            expect(() => checkAndThrowFatalError(error)).toThrow(/Rate Limit Exceeded/);
+        });
+
         it('should throw Rate Limit Exceeded error when message contains "429"', () => {
             const error = { message: 'Some error 429 occurred' };
             expect(() => checkAndThrowFatalError(error)).toThrow(/Rate Limit Exceeded/);
@@ -41,6 +46,23 @@ describe('ai-error-handler', () => {
         it('should not throw for generic errors', () => {
             const error = new Error('Something went wrong');
             expect(() => checkAndThrowFatalError(error)).not.toThrow();
+        });
+
+        it('should handle non-object errors gracefully', () => {
+            expect(() => checkAndThrowFatalError('string error')).not.toThrow();
+            expect(() => checkAndThrowFatalError(123)).not.toThrow();
+            expect(() => checkAndThrowFatalError(null)).not.toThrow();
+            expect(() => checkAndThrowFatalError(undefined)).not.toThrow();
+        });
+
+        it('should handle objects without AIError properties', () => {
+            const error = { someOtherProperty: 'value' };
+            expect(() => checkAndThrowFatalError(error)).not.toThrow();
+        });
+
+        it('should use String(error) for errorMessage when error is not an AIError', () => {
+            const error = 'plain string error with 429';
+            expect(() => checkAndThrowFatalError(error)).toThrow(/Rate Limit Exceeded.*plain string error with 429/);
         });
     });
 });
