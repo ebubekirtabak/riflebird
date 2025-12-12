@@ -1,4 +1,4 @@
-interface AIError {
+export type AIError = {
     message?: string;
     status?: number;
     statusCode?: number;
