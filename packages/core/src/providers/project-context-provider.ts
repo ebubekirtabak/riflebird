@@ -89,7 +89,7 @@ export class ProjectContextProvider {
       const { config } = this.context;
       const requestedUnitTest = config.unitTesting?.enabled && unit && unit.configFilePath;
       if (requestedUnitTest) {
-        console.log(`Unit test framework detected: ${unit}`);
+        console.log(`Unit test framework detected: ${unit.name} at ${unit.configFilePath}`);
         const content = await projectFileWalker.readFileFromProject(unit.configFilePath);
         unitFramework = {
           ...unit,
