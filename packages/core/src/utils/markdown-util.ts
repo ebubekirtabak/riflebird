@@ -1,3 +1,5 @@
+import { languageMap } from "./constants";
+
 export const stripMarkdownCodeBlocks = (content: string): string => {
   // Remove markdown code blocks (```typescript, ```javascript, ```, etc.)
   let cleaned = content.trim();
@@ -16,13 +18,23 @@ export const convertMarkdownToJSON = (content: string): JSON => {
   return JSON.parse(cleanedContent);
 }
 
+/**
+ * Infer language identifier from file extension for markdown code blocks
+ */
+function inferLanguageFromExtension(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  return languageMap[ext || ''] || '';
+}
+
 
 /**
  * Wrap file content in markdown code block with file path comment
  * @param filePath - Path to the file
  * @param content - File content
- * @returns Formatted markdown string
+ * @param language - Optional language identifier (auto-inferred from file extension if not provided)
+ * @returns Formatted markdown string with syntax highlighting
  */
-export const wrapFileContent = (filePath: string, content: string): string => {
-  return `\`\`\`\n// ${filePath}\n${content}\n\`\`\``;
+export const wrapFileContent = (filePath: string, content: string, language?: string): string => {
+  const lang = language || inferLanguageFromExtension(filePath);
+  return `\`\`\`${lang}\n// ${filePath}\n${content}\n\`\`\``;
 }
