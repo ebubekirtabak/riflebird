@@ -617,18 +617,6 @@ describe('Calculator', () => {
       expect(typeof elapsedMs).toBe('number');
       expect(elapsedMs).toBeGreaterThanOrEqual(0);
     });
-
-    it.skip('should return aggregated results with generated test paths', async () => {
-      // Complex mocking scenario - skipping for now
-    });
-
-    it.skip('should capture failures without stopping', async () => {
-      // Complex mocking scenario - skipping for now
-    });
-
-    it.skip('should pass testFramework to writeTestFile', async () => {
-      // Complex mocking scenario - skipping for now
-    });
   });
 
   describe('writeTestFile', () => {
@@ -641,22 +629,6 @@ describe('Calculator', () => {
       mockInstance.writeFileToProject.mockClear();
       mockInstance.readFileFromProject.mockResolvedValue('export function add(a, b) { return a + b; }');
       mockInstance.writeFileToProject.mockResolvedValue(undefined);
-    });
-
-    it.skip('should read file content, generate test, and write to test file', async () => {
-      // Complex mocking scenario - skipping for now
-    });
-
-    it.skip('should pass testFramework to generateTest', async () => {
-      // Complex mocking scenario - skipping for now
-    });
-
-    it.skip('should throw enhanced error message with file path context', async () => {
-      // Complex mocking scenario - skipping for now
-    });
-
-    it.skip('should handle non-Error exceptions', async () => {
-      // Complex mocking scenario - skipping for now
     });
   });
 });
