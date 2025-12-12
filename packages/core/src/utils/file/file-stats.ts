@@ -1,5 +1,5 @@
 import { FileNode } from "@/models/file-tree";
-import { FileType } from "../file-finder";
+import { FileType } from "./file-patterns";
 
 export type FileStats = {
     total: number;
