@@ -1,3 +1,44 @@
+/**
+ * @todo TDD Refactor: This test file uses complex module mocking that violates TDD principles.
+ *
+ * Current Issues:
+ * - Manual vi.mock() with shared state (getMockWalkerInstance pattern)
+ * - Testing implementation details rather than behavior
+ * - Tight coupling between tests and internal implementation
+ * - Difficult to understand what behavior is being tested
+ *
+ * Recommended Refactoring (production code):
+ * 1. Inject file operations as a dependency:
+ *    - Create FileOperations interface with read/write methods
+ *    - Pass implementation to UnitTestWriter constructor
+ *    - Tests can provide simple in-memory implementations
+ *
+ * 2. Inject pattern matching utilities:
+ *    - Create PatternMatcher interface
+ *    - Simplifies testing file filtering logic
+ *
+ * 3. Separate concerns:
+ *    - UnitTestWriter: orchestration only
+ *    - FileOperations: I/O boundary
+ *    - PatternMatcher: pattern logic
+ *    - PromptBuilder: prompt construction
+ *
+ * This would enable:
+ * - Constructor injection of all dependencies
+ * - No module-level mocking required
+ * - Tests that verify behavior, not implementation
+ * - Fast, deterministic unit tests
+ *
+ * Example improved test structure:
+ * ```typescript
+ * const fileOps = createInMemoryFileOps({ 'src/foo.ts': 'content' });
+ * const aiClient = createMockAiClient();
+ * const writer = new UnitTestWriter({ fileOps, aiClient, config });
+ * await writer.generateTest(...);
+ * expect(fileOps.getWrittenFiles()).toEqual({ 'src/__tests__/foo.test.ts': '...' });
+ * ```
+ */
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UnitTestWriter } from '../unit-test-writer';
 import type { ProjectContext, FrameworkInfo } from '@models/project-context';
