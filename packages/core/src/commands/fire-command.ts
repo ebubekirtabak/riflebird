@@ -79,7 +79,7 @@ export class FireCommand extends Command<FireInput, FireOutput> {
       info(`Project root found at: ${projectRoot}`);
       const provider = new ProjectContextProvider(this.context, projectRoot);
       const projectContext = await provider.getContext();
-      const { testFrameworks, } = projectContext;
+      const { testFrameworks } = projectContext;
       debug(`Project context:`, testFrameworks);
 
       const results: string[] = [];
