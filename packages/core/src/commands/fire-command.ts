@@ -1,6 +1,6 @@
 import { Command, type CommandContext } from './base';
 import { ProjectContextProvider } from '@providers/project-context-provider';
-import { debug, info, ProjectFileWalker, findProjectRoot } from '@utils';
+import { debug, info, findProjectRoot } from '@utils';
 import { resolveTestTypes, getScopePatterns } from './fire/fire-command-helpers';
 import { UnitTestWriter } from './fire/unit-test-writer';
 import { ALL_TEST_TYPES, SUPPORTED_TEST_SCOPES } from './fire/constants';
@@ -24,6 +24,7 @@ export type FireInput = {
   all?: boolean;
   testTypes?: TestType[];
   scope?: TestScope;
+  onProgress?: (current: number, total: number, file: string, elapsedMs: number) => void;
 };
 
 export type FireOutput = {
@@ -54,6 +55,11 @@ export class FireCommand extends Command<FireInput, FireOutput> {
   }
 
   async execute(input: FireInput): Promise<FireOutput> {
+    // Auto-enable all if scope is provided
+    if (input.scope && !input.all) {
+      input.all = true;
+    }
+
     this.validate(input);
     const { testPath, all, testTypes = [], scope } = input;
     const activeTestTypes = resolveTestTypes(all, testTypes);
@@ -73,43 +79,59 @@ export class FireCommand extends Command<FireInput, FireOutput> {
       info(`Project root found at: ${projectRoot}`);
       const provider = new ProjectContextProvider(this.context, projectRoot);
       const projectContext = await provider.getContext();
-      const { testFrameworks } = projectContext;
+      const { testFrameworks, } = projectContext;
       debug(`Project context:`, testFrameworks);
 
       const results: string[] = [];
 
       if (activeTestTypes.includes('unit') && testFrameworks?.unit) {
         debug(`Unit test framework configured: ${testFrameworks.unit.name}`);
-
         if (all) {
-          // @todo: Implement batch test generation for all files
           const scopeInfo = input.scope ? ` for ${input.scope} files` : '';
           info(`Scanning project for files to generate unit tests${scopeInfo}...`);
 
-          if (input.scope) {
-            const patterns = getScopePatterns(input.scope);
-            info(`Using patterns: ${patterns.join(', ')}`);
-            results.push(`Unit test generation for ${input.scope} files (coming soon)`);
-          } else {
-            results.push('Unit test generation for all files (coming soon)');
+          const patterns = input.scope
+            ? getScopePatterns(input.scope)
+            : ['src/**/*.{ts,tsx,js,jsx,vue}'];
+
+          info(`Using patterns: ${patterns.join(', ')}`);
+
+          const { files, failures } = await this.unitTestWriter.writeTestByPattern(
+            provider,
+            patterns,
+            testFrameworks.unit,
+            input.onProgress
+          );
+          results.push(...files);
+
+          if (failures.length > 0) {
+            info(`\n⚠️  ${failures.length} file(s) failed to generate tests:`);
+            failures.forEach(f => info(`  - ${f.file}: ${f.error}`));
+            const failureMsgs = failures.map(f => `  - ${f.file}: ${f.error}`);
+            results.push('\nFailures:', ...failureMsgs);
           }
         } else if (testPath) {
           const isPattern = testPath.includes('*') || testPath.includes('?');
 
           if (isPattern) {
-            // @todo: Implement glob pattern matching
             info(`Pattern detected: ${testPath}`);
-            this.unitTestWriter.writeTestByPattern(
-              projectContext,
-              new ProjectFileWalker({ projectRoot }),
+            const { files, failures } = await this.unitTestWriter.writeTestByPattern(
+              provider,
               testPath,
-              testFrameworks.unit
+              testFrameworks.unit,
+              input.onProgress
             );
-            results.push(`Unit test generation for pattern '${testPath}' (coming soon)`);
+            results.push(...files);
+
+            if (failures.length > 0) {
+              info(`\n⚠️  ${failures.length} file(s) failed to generate tests:`);
+              failures.forEach(f => info(`  - ${f.file}: ${f.error}`));
+              const failureMsgs = failures.map(f => `  - ${f.file}: ${f.error}`);
+              results.push('\nFailures:', ...failureMsgs);
+            }
           } else {
-            this.unitTestWriter.writeTestFile(
+            await this.unitTestWriter.writeTestFile(
               projectContext,
-              new ProjectFileWalker({ projectRoot }),
               testPath,
               testFrameworks.unit
             );

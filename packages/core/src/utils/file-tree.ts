@@ -122,10 +122,12 @@ export function formatFileTree(nodes: FileNode[], indent = ''): string {
 }
 
 /**
- * Find files in a file tree that match a glob pattern
+ * Find files in a file tree that match one or more glob patterns
+ * Efficiently handles both single and multiple patterns with a single tree traversal
+ *
  * @param fileTree - Array of FileNode to search
- * @param pattern - Glob pattern (supports *, **, ?, [abc], {a,b})
- * @returns Array of matching FileNode objects
+ * @param patterns - Single glob pattern or array of glob patterns (supports *, **, ?, [abc], {a,b})
+ * @returns Array of matching FileNode objects (deduplicated when multiple patterns match the same file)
  *
  * @example
  * ```ts
@@ -135,26 +137,37 @@ export function formatFileTree(nodes: FileNode[], indent = ''): string {
  * // Find test files in src directory
  * findFilesByPatternInFileTree(tree, 'src/**\/*.test.ts')
  *
- * // Find components
- * findFilesByPatternInFileTree(tree, 'src/components/**\/*.{tsx,jsx}')
+ * // Find all TypeScript and JavaScript files in one pass
+ * findFilesByPatternInFileTree(tree, ['**\/*.ts', '**\/*.js'])
+ *
+ * // Find source files across multiple directories
+ * findFilesByPatternInFileTree(tree, ['src/**\/*.{ts,tsx}', 'lib/**\/*.{ts,tsx}'])
  * ```
  */
-export function findFilesByPatternInFileTree(fileTree: FileNode[], pattern: string): FileNode[] {
-  const matches: FileNode[] = [];
+export function findFilesByPatternInFileTree(
+  fileTree: FileNode[],
+  patterns: string | string[]
+): FileNode[] {
+  // Normalize to array
+  const patternArray = Array.isArray(patterns) ? patterns : [patterns];
 
-  // Convert glob pattern to regex
-  const regexPattern = globToRegex(pattern);
+  const matchedFilesMap = new Map<string, FileNode>();
+
+  // Convert all patterns to regex once
+  const regexPatterns = patternArray.map(pattern => globToRegex(pattern));
 
   function searchTree(nodes: FileNode[]): void {
     for (const node of nodes) {
       if (node.type === 'file') {
-        // Test against the full path
-        if (regexPattern.test(node.path)) {
-          matches.push(node);
+        // Test against all patterns
+        for (const regexPattern of regexPatterns) {
+          if (regexPattern.test(node.path)) {
+            matchedFilesMap.set(node.path, node);
+            break;
+          }
         }
       }
 
-      // Recursively search children
       if (node.children && node.children.length > 0) {
         searchTree(node.children);
       }
@@ -162,43 +175,56 @@ export function findFilesByPatternInFileTree(fileTree: FileNode[], pattern: stri
   }
 
   searchTree(fileTree);
-  return matches;
+  return Array.from(matchedFilesMap.values());
 }
 
 /**
  * Convert glob pattern to regex
  * Supports: *, **, ?, [abc], {a,b}
+ * More robust version that handles `**/` and `/**` patterns correctly
  */
-function globToRegex(pattern: string): RegExp {
-  // Escape special regex characters except glob wildcards
-  let regex = pattern
+export function globToRegex(pattern: string): RegExp {
+  let regex = pattern;
+
+  // Handle brace expansion {a,b} -> (a|b) FIRST before escaping braces
+  regex = regex.replace(/\{([^}]+)\}/g, (_: string, contents: string) => {
+    const options = contents.split(',').map((s: string) => s.trim());
+    return `@@BRACE_START@@${options.join('@@BRACE_OR@@')}@@BRACE_END@@`;
+  });
+
+  // Now escape special regex characters except glob wildcards
+  regex = regex
     .replace(/\./g, '\\.')  // Escape dots
     .replace(/\+/g, '\\+')  // Escape plus
     .replace(/\^/g, '\\^')  // Escape caret
     .replace(/\$/g, '\\$')  // Escape dollar
     .replace(/\(/g, '\\(')  // Escape parentheses
-    .replace(/\)/g, '\\)'); // Escape parentheses
+    .replace(/\)/g, '\\)') // Escape parentheses
+    .replace(/\[/g, '\\[')  // Escape brackets
+    .replace(/\]/g, '\\]'); // Escape brackets
 
-  // Handle brace expansion {a,b} -> (a|b)
-  regex = regex.replace(/\{([^}]+)\}/g, (_, contents) => {
-    const options = contents.split(',').map((s: string) => s.trim());
-    return `(${options.join('|')})`;
-  });
+  // Restore brace expansion as regex groups
+  regex = regex.replace(/@@BRACE_START@@/g, '(');
+  regex = regex.replace(/@@BRACE_OR@@/g, '|');
+  regex = regex.replace(/@@BRACE_END@@/g, ')');
 
-  // Handle character classes [abc]
-  // Already valid in regex, no change needed
-
-  // Handle ** (match any directory depth)
+  // Handle ** (match any directory depth including zero)
+  // Replace **/ with (.*/)? to match zero or more directories
+  // Replace /** with (/.*) to match slash and any content after
+  regex = regex.replace(/\*\*\//g, '@@DOUBLESTAR_SLASH@@');
+  regex = regex.replace(/\/\*\*/g, '@@SLASH_DOUBLESTAR@@');
   regex = regex.replace(/\*\*/g, '@@DOUBLESTAR@@');
+
+  // Handle ? (match single character except /) BEFORE we add regex quantifiers
+  regex = regex.replace(/\?/g, '[^/]');
 
   // Handle * (match anything except /)
   regex = regex.replace(/\*/g, '[^/]*');
 
-  // Restore ** to match any depth
-  regex = regex.replace(/@@DOUBLESTAR@@/g, '.*');
-
-  // Handle ? (match single character except /)
-  regex = regex.replace(/\?/g, '[^/]');
+  // Restore ** patterns
+  regex = regex.replace(/@@DOUBLESTAR_SLASH@@/g, '(.*/)?');  // **/ matches zero or more dirs
+  regex = regex.replace(/@@SLASH_DOUBLESTAR@@/g, '/.*');      // /** matches slash and everything after
+  regex = regex.replace(/@@DOUBLESTAR@@/g, '.*');             // ** alone matches everything
 
   // Anchor the pattern
   regex = `^${regex}$`;

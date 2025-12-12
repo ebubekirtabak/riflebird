@@ -85,13 +85,18 @@ export class Riflebird {
   /**
    * Execute tests and analyze project structure
    */
-  async fire(input: { 
-    testPath?: string; 
-    all?: boolean; 
+  async fire(input: {
+    testPath?: string;
+    all?: boolean;
     testTypes?: Array<'e2e' | 'unit' | 'visual' | 'performance'>;
     scope?: 'component' | 'layout' | 'page' | 'service' | 'util' | 'hook' | 'store';
-  }): Promise<void> {
-    await this.fireCommand.execute(input);
+    onProgress?: (current: number, total: number, file: string, elapsedMs: number) => void;
+  }): Promise<string | undefined> {
+    const result = await this.fireCommand.execute(input);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    return result.result;
   }
 
   async watch(): Promise<void> {

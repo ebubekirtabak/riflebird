@@ -1,5 +1,31 @@
 import type { TestType, TestScope } from '../fire-command';
 import { SUPPORTED_TEST_TYPES } from './constants';
+import { DEFAULT_COVERAGE_EXCLUDE } from '../../config/constants';
+import { globToRegex } from '../../utils/file-tree';
+
+/**
+ * Get default file exclusion patterns
+ * Filters out test files, Storybook stories, config files, etc.
+ * @returns Array of exclusion patterns
+ */
+export function getFileExcludePatterns(): string[] {
+  return [...DEFAULT_COVERAGE_EXCLUDE];
+}
+
+/**
+ * Check if a file path should be excluded based on exclusion patterns
+ * @param filePath - The file path to check
+ * @param excludePatterns - Optional custom exclusion patterns (defaults to DEFAULT_FILE_EXCLUDE_PATTERNS)
+ * @returns true if file should be excluded, false otherwise
+ */
+export function shouldExcludeFile(filePath: string, excludePatterns?: string[]): boolean {
+  const patterns = excludePatterns || (DEFAULT_COVERAGE_EXCLUDE as readonly string[] as string[]);
+
+  return patterns.some((pattern: string) => {
+    const regex = globToRegex(pattern);
+    return regex.test(filePath);
+  });
+}
 
 /**
  * Resolve which test types should be executed

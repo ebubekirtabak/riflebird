@@ -1,6 +1,6 @@
 
 import { describe, it, expect } from 'vitest';
-import { resolveTestTypes, getScopePatterns } from '../fire-command-helpers';
+import { resolveTestTypes, getScopePatterns, getFileExcludePatterns, shouldExcludeFile } from '../fire-command-helpers';
 import { SUPPORTED_TEST_TYPES } from '../constants';
 import type { TestScope } from '../../fire-command';
 
@@ -96,6 +96,95 @@ describe('fire-command-helpers', () => {
         it('should return empty array for invalid scope', () => {
             const patterns = getScopePatterns('invalid' as TestScope);
             expect(patterns).toEqual([]);
+        });
+    });
+
+    describe('getFileExcludePatterns', () => {
+        it('should return default exclusion patterns', () => {
+            const patterns = getFileExcludePatterns();
+            expect(patterns).toBeInstanceOf(Array);
+            expect(patterns.length).toBeGreaterThan(0);
+        });
+
+        it('should include test file patterns', () => {
+            const patterns = getFileExcludePatterns();
+            expect(patterns).toContain('**/*.test.{ts,tsx,js,jsx}');
+            expect(patterns).toContain('**/*.spec.{ts,tsx,js,jsx}');
+            expect(patterns).toContain('**/__tests__/**');
+        });
+
+        it('should include Storybook patterns', () => {
+            const patterns = getFileExcludePatterns();
+            expect(patterns).toContain('**/*.stories.{ts,tsx,js,jsx}');
+            expect(patterns).toContain('**/*.story.{ts,tsx,js,jsx}');
+            expect(patterns).toContain('**/.storybook/**');
+        });
+
+        it('should include build output patterns', () => {
+            const patterns = getFileExcludePatterns();
+            expect(patterns).toContain('**/dist/**');
+            expect(patterns).toContain('**/build/**');
+            expect(patterns).toContain('**/coverage/**');
+        });
+
+        it('should include config file patterns', () => {
+            const patterns = getFileExcludePatterns();
+            expect(patterns).toContain('**/*.config.{ts,js}');
+            expect(patterns).toContain('**/*.d.ts');
+        });
+    });
+
+    describe('shouldExcludeFile', () => {
+        it('should exclude test files', () => {
+            expect(shouldExcludeFile('src/components/Button.test.tsx')).toBe(true);
+            expect(shouldExcludeFile('src/utils/helper.spec.ts')).toBe(true);
+            expect(shouldExcludeFile('src/__tests__/setup.ts')).toBe(true);
+        });
+
+        it('should exclude Storybook files', () => {
+            expect(shouldExcludeFile('src/components/Button.stories.tsx')).toBe(true);
+            expect(shouldExcludeFile('src/components/Card.story.jsx')).toBe(true);
+            expect(shouldExcludeFile('.storybook/main.js')).toBe(true);
+        });
+
+        it('should exclude build output directories', () => {
+            expect(shouldExcludeFile('dist/index.js')).toBe(true);
+            expect(shouldExcludeFile('build/components/Button.js')).toBe(true);
+            expect(shouldExcludeFile('coverage/lcov.info')).toBe(true);
+            expect(shouldExcludeFile('.next/static/chunks/main.js')).toBe(true);
+        });
+
+        it('should exclude config files', () => {
+            expect(shouldExcludeFile('vite.config.ts')).toBe(true);
+            expect(shouldExcludeFile('src/utils/jest.setup.js')).toBe(true);
+            expect(shouldExcludeFile('src/types.d.ts')).toBe(true);
+        });
+
+        it('should exclude node_modules', () => {
+            expect(shouldExcludeFile('node_modules/react/index.js')).toBe(true);
+        });
+
+        it('should NOT exclude regular component files', () => {
+            expect(shouldExcludeFile('src/components/Button.tsx')).toBe(false);
+            expect(shouldExcludeFile('src/pages/Home.jsx')).toBe(false);
+            expect(shouldExcludeFile('src/utils/helper.ts')).toBe(false);
+        });
+
+        it('should support custom exclusion patterns', () => {
+            const customPatterns = ['**/*.custom.ts', '**/temp/**'];
+            expect(shouldExcludeFile('src/file.custom.ts', customPatterns)).toBe(true);
+            expect(shouldExcludeFile('temp/data.json', customPatterns)).toBe(true);
+            expect(shouldExcludeFile('src/component.tsx', customPatterns)).toBe(false);
+        });
+
+        it('should handle nested paths correctly', () => {
+            expect(shouldExcludeFile('src/features/user/components/Avatar.test.tsx')).toBe(true);
+            expect(shouldExcludeFile('src/features/user/components/Avatar.tsx')).toBe(false);
+        });
+
+        it('should handle e2e test files', () => {
+            expect(shouldExcludeFile('src/pages/Login.e2e.ts')).toBe(true);
+            expect(shouldExcludeFile('tests/e2e/login.e2e.tsx')).toBe(true);
         });
     });
 });

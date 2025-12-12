@@ -47,6 +47,8 @@ export async function fireCommand(testPath?: string, options?: FireOptions) {
     if (result) {
       console.log(chalk.cyan('\n' + result + '\n'));
     }
+
+    process.exit(0);
   } catch (error) {
     // Stop the live timer on error
     clearInterval(timerRef.current);
