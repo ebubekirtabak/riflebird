@@ -77,8 +77,8 @@ jobs:
       - name: Check package size
         if: matrix.node-version == '20.x'
         run: |
-          pnpm --filter @riflebird/core pack --pack-destination ../../dist
-          pnpm --filter riflebird pack --pack-destination ../../dist
+          pnpm --filter @riflebird/core pack --pack-destination ./dist
+          pnpm --filter riflebird pack --pack-destination ./dist
           echo "### 📦 Package Sizes" >> $GITHUB_STEP_SUMMARY
           du -sh ./dist/*.tgz | awk '{print "- " $2 ": **" $1 "**"}' >> $GITHUB_STEP_SUMMARY
 
