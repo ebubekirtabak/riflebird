@@ -176,7 +176,7 @@ Our codebase is regularly scanned with:
 
 For non-security related issues, please use [GitHub Issues](https://github.com/ebubekirtabak/riflebird/issues).
 
-For security concerns, email: ebubekirtabak@gmail.com
+For security concerns, email: ebubekir.tabak@yahoo.com
 
 ---
 
