@@ -26,7 +26,8 @@ export function checkAndThrowFatalError(error: unknown): void {
   if (
     statusCode === 429 ||
     errorMessage.includes('429') ||
-    errorMessage.toLowerCase().includes('usage limit')
+    errorMessage.toLowerCase().includes('usage limit') ||
+    errorMessage.toLowerCase().includes('rate limit')
   ) {
     throw new Error('AI Provider Rate Limit Exceeded: ' + errorMessage);
   }

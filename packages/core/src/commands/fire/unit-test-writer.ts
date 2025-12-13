@@ -130,6 +130,9 @@ export class UnitTestWriter {
       info(`Generated test file path: ${testFilePath}`);
       await fileWalker.writeFileToProject(testFilePath, unitTestCode);
     } catch (error) {
+      // Check for fatal AI errors first (these should stop execution immediately)
+      checkAndThrowFatalError(error);
+
       const message = error instanceof Error ? error.message : String(error);
       // Enhance error message with context
       throw new Error(`Failed to process ${testPath}: ${message}`);

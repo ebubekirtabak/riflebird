@@ -23,6 +23,16 @@ describe('ai-error-handler', () => {
             expect(() => checkAndThrowFatalError(error)).toThrow(/Rate Limit Exceeded/);
         });
 
+        it('should throw Rate Limit Exceeded error when message contains "rate limit" (case insensitive)', () => {
+            const error = { message: 'AI Provider Rate Limit Exceeded: Rate limit exceeded' };
+            expect(() => checkAndThrowFatalError(error)).toThrow(/Rate Limit Exceeded/);
+        });
+
+        it('should throw Rate Limit Exceeded error when wrapped error contains "rate limit"', () => {
+            const error = { message: 'Failed to process file: AI Provider Rate Limit Exceeded: Too many requests' };
+            expect(() => checkAndThrowFatalError(error)).toThrow(/Rate Limit Exceeded/);
+        });
+
         it('should throw Authentication Error for 401 status code', () => {
             const error = { status: 401, message: 'Unauthorized' };
             expect(() => checkAndThrowFatalError(error)).toThrow(/Authentication Error/);

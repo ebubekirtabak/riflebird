@@ -62,7 +62,7 @@ vi.mock('@utils', async () => {
   };
 });
 
-vi.mock('@utils/file-walker', () => {
+vi.mock('@utils/project-file-walker', () => {
   const mockInstance = {
     readFileFromProject: vi.fn().mockResolvedValue('// source code'),
     writeFileToProject: vi.fn().mockResolvedValue(undefined),
@@ -78,10 +78,18 @@ describe('UnitTestWriter', () => {
   let mockAiClient: AIClient;
   let mockConfig: RiflebirdConfig;
   let mockProjectContext: ProjectContext;
+  let mockWalkerInstance: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reset mocks
     vi.clearAllMocks();
+
+    // Get and configure the file walker mock instance
+    const { getMockWalkerInstance } = await import('@utils/project-file-walker');
+    mockWalkerInstance = getMockWalkerInstance();
+
+    mockWalkerInstance.readFileFromProject.mockResolvedValue('// source code');
+    mockWalkerInstance.writeFileToProject.mockResolvedValue(undefined);
 
     // Setup mock AI client with default successful response
     mockAiClient = {
@@ -657,6 +665,158 @@ describe('Calculator', () => {
       const elapsedMs = onProgress.mock.calls[0][3];
       expect(typeof elapsedMs).toBe('number');
       expect(elapsedMs).toBeGreaterThanOrEqual(0);
+    });
+
+    describe('error handling', () => {
+      it('should collect failures when file processing fails', async () => {
+        const mockFiles = [
+          { name: 'file1.ts', path: '/test/project/src/file1.ts', type: 'file' as const },
+          { name: 'file2.ts', path: '/test/project/src/file2.ts', type: 'file' as const },
+        ];
+
+        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
+        matchesPatternMock.mockReturnValue(false);
+
+        // Make AI client fail for first call only
+        (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>)
+          .mockRejectedValueOnce(new Error('AI processing failed'))
+          .mockResolvedValueOnce({
+            choices: [
+              {
+                message: {
+                  content: '```typescript\ntest("works", () => {});\n```',
+                },
+              },
+            ],
+          });
+
+        const result = await writer.writeTestByPattern(mockProvider, 'src/**/*.ts');
+
+        expect(result.failures).toHaveLength(1);
+        expect(result.failures[0]).toMatchObject({
+          file: '/test/project/src/file1.ts',
+          error: expect.stringContaining('AI processing failed'),
+        });
+        expect(result.files).toHaveLength(1);
+      });
+
+      it('should throw immediately on AI rate limit errors mid-batch', async () => {
+        const mockFiles = [
+          { name: 'file1.ts', path: '/test/project/src/file1.ts', type: 'file' as const },
+          { name: 'file2.ts', path: '/test/project/src/file2.ts', type: 'file' as const },
+        ];
+
+        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
+        matchesPatternMock.mockReturnValue(false);
+
+        // First file succeeds, second hits rate limit
+        (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>)
+          .mockResolvedValueOnce({
+            choices: [{ message: { content: 'test code' } }],
+          })
+          .mockRejectedValueOnce({
+            status: 429,
+            message: 'Rate limit exceeded',
+          });
+
+        await expect(writer.writeTestByPattern(mockProvider, 'src/**/*.ts')).rejects.toThrow(
+          /Rate Limit Exceeded/
+        );
+      });
+
+      it('should throw immediately on authentication errors', async () => {
+        const mockFiles = [
+          { name: 'file.ts', path: '/test/project/src/file.ts', type: 'file' as const },
+        ];
+
+        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
+        matchesPatternMock.mockReturnValue(false);
+
+        (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockRejectedValue({
+          status: 401,
+          message: 'Invalid API key',
+        });
+
+        await expect(writer.writeTestByPattern(mockProvider, 'src/**/*.ts')).rejects.toThrow(
+          /Authentication Error/
+        );
+      });
+
+      it('should continue processing other files after non-fatal errors', async () => {
+        const mockFiles = [
+          { name: 'file1.ts', path: '/test/project/src/file1.ts', type: 'file' as const },
+          { name: 'file2.ts', path: '/test/project/src/file2.ts', type: 'file' as const },
+          { name: 'file3.ts', path: '/test/project/src/file3.ts', type: 'file' as const },
+        ];
+
+        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
+        matchesPatternMock.mockReturnValue(false);
+
+        // Fail first and third with generic errors, succeed second
+        (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>)
+          .mockRejectedValueOnce(new Error('Network timeout'))
+          .mockResolvedValueOnce({
+            choices: [{ message: { content: 'test code' } }],
+          })
+          .mockRejectedValueOnce(new Error('Parse error'));
+
+        const result = await writer.writeTestByPattern(mockProvider, 'src/**/*.ts');
+
+        expect(result.failures).toHaveLength(2);
+        expect(result.files).toHaveLength(1);
+        expect(result.failures[0].file).toBe('/test/project/src/file1.ts');
+        expect(result.failures[1].file).toBe('/test/project/src/file3.ts');
+      });
+
+      it('should handle non-Error exceptions in failure messages', async () => {
+        const mockFiles = [
+          { name: 'file.ts', path: '/test/project/src/file.ts', type: 'file' as const },
+        ];
+
+        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
+        matchesPatternMock.mockReturnValue(false);
+
+        // Throw a string error instead of Error object
+        (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockRejectedValue(
+          'String error message from AI'
+        );
+
+        const result = await writer.writeTestByPattern(mockProvider, 'src/**/*.ts');
+
+        expect(result.failures).toHaveLength(1);
+        expect(result.failures[0].error).toContain('String error message from AI');
+      });
+
+      it('should call onProgress callback even when errors occur', async () => {
+        const mockFiles = [
+          { name: 'file1.ts', path: '/test/project/src/file1.ts', type: 'file' as const },
+          { name: 'file2.ts', path: '/test/project/src/file2.ts', type: 'file' as const },
+        ];
+
+        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
+        matchesPatternMock.mockReturnValue(false);
+
+        (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockRejectedValue(
+          new Error('Test error')
+        );
+
+        const onProgress = vi.fn();
+
+        await writer.writeTestByPattern(mockProvider, 'src/**/*.ts', undefined, onProgress);
+
+        expect(onProgress).toHaveBeenCalledTimes(2);
+        expect(onProgress).toHaveBeenNthCalledWith(1, 1, 2, '/test/project/src/file1.ts', expect.any(Number));
+        expect(onProgress).toHaveBeenNthCalledWith(2, 2, 2, '/test/project/src/file2.ts', expect.any(Number));
+      });
+
+      it('should return empty results when no files match patterns', async () => {
+        findFilesByPatternInFileTreeMock.mockReturnValue([]);
+
+        const result = await writer.writeTestByPattern(mockProvider, 'nonexistent/**/*.ts');
+
+        expect(result.files).toHaveLength(0);
+        expect(result.failures).toHaveLength(0);
+      });
     });
   });
 
