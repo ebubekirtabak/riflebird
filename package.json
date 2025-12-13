@@ -34,7 +34,7 @@
     "lint:fix": "turbo run lint -- --fix",
     "publish": "pnpm changeset publish",
     "prepare": "husky",
-    "security:audit": "pnpm audit --audit-level=moderate",
+    "security:audit": "pnpm audit --audit-level=high",
     "security:check": "pnpm dlx license-checker --production"
   },
   "lint-staged": {
