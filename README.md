@@ -80,15 +80,22 @@ Benchmark results from internal testing. Success rate = percentage of generated 
 riflebird init
 ```
 
-2. Generate a test for all files:
+2. Generate tests for all files:
 ```bash
 riflebird fire --all
 ```
 
-or Generate a test for single file:
+3. Generate a test for a single file:
 ```bash
 riflebird fire ./src/components/cards/PeopleCard/PeopleCard.component.tsx
 ```
+
+4. Use scope filtering to target specific file types:
+```bash
+riflebird fire --all --scope component --unit
+```
+
+For more advanced usage including glob patterns, test type filtering, and scope options, see the [Fire Command Documentation](docs/FIRE_COMMAND.md).
 
 ## Features
 
@@ -102,7 +109,7 @@ riflebird fire ./src/components/cards/PeopleCard/PeopleCard.component.tsx
 ## Commands
 
 - `riflebird init` - Initialize configuration
-- `riflebird fire [path]` - Generate test from description
+- `riflebird fire [path]` - Generate and execute tests with flexible filtering options ([detailed documentation](docs/FIRE_COMMAND.md))
 
 ### Copilot CLI provider
 
