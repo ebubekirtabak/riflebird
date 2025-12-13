@@ -85,7 +85,8 @@ jobs:
       - name: Generate SBOM
         if: matrix.node-version == '20.x'
         run: |
-          npx @cyclonedx/cyclonedx-npm --output-file sbom.json --spec-version 1.4
+          cd packages/core && npx @cyclonedx/cyclonedx-npm --output-file ../../sbom-core.json --spec-version 1.4 --omit dev || true
+          cd ../cli && npx @cyclonedx/cyclonedx-npm --output-file ../../sbom-cli.json --spec-version 1.4 --omit dev || true
         continue-on-error: true
 
       - name: Upload SBOM
@@ -93,5 +94,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sbom
-          path: sbom.json
+          path: |
+            sbom-*.json
           retention-days: 30
+          if-no-files-found: warn

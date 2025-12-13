@@ -112,12 +112,15 @@ jobs:
 
       - name: Generate SBOM (CycloneDX)
         run: |
-          npx @cyclonedx/cyclonedx-npm --output-file sbom-cyclonedx.json --spec-version 1.4
-          npx @cyclonedx/cyclonedx-npm --output-format XML --output-file sbom-cyclonedx.xml --spec-version 1.4
+          cd packages/core
+          npx @cyclonedx/cyclonedx-npm --output-file ../../sbom-core.json --spec-version 1.4
+          cd ../cli
+          npx @cyclonedx/cyclonedx-npm --output-file ../../sbom-cli.json --spec-version 1.4
+        continue-on-error: true
 
-      - name: Generate SBOM (SPDX)
+      - name: Generate Root SBOM
         run: |
-          npx @sbom/cli generate -o sbom-spdx.json
+          npx @cyclonedx/cyclonedx-npm --output-file sbom-root.json --spec-version 1.4 --omit dev
         continue-on-error: true
 
       - name: Upload SBOM artifacts
@@ -126,8 +129,8 @@ jobs:
           name: sbom-files
           path: |
             sbom-*.json
-            sbom-*.xml
           retention-days: 90
+          if-no-files-found: warn
 
       - name: Verify package integrity
         run: |
