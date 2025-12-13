@@ -33,7 +33,6 @@
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint -- --fix",
     "publish": "pnpm changeset publish",
-    "prepare": "husky"
     "prepare": "husky",
     "security:audit": "pnpm audit --audit-level=moderate",
     "security:check": "pnpm dlx license-checker --production"
