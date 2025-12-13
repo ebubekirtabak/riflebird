@@ -36,11 +36,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Run security audit
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
+
       - name: Run type check
         run: pnpm -w -r run type-check
 
       - name: Run linter
         run: pnpm -w -r run lint
+
+      - name: Check licenses
+        run: pnpm dlx license-checker --production --onlyAllow "MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,0BSD,Python-2.0,Unlicense,CC0-1.0"
+        continue-on-error: true
 
       - name: Run unit tests
         run: pnpm -w -r test -- --run --coverage
@@ -65,3 +73,28 @@ jobs:
 
       - name: Build packages
         run: pnpm -w -r build
+
+      - name: Check package size
+        if: matrix.node-version == '20.x'
+        run: |
+          pnpm --filter @riflebird/core pack --pack-destination ./dist
+          pnpm --filter riflebird pack --pack-destination ./dist
+          echo "### 📦 Package Sizes" >> $GITHUB_STEP_SUMMARY
+          du -sh ./dist/*.tgz | awk '{print "- " $2 ": **" $1 "**"}' >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate SBOM
+        if: matrix.node-version == '20.x'
+        run: |
+          cd packages/core && npx @cyclonedx/cyclonedx-npm --output-file ../../sbom-core.json --spec-version 1.4 --omit dev || true
+          cd ../cli && npx @cyclonedx/cyclonedx-npm --output-file ../../sbom-cli.json --spec-version 1.4 --omit dev || true
+        continue-on-error: true
+
+      - name: Upload SBOM
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            sbom-*.json
+          retention-days: 30
+          if-no-files-found: warn

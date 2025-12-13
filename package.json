@@ -22,6 +22,10 @@
   "bugs": {
     "url": "https://github.com/ebubekirtabak/riflebird/issues"
   },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=10.23.0"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -29,7 +33,9 @@
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint -- --fix",
     "publish": "pnpm changeset publish",
-    "prepare": "husky"
+    "prepare": "husky",
+    "security:audit": "pnpm audit --audit-level=high",
+    "security:check": "pnpm dlx license-checker --production"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
