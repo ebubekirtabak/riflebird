@@ -1,7 +1,7 @@
 {
   "name": "@riflebird/core",
   "version": "1.0.0",
-  "description": "Core AI-powered E2E testing engine for Riflebird",
+  "description": "AI-powered all in one test generation and execution framework",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",

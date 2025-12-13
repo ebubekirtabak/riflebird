@@ -1,5 +1,7 @@
 # Contributing to Riflebird
 
+**Riflebird** is an AI-powered test generation and execution framework that supports unit, integration, E2E, visual, and performance testing across multiple testing frameworks.
+
 Thank you for your interest in contributing to Riflebird! This guide will help you get started.
 
 ## Development Setup
@@ -104,11 +106,13 @@ describe('myModule', () => {
 
 ## TypeScript Conventions
 
-### Type Definitions
+### Type Definitions (CRITICAL)
 
 - **Always use `type` instead of `interface`**
 - **Always export types** - never define internal-only types
-- **No `any` types** - use `unknown` for untrusted input
+- **No `any` types allowed** - use `unknown` for untrusted input
+- **Avoid `as unknown as` casting** - use type guards instead
+- **Export named types for public APIs** - no inline type literals
 - Prefix unused parameters with underscore: `_param`
 
 ```typescript
@@ -120,8 +124,24 @@ export type UserOptions = {
 
 export type CommandHandler = (options: UserOptions) => Promise<void>;
 
+// Type guard for validation
+export type User = { id: string; name: string };
+
+function isUser(value: unknown): value is User {
+  return typeof value === 'object' && value !== null &&
+         'id' in value && typeof value.id === 'string' &&
+         'name' in value && typeof value.name === 'string';
+}
+
+export function parseUser(data: unknown): User {
+  if (!isUser(data)) {
+    throw new Error('Invalid user data');
+  }
+  return data;
+}
+
 // ❌ Incorrect
-interface UserOptions {
+interface UserOptions {  // Don't use interface
   name: string;
 }
 
@@ -130,6 +150,42 @@ type InternalConfig = {  // Not exported
 };
 
 function handler(options: any) {}  // Using any
+
+const user = data as unknown as User;  // Unsafe casting
+
+export function login(opts: { username: string }): Promise<void> {}  // Inline type
+```
+
+### Performance & Complexity
+
+- **Prefer O(1) and O(log n)** algorithms over O(n) when possible
+- **AVOID O(n²)** - use Maps, Sets, or proper indexing instead of nested loops
+- **Use appropriate data structures**:
+  - `Map` for key-value lookups (O(1)) instead of `Array.find()` (O(n))
+  - `Set` for membership checks (O(1)) instead of `Array.includes()` (O(n))
+- **Batch operations** - single pass instead of multiple iterations
+- **Document complexity** for non-trivial algorithms: `// O(n log n) - sort + binary search`
+
+```typescript
+// ❌ O(n²) - Array.includes inside loop
+for (const item of items) {
+  if (existingIds.includes(item.id)) { /* ... */ }
+}
+
+// ✅ O(n) - Use Set for O(1) lookups
+const existingIdsSet = new Set(existingIds);
+for (const item of items) {
+  if (existingIdsSet.has(item.id)) { /* ... */ }
+}
+
+// ❌ Multiple O(n) passes
+const filtered = items.filter(x => x.active);
+const mapped = filtered.map(x => x.value);
+const sum = mapped.reduce((a, b) => a + b, 0);
+
+// ✅ Single O(n) pass
+const sum = items.reduce((acc, x) => 
+  x.active ? acc + x.value : acc, 0);
 ```
 
 ### Import Conventions
@@ -225,6 +281,17 @@ riflebird/
 - **Issues**: Open an issue for bugs or feature requests
 - **Discussions**: Use GitHub Discussions for questions
 - **Documentation**: Check README and inline code comments
+
+## AI Coding Assistants
+
+If you're using AI coding assistants, refer to these configuration files:
+
+- **`.github/copilot-instructions.md`** - GitHub Copilot specific rules
+- **`.cursorrules`** - Cursor AI rules
+- **`.ai/rules.md`** - Universal rules for all AI assistants (recommended)
+- **`.aider.conf.yml`** - Aider AI configuration
+
+These files contain comprehensive coding standards including TypeScript rules, performance optimization guidelines, and TDD requirements that AI assistants will follow automatically.
 
 ## License
 
