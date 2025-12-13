@@ -1,0 +1,33 @@
+{
+  "version": "0.1.0",
+  "instructions": "You are assisting with Riflebird, an AI-powered test generation and execution framework supporting unit, integration, E2E, visual, and performance testing. Follow strict TypeScript conventions: use `type` not `interface`, export all types, no `any` types, use type guards for validation. Optimize for O(1)/O(log n) complexity - avoid O(n²), use Maps/Sets instead of nested loops. Follow TDD: write tests before implementation (Red-Green-Refactor). See .ai/rules.md for complete guidelines.",
+  "rules": [
+    {
+      "pattern": "**/*.ts",
+      "instruction": "Use `type` instead of `interface`. Export all types. No `any` types - use `unknown` with type guards. Avoid `as unknown as` casting. Export named types for public APIs."
+    },
+    {
+      "pattern": "**/*.test.ts",
+      "instruction": "Follow TDD: write failing test first, implement minimal code to pass, refactor. One assertion concept per test. Descriptive names using Given/When/Then. Mock external dependencies."
+    },
+    {
+      "pattern": "**/config/**",
+      "instruction": "Use Zod for validation. Type inference via z.infer. Never hardcode API keys - use process.env."
+    },
+    {
+      "pattern": "**/adapters/**",
+      "instruction": "Implement TestFrameworkAdapter interface. Playwright: programmatic execution. Cypress: code generation only."
+    }
+  ],
+  "contextFiles": [
+    ".ai/rules.md",
+    "README.md",
+    ".github/copilot-instructions.md"
+  ],
+  "commands": {
+    "test": "pnpm --filter @riflebird/core test",
+    "build": "pnpm build",
+    "lint": "pnpm lint",
+    "typecheck": "pnpm --filter @riflebird/core run type-check"
+  }
+}

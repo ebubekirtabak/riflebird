@@ -1,0 +1,75 @@
+# Cody AI Configuration for Riflebird
+# https://sourcegraph.com/docs/cody
+
+# This file extends the universal rules in .ai/rules.md
+# Cody automatically reads markdown files for context
+
+instructions: |
+  You are assisting with the Riflebird project, an AI-powered test generation and execution framework.
+  Supports: Unit (Vitest, Jest), Integration, E2E (Playwright, Cypress), Visual, and Performance testing.
+  
+  CRITICAL RULES (strictly enforced):
+  
+  1. TypeScript Type System
+     - ALWAYS use `type`, NEVER use `interface`
+     - ALWAYS export types (no internal-only types)
+     - NO `any` types - use `unknown` with type guards
+     - Avoid `as unknown as` - use validation functions
+     - Export named types for APIs (no inline literals)
+  
+  2. Performance & Complexity
+     - Prefer O(1) and O(log n) over O(n)
+     - AVOID O(n²) - use Maps/Sets instead of nested loops
+     - Use Set for membership checks (O(1)) vs Array.includes() (O(n))
+     - Use Map for lookups (O(1)) vs Array.find() (O(n))
+     - Batch operations - single pass vs multiple iterations
+     - Document complexity: // O(n log n) - sort + binary search
+  
+  3. Test-Driven Development (TDD)
+     - Write failing tests BEFORE implementation
+     - Red-Green-Refactor cycle
+     - One assertion concept per test
+     - Fast unit tests (milliseconds)
+     - Mock external dependencies
+     - Descriptive test names (Given/When/Then)
+  
+  4. Code Quality
+     - File naming: kebab-case
+     - ESLint must pass (zero warnings)
+     - TypeScript strict mode
+     - Type-safe error handling (no `any` in catch)
+     - Throw descriptive errors with context
+  
+  Project uses pnpm workspaces + Turborepo. Packages: core (library), cli (tool).
+  
+  For complete rules, refer to .ai/rules.md in the repository root.
+
+# Context files to always include
+context-files:
+  - .ai/rules.md
+  - README.md
+  - .github/copilot-instructions.md
+
+# Ignore patterns
+ignore:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/coverage/**"
+  - "**/.turbo/**"
+  - "**/build/**"
+
+# Enhanced context for specific tasks
+enhanced-context:
+  typescript:
+    - "**/*.ts"
+    - "**/tsconfig.json"
+    - "**/*.test.ts"
+  testing:
+    - "**/__tests__/**"
+    - "**/*.test.ts"
+    - "**/*.spec.ts"
+    - "**/vitest.config.ts"
+  configuration:
+    - "**/config/**"
+    - "**/*.config.ts"
+    - "**/schema.ts"

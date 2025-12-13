@@ -1,0 +1,60 @@
+# Aider AI Coding Assistant Configuration
+# https://aider.chat/docs/config.html
+
+# Model configuration
+model: gpt-4-turbo-preview
+edit-format: diff
+
+# Code style and conventions
+convention: |
+  # Riflebird TypeScript Conventions
+  # Project: AI-powered test generation framework for unit, integration, E2E, visual, and performance testing
+
+  ## CRITICAL RULES
+  - ALWAYS use `type` instead of `interface` for all type definitions
+  - ALWAYS export types - never define internal-only types
+  - NO `any` types allowed - use `unknown` with type guards instead
+  - Avoid `as unknown as` casting - use proper type validation
+  - Export named types for public APIs - no inline type literals
+
+  ## Performance
+  - Prefer O(1) and O(log n) algorithms over O(n)
+  - AVOID O(n²) - use Maps/Sets instead of nested loops
+  - Use Set for membership checks (O(1)) instead of Array.includes() (O(n))
+  - Use Map for lookups (O(1)) instead of Array.find() (O(n))
+  - Batch operations - single pass instead of multiple iterations
+  - Document complexity for non-trivial algorithms
+
+  ## Test-Driven Development
+  - Write failing tests BEFORE implementation (Red-Green-Refactor)
+  - One assertion concept per test
+  - Unit tests should run in milliseconds
+  - Mock external dependencies
+  - Use descriptive test names (Given/When/Then)
+
+  ## Code Quality
+  - File naming: kebab-case
+  - ESLint must pass with no warnings
+  - TypeScript strict mode enabled
+  - Type-safe error handling (no `any` in catch)
+  - Throw descriptive errors with context
+
+  ## Project Structure
+  - Monorepo with pnpm workspaces
+  - Core library: packages/core/
+  - CLI tool: packages/cli/
+  - Use TypeScript path aliases from @riflebird/core
+  - Zod-based configuration validation
+
+# Git integration
+auto-commits: true
+dirty-commits: true
+attribute-author: true
+attribute-committer: true
+
+# Testing
+test-cmd: "pnpm --filter @riflebird/core test"
+
+# Linting
+lint-cmd: "pnpm --filter @riflebird/core lint"
+auto-lint: true
