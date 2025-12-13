@@ -13,7 +13,7 @@ export default [
       },
     },
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off', // Allow any for adapter flexibility
+      '@typescript-eslint/no-explicit-any': 'error', // Enforce strict typing as per project rules
     },
   },
 ];

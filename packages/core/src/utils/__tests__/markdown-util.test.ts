@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripMarkdownCodeBlocks, convertMarkdownToJSON } from '../markdown-util';
+import { stripMarkdownCodeBlocks, convertMarkdownToJSON, wrapFileContent } from '../markdown-util';
 
 describe('stripMarkdownCodeBlocks', () => {
   it('should strip markdown code block with language identifier', () => {
@@ -103,5 +103,102 @@ describe('convertMarkdownToJSON', () => {
     const expected = { text: 'Hello\nWorld', emoji: '🚀' };
 
     expect(convertMarkdownToJSON(input)).toEqual(expected);
+  });
+});
+
+describe('wrapFileContent', () => {
+  it('should wrap content with file path comment and infer language from extension', () => {
+    const filePath = 'src/utils/helper.ts';
+    const content = 'export function add(a: number, b: number) {\n  return a + b;\n}';
+    const expected = '```typescript\n// src/utils/helper.ts\nexport function add(a: number, b: number) {\n  return a + b;\n}\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should infer javascript language for .js files', () => {
+    const filePath = 'src/utils/helper.js';
+    const content = 'export function add(a, b) { return a + b; }';
+    const expected = '```javascript\n// src/utils/helper.js\nexport function add(a, b) { return a + b; }\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should infer python language for .py files', () => {
+    const filePath = 'scripts/deploy.py';
+    const content = 'def deploy():\n    print("Deploying...")';
+    const expected = '```python\n// scripts/deploy.py\ndef deploy():\n    print("Deploying...")\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should infer json language for .json files', () => {
+    const filePath = 'config/settings.json';
+    const content = '{"port": 3000}';
+    const expected = '```json\n// config/settings.json\n{"port": 3000}\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should allow manual language override', () => {
+    const filePath = 'src/utils/helper.ts';
+    const content = 'const x = 1;';
+    const expected = '```plaintext\n// src/utils/helper.ts\nconst x = 1;\n```';
+
+    expect(wrapFileContent(filePath, content, 'plaintext')).toBe(expected);
+  });
+
+  it('should handle empty content', () => {
+    const filePath = 'src/empty.ts';
+    const content = '';
+    const expected = '```typescript\n// src/empty.ts\n\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should handle multiline content with language inference', () => {
+    const filePath = 'src/component.tsx';
+    const content = 'import React from "react";\n\nexport const Button = () => {\n  return <button>Click me</button>;\n};';
+    const expected = '```typescript\n// src/component.tsx\nimport React from "react";\n\nexport const Button = () => {\n  return <button>Click me</button>;\n};\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should preserve content with special characters', () => {
+    const filePath = 'test/data.json';
+    const content = '{"emoji": "🎯", "text": "Hello\\nWorld"}';
+    const expected = '```json\n// test/data.json\n{"emoji": "🎯", "text": "Hello\\nWorld"}\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should handle files with no extension gracefully', () => {
+    const filePath = 'Makefile';
+    const content = 'build:\n\techo "Building..."';
+    const expected = '```\n// Makefile\nbuild:\n\techo "Building..."\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should handle files with unknown extensions', () => {
+    const filePath = 'data.xyz';
+    const content = 'some content';
+    const expected = '```\n// data.xyz\nsome content\n```';
+
+    expect(wrapFileContent(filePath, content)).toBe(expected);
+  });
+
+  it('should infer language for common config files', () => {
+    const testCases = [
+      { filePath: 'config.yaml', expected: 'yaml' },
+      { filePath: 'style.css', expected: 'css' },
+      { filePath: 'index.html', expected: 'html' },
+      { filePath: 'script.sh', expected: 'bash' },
+    ];
+
+    testCases.forEach(({ filePath, expected: lang }) => {
+      const content = 'test content';
+      const result = wrapFileContent(filePath, content);
+      expect(result).toContain(`\`\`\`${lang}\n`);
+    });
   });
 });

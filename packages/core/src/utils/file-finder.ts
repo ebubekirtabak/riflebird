@@ -1,167 +1,12 @@
-import { FileNode, FileTreeOptions } from '@models/file-tree';
-import { getFileTree } from './file-tree';
-
-export type FilePattern = {
-  /**
-   * File naming patterns to match
-   * Examples: ['*.component.tsx', '*.test.ts', '*.spec.ts']
-   */
-  patterns: string[];
-  /**
-   * File extensions to include
-   * Examples: ['.tsx', '.ts', '.jsx', '.js']
-   */
-  extensions?: string[];
-  /**
-   * Description of the file type
-   */
-  description?: string;
-};
-
-export type FileType =
-  | 'component'
-  | 'test'
-  | 'model'
-  | 'util'
-  | 'config'
-  | 'hook'
-  | 'page'
-  | 'api'
-  | 'style'
-  | 'custom';
-
-/**
- * Predefined file patterns for common file types
- */
-export const FILE_PATTERNS: Record<FileType, FilePattern> = {
-  component: {
-    patterns: [
-      '*.component.tsx',
-      '*.component.ts',
-      '*.component.jsx',
-      '*.component.js',
-      '*.[Cc]omponent.tsx',
-      '*.[Cc]omponent.jsx',
-    ],
-    extensions: ['.tsx', '.jsx', '.ts', '.js'],
-    description: 'React/Vue/Angular components',
-  },
-  test: {
-    patterns: [
-      '*.test.ts',
-      '*.test.tsx',
-      '*.test.js',
-      '*.test.jsx',
-      '*.spec.ts',
-      '*.spec.tsx',
-      '*.spec.js',
-      '*.spec.jsx',
-    ],
-    extensions: ['.ts', '.tsx', '.js', '.jsx'],
-    description: 'Test files',
-  },
-  model: {
-    patterns: ['*.model.ts', '*.model.js', '*.entity.ts', '*.schema.ts'],
-    extensions: ['.ts', '.js'],
-    description: 'Data models and entities',
-  },
-  util: {
-    patterns: ['*.util.ts', '*.util.js', '*.helper.ts', '*.helper.js'],
-    extensions: ['.ts', '.js'],
-    description: 'Utility and helper functions',
-  },
-  config: {
-    patterns: [
-      '*.config.ts',
-      '*.config.js',
-      '*.config.mjs',
-      '*.config.json',
-      'tsconfig.json',
-      'package.json',
-    ],
-    extensions: ['.ts', '.js', '.mjs', '.json'],
-    description: 'Configuration files',
-  },
-  hook: {
-    patterns: ['use*.ts', 'use*.tsx', 'use*.js', 'use*.jsx'],
-    extensions: ['.ts', '.tsx', '.js', '.jsx'],
-    description: 'React hooks',
-  },
-  page: {
-    patterns: [
-      '*.page.tsx',
-      '*.page.ts',
-      '*.page.jsx',
-      '*.page.js',
-      'page.tsx',
-      'page.ts',
-    ],
-    extensions: ['.tsx', '.ts', '.jsx', '.js'],
-    description: 'Page components',
-  },
-  api: {
-    patterns: ['*.api.ts', '*.api.js', '*.service.ts', '*.service.js'],
-    extensions: ['.ts', '.js'],
-    description: 'API and service files',
-  },
-  style: {
-    patterns: [
-      '*.css',
-      '*.scss',
-      '*.sass',
-      '*.less',
-      '*.module.css',
-      '*.module.scss',
-    ],
-    extensions: ['.css', '.scss', '.sass', '.less'],
-    description: 'Style files',
-  },
-  custom: {
-    patterns: [],
-    extensions: [],
-    description: 'Custom pattern',
-  },
-};
-
-export type FindFilesByPatternOptions = FileTreeOptions & {
-  /**
-   * Case-sensitive pattern matching
-   * @default false
-   */
-  caseSensitive?: boolean;
-  /**
-   * Include full file path in results
-   * @default true
-   */
-  includeFullPath?: boolean;
-};
-
-/**
- * Check if a filename matches any of the given patterns
- */
-function matchesPattern(
-  filename: string,
-  patterns: string[],
-  caseSensitive = false
-): boolean {
-  const name = caseSensitive ? filename : filename.toLowerCase();
-
-  return patterns.some((pattern) => {
-    const pat = caseSensitive ? pattern : pattern.toLowerCase();
-
-    // Convert glob pattern to regex
-    const regexPattern = pat
-      .replace(/\./g, '\\.')
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
-
-    const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(name);
-  });
-}
+import { FileNode } from '@models/file-tree';
+import { getFileTree, flattenFileTree } from './file-tree';
+import { FILE_PATTERNS, FilePattern, FileType, FindFilesByPatternOptions, CompiledPattern, getCompiledPattern } from './file';
 
 /**
  * Find files by predefined file type
+ * @param rootPath - Root path to search (ignored if options.fileTree is provided)
+ * @param fileType - Predefined file type to search for
+ * @param options - Options including optional pre-built fileTree
  */
 export async function findFilesByType(
   rootPath: string,
@@ -178,38 +23,117 @@ export async function findFilesByType(
 }
 
 /**
+ * wrap string pattern to FilePattern and find files
+ * @param rootPath - Root path to search (ignored if options.fileTree is provided)
+ * @param pattern - String pattern to match
+ * @param options - Options including optional pre-built fileTree
+ */
+export async function findFilesByStringPattern(
+  rootPath: string,
+  pattern: string,
+  options: FindFilesByPatternOptions = {}
+): Promise<FileNode[]> {
+  const filePattern: FilePattern = {
+    patterns: [pattern],  // Array of string patterns
+    description: 'User-provided pattern'
+  };
+
+  return await findFilesByPattern(rootPath, filePattern, options);
+}
+
+/**
  * Find files matching custom patterns
+ * @param rootPath - Root path to search (ignored if options.fileTree is provided)
+ * @param pattern - FilePattern to match
+ * @param options - Options including optional pre-built fileTree
  */
 export async function findFilesByPattern(
   rootPath: string,
   pattern: FilePattern,
   options: FindFilesByPatternOptions = {}
 ): Promise<FileNode[]> {
-  const { caseSensitive = false, ...treeOptions } = options;
+  const { caseSensitive = false, fileTree, ...treeOptions } = options;
 
-  // Merge extensions from pattern and options
-  const extensions = pattern.extensions || treeOptions.includeExtensions;
+  // Use provided file tree or fetch it
+  let tree: FileNode[];
+  if (fileTree) {
+    tree = fileTree;
+  } else {
+    const extensions = pattern.extensions || treeOptions.includeExtensions;
 
-  const tree = await getFileTree(rootPath, {
-    ...treeOptions,
-    includeExtensions: extensions,
-  });
+    tree = await getFileTree(rootPath, {
+      ...treeOptions,
+      includeExtensions: extensions,
+    });
+  }
 
-  return flattenAndFilterFiles(tree, pattern.patterns, caseSensitive);
+  // Pre-compile patterns
+  const includePatterns = pattern.patterns.map(p => getCompiledPattern(p, caseSensitive));
+  const excludePatterns = options.excludePatterns
+    ? options.excludePatterns.map(p => getCompiledPattern(p, caseSensitive))
+    : [];
+
+  return flattenAndFilterFiles(tree, includePatterns, excludePatterns, caseSensitive);
 }
 
 /**
  * Find files matching multiple file types
+ * Optimized to fetch the file tree only once
+ * @param rootPath - Root path to search (ignored if options.fileTree is provided)
+ * @param fileTypes - Array of file types to search for
+ * @param options - Options including optional pre-built fileTree
  */
 export async function findFilesByTypes(
   rootPath: string,
   fileTypes: FileType[],
   options: FindFilesByPatternOptions = {}
 ): Promise<Record<FileType, FileNode[]>> {
+  const { caseSensitive = false, fileTree, ...treeOptions } = options;
   const results: Record<string, FileNode[]> = {};
+  const patternsByType = new Map<FileType, CompiledPattern[]>();
+  const allExtensions = new Set<string>();
+  const allIncludePatterns: CompiledPattern[] = [];
+  const allExcludePatterns: CompiledPattern[] = options.excludePatterns
+    ? options.excludePatterns.map(p => getCompiledPattern(p, caseSensitive))
+    : [];
 
+  // Pre-compile all patterns
   for (const fileType of fileTypes) {
-    results[fileType] = await findFilesByType(rootPath, fileType, options);
+    const patternDef = FILE_PATTERNS[fileType];
+    if (patternDef) {
+      results[fileType] = [];
+      (patternDef.extensions || []).forEach(ext => allExtensions.add(ext));
+      patternsByType.set(
+        fileType,
+        patternDef.patterns.map(p => getCompiledPattern(p, caseSensitive))
+      );
+      allIncludePatterns.push(...patternDef.patterns.map(p => getCompiledPattern(p, caseSensitive)));
+    }
+  }
+
+  // Fetch or use provided file tree
+  const tree = fileTree
+    ? fileTree
+    : await getFileTree(rootPath, {
+      ...treeOptions,
+      includeExtensions: allExtensions.size > 0 ? Array.from(allExtensions) : undefined,
+    });
+
+  // Flatten and filter once
+  const allFiles = flattenFileTree(tree);
+  for (const file of allFiles) {
+    const name = caseSensitive ? file.name : file.name.toLowerCase();
+    const path = caseSensitive ? file.path : file.path.toLowerCase();
+    const matchesExclude = allExcludePatterns.some(compiled =>
+      compiled.regex.test(compiled.isPathPattern ? path : name)
+    );
+    if (matchesExclude) continue;
+
+    for (const [fileType, patterns] of patternsByType) {
+      if (patterns.some(compiled => compiled.regex.test(compiled.isPathPattern ? path : name))) {
+        results[fileType].push(file);
+      }
+    }
   }
 
   return results as Record<FileType, FileNode[]>;
@@ -220,44 +144,30 @@ export async function findFilesByTypes(
  */
 function flattenAndFilterFiles(
   nodes: FileNode[],
-  patterns: string[],
+  includePatterns: CompiledPattern[],
+  excludePatterns: CompiledPattern[],
   caseSensitive: boolean
 ): FileNode[] {
   const result: FileNode[] = [];
-
-  for (const node of nodes) {
-    if (node.type === 'file' && matchesPattern(node.name, patterns, caseSensitive)) {
-      result.push(node);
+  const stack = [...nodes];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (node.type === 'file') {
+      const name = caseSensitive ? node.name : node.name.toLowerCase();
+      const path = caseSensitive ? node.path : node.path.toLowerCase();
+      const matchesInclude = includePatterns.some(compiled =>
+        compiled.regex.test(compiled.isPathPattern ? path : name)
+      );
+      const matchesExclude = excludePatterns.some(compiled =>
+        compiled.regex.test(compiled.isPathPattern ? path : name)
+      );
+      if (matchesInclude && !matchesExclude) {
+        result.push(node);
+      }
     }
-
-    if (node.children && node.children.length > 0) {
-      result.push(...flattenAndFilterFiles(node.children, patterns, caseSensitive));
+    if (node.children) {
+      stack.push(...node.children);
     }
   }
-
   return result;
-}
-
-/**
- * Get statistics about found files
- */
-export type FileStats = {
-  total: number;
-  byExtension: Record<string, number>;
-  byType?: Record<FileType, number>;
-};
-
-export function getFileStats(files: FileNode[]): FileStats {
-  const stats: FileStats = {
-    total: files.length,
-    byExtension: {},
-  };
-
-  for (const file of files) {
-    if (file.extension) {
-      stats.byExtension[file.extension] = (stats.byExtension[file.extension] || 0) + 1;
-    }
-  }
-
-  return stats;
 }

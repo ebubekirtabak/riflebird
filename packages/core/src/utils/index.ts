@@ -3,6 +3,9 @@ export * from './file-util';
 export * from './file-finder';
 export * from './file-tree';
 export * from './file-tree-walker';
+export * from './file';
+export * from './pattern-matcher';
+export * from './ai-error-handler';
 export * from './project-file-walker';
 export * from './project-paths';
 

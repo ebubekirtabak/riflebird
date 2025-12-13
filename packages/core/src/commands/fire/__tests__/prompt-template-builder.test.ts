@@ -1,0 +1,445 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { PromptTemplateBuilder, type PromptTemplateContext, type TemplateVariable } from '../prompt-template-builder';
+import type { FrameworkInfo } from '@models/project-context';
+
+describe('PromptTemplateBuilder', () => {
+  let builder: PromptTemplateBuilder;
+
+  beforeEach(() => {
+    builder = new PromptTemplateBuilder();
+  });
+
+  describe('build', () => {
+    it('should replace all standard placeholders', () => {
+      const template = `
+Framework: {{TEST_FRAMEWORK}}
+Config: {{TEST_FRAMEWORK_CONFIG}}
+Language: {{LANGUAGE_CONFIGURATIONS}}
+Formatting: {{FORMATTING_RULES}}
+Linting: {{LINTING_RULES}}
+Code: {{CODE_SNIPPET}}
+      `.trim();
+
+      const context: PromptTemplateContext = {
+        testFramework: {
+          name: 'vitest',
+          version: '1.0.0',
+          fileLang: 'typescript',
+          configFilePath: 'vitest.config.ts',
+          configContent: 'export default { test: { globals: true } }',
+        },
+        languageConfig: {
+          name: 'typescript',
+          fileLang: 'json',
+          configFilePath: 'tsconfig.json',
+          configContent: '{ "compilerOptions": {} }',
+        },
+        linterConfig: {
+          name: 'eslint',
+          fileLang: 'javascript',
+          configFilePath: 'eslint.config.js',
+          configContent: 'module.exports = { rules: {} }',
+        },
+        formatterConfig: {
+          name: 'prettier',
+          fileLang: 'json',
+          configFilePath: '.prettierrc',
+          configContent: '{ "semi": true }',
+        },
+        fileContent: 'function add(a, b) { return a + b; }',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('Framework: vitest');
+      expect(result).toContain('```typescript');
+      expect(result).toContain('vitest.config.ts');
+      expect(result).toContain('export default { test: { globals: true } }');
+      expect(result).toContain('Code: function add(a, b) { return a + b; }');
+    });
+
+    it('should handle missing test framework with fallback', () => {
+      const template = 'Framework: {{TEST_FRAMEWORK}}\nConfig: {{TEST_FRAMEWORK_CONFIG}}';
+
+      const context: PromptTemplateContext = {
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        fileContent: 'const x = 1;',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('Framework: unknown framework');
+      expect(result).toContain('No specific configuration');
+    });
+
+    it('should handle multiple occurrences of same placeholder', () => {
+      const template = '{{CODE_SNIPPET}} and {{CODE_SNIPPET}} again';
+
+      const context: PromptTemplateContext = {
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        fileContent: 'test code',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toBe('test code and test code again');
+    });
+
+    it('should replace custom variables', () => {
+      const template = 'Framework: {{TEST_FRAMEWORK}}\nBrowser: {{BROWSER}}\nURL: {{BASE_URL}}';
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'playwright' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        fileContent: 'const test = 1;',
+        browser: 'chromium',
+        base_url: 'https://example.com',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('Framework: playwright');
+      expect(result).toContain('Browser: chromium');
+      expect(result).toContain('URL: https://example.com');
+    });
+
+    it('should handle custom FrameworkInfo variables', () => {
+      const template = 'Main: {{TEST_FRAMEWORK}}\nExtra: {{EXTRA_CONFIG}}';
+
+      const extraConfig: FrameworkInfo = {
+        name: 'cypress',
+        fileLang: 'javascript',
+        configFilePath: 'cypress.config.js',
+        configContent: 'module.exports = {}',
+      };
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'playwright' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        fileContent: 'test',
+        extra_config: extraConfig,
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('Main: playwright');
+      expect(result).toContain('```javascript');
+      expect(result).toContain('cypress.config.js');
+    });
+
+    it('should format config with proper markdown code blocks', () => {
+      const template = '{{TEST_FRAMEWORK_CONFIG}}';
+
+      const context: PromptTemplateContext = {
+        testFramework: {
+          name: 'vitest',
+          fileLang: 'typescript',
+          configFilePath: 'vitest.config.ts',
+          configContent: 'export default {}',
+        },
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        fileContent: 'test',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toMatch(/^```typescript\n\/\/ vitest\.config\.ts\nexport default {}\n```$/);
+    });
+
+    it('should handle empty config content with fallback message', () => {
+      const template = '{{LANGUAGE_CONFIGURATIONS}}';
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: {
+          name: 'typescript',
+          fileLang: 'json',
+          configFilePath: 'tsconfig.json',
+          configContent: '',
+        },
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        fileContent: 'test',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('No specific language configuration');
+    });
+  });
+
+  describe('buildWithVariables', () => {
+    it('should replace text type variables', () => {
+      const template = 'Name: {{NAME}}, Age: {{AGE}}';
+
+      const variables: TemplateVariable[] = [
+        { placeholder: 'NAME', value: 'John Doe', type: 'text' },
+        { placeholder: 'AGE', value: '30', type: 'text' },
+      ];
+
+      const result = builder.buildWithVariables(template, variables);
+
+      expect(result).toBe('Name: John Doe, Age: 30');
+    });
+
+    it('should replace config type variables', () => {
+      const template = 'Config: {{TEST_CONFIG}}';
+
+      const config: FrameworkInfo = {
+        name: 'vitest',
+        fileLang: 'typescript',
+        configFilePath: 'vitest.config.ts',
+        configContent: 'export default {}',
+      };
+
+      const variables: TemplateVariable[] = [
+        { placeholder: 'TEST_CONFIG', value: config, type: 'config' },
+      ];
+
+      const result = builder.buildWithVariables(template, variables);
+
+      expect(result).toContain('```typescript');
+      expect(result).toContain('vitest.config.ts');
+      expect(result).toContain('export default {}');
+    });
+
+    it('should use fallback for undefined values', () => {
+      const template = 'Value: {{VALUE}}';
+
+      const variables: TemplateVariable[] = [
+        { placeholder: 'VALUE', value: undefined, type: 'text', fallback: 'default value' },
+      ];
+
+      const result = builder.buildWithVariables(template, variables);
+
+      expect(result).toBe('Value: default value');
+    });
+
+    it('should handle multiple variables with different types', () => {
+      const template = 'Name: {{NAME}}\nConfig: {{CONFIG}}\nBrowser: {{BROWSER}}';
+
+      const config: FrameworkInfo = {
+        name: 'cypress',
+        fileLang: 'javascript',
+        configContent: 'module.exports = {}',
+      };
+
+      const variables: TemplateVariable[] = [
+        { placeholder: 'NAME', value: 'E2E Test', type: 'text' },
+        { placeholder: 'CONFIG', value: config, type: 'config' },
+        { placeholder: 'BROWSER', value: 'chrome', type: 'text' },
+      ];
+
+      const result = builder.buildWithVariables(template, variables);
+
+      expect(result).toContain('Name: E2E Test');
+      expect(result).toContain('```javascript');
+      expect(result).toContain('Browser: chrome');
+    });
+
+    it('should default to text type when type is not specified', () => {
+      const template = 'Value: {{VALUE}}';
+
+      const variables: TemplateVariable[] = [
+        { placeholder: 'VALUE', value: 'simple text' },
+      ];
+
+      const result = builder.buildWithVariables(template, variables);
+
+      expect(result).toBe('Value: simple text');
+    });
+
+    it('should handle empty variable array', () => {
+      const template = 'Static {{VALUE}} text';
+      const variables: TemplateVariable[] = [];
+
+      const result = builder.buildWithVariables(template, variables);
+
+      expect(result).toBe('Static {{VALUE}} text');
+    });
+
+    it('should replace multiple occurrences of same variable', () => {
+      const template = '{{NAME}} says hello. {{NAME}} says goodbye.';
+
+      const variables: TemplateVariable[] = [
+        { placeholder: 'NAME', value: 'Alice', type: 'text' },
+      ];
+
+      const result = builder.buildWithVariables(template, variables);
+
+      expect(result).toBe('Alice says hello. Alice says goodbye.');
+    });
+
+    it('should use config fallback when value is undefined', () => {
+      const template = 'Config: {{CONFIG}}';
+
+      const variables: TemplateVariable[] = [
+        { placeholder: 'CONFIG', value: undefined, type: 'config', fallback: 'No config available' },
+      ];
+
+      const result = builder.buildWithVariables(template, variables);
+
+      expect(result).toContain('No config available');
+    });
+  });
+
+  describe('formatConfig (private method via public API)', () => {
+    it('should format config with all properties', () => {
+      const template = '{{TEST_FRAMEWORK_CONFIG}}';
+
+      const context: PromptTemplateContext = {
+        testFramework: {
+          name: 'jest',
+          version: '29.0.0',
+          fileLang: 'javascript',
+          configFilePath: 'jest.config.js',
+          configContent: 'module.exports = { testEnvironment: "node" }',
+        },
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        fileContent: 'test',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('```javascript');
+      expect(result).toContain('// jest.config.js');
+      expect(result).toContain('module.exports = { testEnvironment: "node" }');
+      expect(result).toContain('```');
+    });
+
+    it('should handle missing fileLang gracefully', () => {
+      const template = '{{TEST_FRAMEWORK_CONFIG}}';
+
+      const context: PromptTemplateContext = {
+        testFramework: {
+          name: 'vitest',
+          configFilePath: 'vitest.config.ts',
+          configContent: 'export default {}',
+        },
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        fileContent: 'test',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('```');
+      expect(result).toContain('vitest.config.ts');
+      expect(result).toContain('export default {}');
+    });
+
+    it('should handle missing configFilePath', () => {
+      const template = '{{TEST_FRAMEWORK_CONFIG}}';
+
+      const context: PromptTemplateContext = {
+        testFramework: {
+          name: 'vitest',
+          fileLang: 'typescript',
+          configContent: 'export default {}',
+        },
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        fileContent: 'test',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('```typescript');
+      expect(result).not.toContain('//');
+      expect(result).toContain('export default {}');
+    });
+  });
+
+  describe('integration scenarios', () => {
+    it('should build complete unit test prompt', () => {
+      const template = `
+Generate a unit test for the following code using {{TEST_FRAMEWORK}}.
+
+Test Framework Configuration:
+{{TEST_FRAMEWORK_CONFIG}}
+
+Language Configuration:
+{{LANGUAGE_CONFIGURATIONS}}
+
+Code to Test:
+{{CODE_SNIPPET}}
+      `.trim();
+
+      const context: PromptTemplateContext = {
+        testFramework: {
+          name: 'vitest',
+          fileLang: 'typescript',
+          configFilePath: 'vitest.config.ts',
+          configContent: 'export default { test: { globals: true } }',
+        },
+        languageConfig: {
+          name: 'typescript',
+          fileLang: 'json',
+          configFilePath: 'tsconfig.json',
+          configContent: '{ "compilerOptions": { "strict": true } }',
+        },
+        linterConfig: {
+          name: 'eslint',
+          fileLang: 'javascript',
+          configContent: 'module.exports = {}',
+        },
+        formatterConfig: {
+          name: 'prettier',
+          fileLang: 'json',
+          configContent: '{ "semi": true }',
+        },
+        fileContent: 'export function sum(a: number, b: number): number { return a + b; }',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('Generate a unit test');
+      expect(result).toContain('using vitest');
+      expect(result).toContain('vitest.config.ts');
+      expect(result).toContain('tsconfig.json');
+      expect(result).toContain('export function sum');
+    });
+
+    it('should build e2e test prompt with custom variables', () => {
+      const template = `
+Generate E2E test using {{TEST_FRAMEWORK}}.
+Browser: {{BROWSER}}
+URL: {{BASE_URL}}
+
+Code:
+{{CODE_SNIPPET}}
+      `.trim();
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'playwright' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        fileContent: 'test("should login", async ({ page }) => { })',
+        browser: 'chromium',
+        base_url: 'https://app.example.com',
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('using playwright');
+      expect(result).toContain('Browser: chromium');
+      expect(result).toContain('URL: https://app.example.com');
+      expect(result).toContain('should login');
+    });
+  });
+});

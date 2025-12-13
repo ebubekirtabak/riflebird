@@ -35,6 +35,12 @@ program
   .description('Generate test cases and analyze project structure')
   .option('-h, --headless', 'Run in headless mode')
   .option('-b, --browser <browser>', 'Browser to use (chromium, firefox, webkit)')
+  .option('-a, --all', 'Run all test types for all files')
+  .option('--e2e', 'Include E2E tests')
+  .option('--unit', 'Include unit tests')
+  .option('--visual', 'Include visual regression tests')
+  .option('--performance', 'Include performance tests')
+  .option('-s, --scope <scope>', 'Filter by scope: component, layout, page, service, util, hook, store')
   .action(fireCommand);
 
 // Find element selector

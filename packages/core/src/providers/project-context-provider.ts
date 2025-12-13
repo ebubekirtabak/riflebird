@@ -25,10 +25,7 @@ export class ProjectContextProvider {
       return;
     }
 
-    this.fileTree = await getFileTree(this.projectRoot, {
-      excludeDirs: [...COMMON_EXCLUDE_DIRS],
-      maxDepth: 5,
-    });
+    this.fileTree = await this.getFileTree();
 
     this.fileTreeWalkerContext = {
       projectRoot: this.projectRoot,
@@ -39,6 +36,26 @@ export class ProjectContextProvider {
 
     this.fileTreeWalker = new FileTreeWalker(this.fileTreeWalkerContext);
     this.initialized = true;
+  }
+
+  async getFileTree(): Promise<FileNode[]> {
+    if (this.initialized) {
+      return this.fileTree;
+    }
+
+    return await getFileTree(this.projectRoot, {
+      excludeDirs: [...COMMON_EXCLUDE_DIRS],
+      maxDepth: 5,
+    });
+  }
+
+  async getFileTreeWalker(): Promise<FileTreeWalker> {
+    if (this.initialized) {
+      return this.fileTreeWalker;
+    }
+
+    await this.init();
+    return this.fileTreeWalker;
   }
 
   async getContext(): Promise<ProjectContext> {
@@ -56,6 +73,7 @@ export class ProjectContextProvider {
         languageConfig: await this.readConfigFile(languageConfig),
         linterConfig: await this.readConfigFile(linting),
         formatterConfig: await this.readConfigFile(formatting),
+        projectRoot: this.projectRoot,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -71,7 +89,7 @@ export class ProjectContextProvider {
       const { config } = this.context;
       const requestedUnitTest = config.unitTesting?.enabled && unit && unit.configFilePath;
       if (requestedUnitTest) {
-        console.log(`Unit test framework detected: ${unit}`);
+        console.log(`Unit test framework detected: ${unit.name} at ${unit.configFilePath}`);
         const content = await projectFileWalker.readFileFromProject(unit.configFilePath);
         unitFramework = {
           ...unit,

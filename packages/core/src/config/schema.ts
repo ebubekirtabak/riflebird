@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_FILE_EXCLUDE_PATTERNS, DEFAULT_COVERAGE_INCLUDE, DEFAULT_UNIT_TEST_PATTERNS } from './constants';
 
 export const AIProviderSchema = z.enum(['openai', 'anthropic', 'local', 'copilot-cli']);
 
@@ -16,24 +17,6 @@ export const CoverageProviderSchema = z.enum(['v8', 'istanbul']);
 export const CoverageReporterSchema = z.enum(['text', 'html', 'json', 'lcov']);
 
 export const TestEnvironmentSchema = z.enum(['node', 'jsdom', 'happy-dom']);
-
-// Test file patterns
-export const DEFAULT_UNIT_TEST_PATTERNS = ['**/*.test.ts', '**/*.spec.ts'] as const;
-export const DEFAULT_E2E_TEST_PATTERNS = ['**/*.e2e.ts', '**/*.e2e-spec.ts'] as const;
-
-// Coverage patterns
-export const DEFAULT_COVERAGE_INCLUDE = ['src/**/*.ts', 'src/**/*.tsx'] as const;
-export const DEFAULT_COVERAGE_EXCLUDE = [
-  '**/*.test.ts',
-  '**/*.spec.ts',
-  '**/*.e2e.ts',
-  '**/*.e2e-spec.ts',
-  '**/node_modules/**',
-  '**/dist/**',
-  '**/coverage/**',
-  '**/__tests__/**',
-  '**/__mocks__/**',
-] as const;
 
 export const RiflebirdConfigSchema = z.object({
   // AI Configuration
@@ -174,7 +157,7 @@ export const RiflebirdConfigSchema = z.object({
             })
             .optional(),
           include: z.array(z.string()).default([...DEFAULT_COVERAGE_INCLUDE]),
-          exclude: z.array(z.string()).default([...DEFAULT_COVERAGE_EXCLUDE]),
+          exclude: z.array(z.string()).default([...DEFAULT_FILE_EXCLUDE_PATTERNS]),
           reporter: z.array(CoverageReporterSchema).default(['text', 'html']),
         })
         .optional(),

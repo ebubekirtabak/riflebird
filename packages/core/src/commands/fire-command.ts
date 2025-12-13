@@ -1,10 +1,30 @@
 import { Command, type CommandContext } from './base';
 import { ProjectContextProvider } from '@providers/project-context-provider';
-import { FrameworkInfo, ProjectContext } from '@models/project-context';
-import { debug, info, generateTestFilePath, stripMarkdownCodeBlocks, ProjectFileWalker, findProjectRoot } from '@utils';
+import { debug, info, findProjectRoot } from '@utils';
+import { resolveTestTypes, getScopePatterns } from './fire/fire-command-helpers';
+import { UnitTestWriter } from './fire/unit-test-writer';
+import { ALL_TEST_TYPES, SUPPORTED_TEST_SCOPES } from './fire/constants';
+
+export type TestType = 'e2e' | 'unit' | 'visual' | 'performance';
+
+/**
+ * Scope filter for --all mode
+ * - 'component': React/Vue components (*.tsx, *.vue, *.jsx)
+ * - 'layout': Layout files
+ * - 'page': Page/route files
+ * - 'service': Service/API files
+ * - 'util': Utility/helper files
+ * - 'hook': React hooks
+ * - 'store': State management files
+ */
+export type TestScope = 'component' | 'layout' | 'page' | 'service' | 'util' | 'hook' | 'store';
 
 export type FireInput = {
-  testPath: string;
+  testPath?: string;
+  all?: boolean;
+  testTypes?: TestType[];
+  scope?: TestScope;
+  onProgress?: (current: number, total: number, file: string, elapsedMs: number) => void;
 };
 
 export type FireOutput = {
@@ -24,19 +44,35 @@ export type FireOutput = {
  * ```
  */
 export class FireCommand extends Command<FireInput, FireOutput> {
+  private unitTestWriter: UnitTestWriter;
+
   constructor(context: CommandContext) {
     super(context);
+    this.unitTestWriter = new UnitTestWriter({
+      aiClient: context.aiClient,
+      config: context.config,
+    });
   }
 
   async execute(input: FireInput): Promise<FireOutput> {
-    this.validate(input);
-    const { testPath } = input;
-
-    if (testPath.trim().length === 0) {
-      throw new Error('Riflebird Fire Command: testPath cannot be empty, we are not supporting running the entire test suite yet.');
+    // Auto-enable all if scope is provided
+    if (input.scope && !input.all) {
+      input.all = true;
     }
 
-    info(`Test path to execute: ${testPath}`);
+    this.validate(input);
+    const { testPath, all, testTypes = [], scope } = input;
+    const activeTestTypes = resolveTestTypes(all, testTypes);
+
+    // Build execution info message
+    if (all) {
+      const scopeMsg = scope ? ` (scope: ${scope})` : '';
+      info(`Running all tests for types: ${activeTestTypes.join(', ')}${scopeMsg}`);
+    } else if (testPath) {
+      const isPattern = testPath.includes('*') || testPath.includes('?');
+      const pathType = isPattern ? 'pattern' : 'path';
+      info(`Test ${pathType} to execute: ${testPath} (types: ${activeTestTypes.join(', ')})`);
+    }
 
     try {
       const projectRoot = await findProjectRoot();
@@ -46,26 +82,84 @@ export class FireCommand extends Command<FireInput, FireOutput> {
       const { testFrameworks } = projectContext;
       debug(`Project context:`, testFrameworks);
 
-      if (testFrameworks?.unit) {
+      const results: string[] = [];
+
+      if (activeTestTypes.includes('unit') && testFrameworks?.unit) {
         debug(`Unit test framework configured: ${testFrameworks.unit.name}`);
-        const fileContent =
-          '```\n// ' + testPath + '\n' + await new ProjectFileWalker({ projectRoot }).readFileFromProject(testPath) + '\n```';
+        if (all) {
+          const scopeInfo = input.scope ? ` for ${input.scope} files` : '';
+          info(`Scanning project for files to generate unit tests${scopeInfo}...`);
 
-        console.log(`Test file content:\n${fileContent}`);
-        const unitTestCode = await this.writeUnitTestFile(projectContext, fileContent, testFrameworks?.unit);
+          const patterns = input.scope
+            ? getScopePatterns(input.scope)
+            : ['src/**/*.{ts,tsx,js,jsx,vue}'];
 
-        // @todo: include test file content when test file already exists
-        const testFilePath = generateTestFilePath(testPath);
-        info(`Generated test file path: ${testFilePath}`);
+          info(`Using patterns: ${patterns.join(', ')}`);
 
-        await new ProjectFileWalker({ projectRoot }).writeFileToProject(testFilePath, unitTestCode);
+          const { files, failures } = await this.unitTestWriter.writeTestByPattern(
+            provider,
+            patterns,
+            testFrameworks.unit,
+            input.onProgress
+          );
+          results.push(...files);
 
-        info(`Unit test file written to: ${testFilePath}`);
+          if (failures.length > 0) {
+            info(`\n⚠️  ${failures.length} file(s) failed to generate tests:`);
+            failures.forEach(f => info(`  - ${f.file}: ${f.error}`));
+            const failureMsgs = failures.map(f => `  - ${f.file}: ${f.error}`);
+            results.push('\nFailures:', ...failureMsgs);
+          }
+        } else if (testPath) {
+          const isPattern = testPath.includes('*') || testPath.includes('?');
+
+          if (isPattern) {
+            info(`Pattern detected: ${testPath}`);
+            const { files, failures } = await this.unitTestWriter.writeTestByPattern(
+              provider,
+              testPath,
+              testFrameworks.unit,
+              input.onProgress
+            );
+            results.push(...files);
+
+            if (failures.length > 0) {
+              info(`\n⚠️  ${failures.length} file(s) failed to generate tests:`);
+              failures.forEach(f => info(`  - ${f.file}: ${f.error}`));
+              const failureMsgs = failures.map(f => `  - ${f.file}: ${f.error}`);
+              results.push('\nFailures:', ...failureMsgs);
+            }
+          } else {
+            await this.unitTestWriter.writeTestFile(
+              projectContext,
+              testPath,
+              testFrameworks.unit
+            );
+          }
+        }
+      }
+
+      if (activeTestTypes.includes('e2e')) {
+        // @todo: Implement E2E test execution
+        info('E2E test execution (coming soon)');
+        results.push('E2E test execution (coming soon)');
+      }
+
+      if (activeTestTypes.includes('visual')) {
+        // @todo: Implement visual regression testing
+        info('Visual regression testing (coming soon)');
+        results.push('Visual testing (coming soon)');
+      }
+
+      if (activeTestTypes.includes('performance')) {
+        // @todo: Implement performance testing
+        info('Performance testing (coming soon)');
+        results.push('Performance testing (coming soon)');
       }
 
       return {
         success: true,
-        result: 'Test execution completed',
+        result: `Test execution completed:\n${results.join('\n')}`,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -77,49 +171,30 @@ export class FireCommand extends Command<FireInput, FireOutput> {
   }
 
   protected validate(input: FireInput): void {
-    if (!input.testPath || input.testPath.trim().length === 0) {
-      throw new Error('Test path cannot be empty');
-    }
-  }
+    const { testPath, all, testTypes = [], scope } = input;
 
-  protected async writeUnitTestFile(
-    projectContext: ProjectContext,
-    fileContent: string,
-    testFramework?: FrameworkInfo
-  ): Promise<string> {
-    const unitTestWriterPrompt = await import('@prompts/unit-test-prompt.txt');
-    const { languageConfig, linterConfig, formatterConfig } = projectContext;
-
-    const promptTemplate = unitTestWriterPrompt.default
-      .replace(/\{\{TEST_FRAMEWORK\}\}/g, testFramework?.name || 'unknown framework')
-      .replace(/\{\{TEST_FRAMEWORK_CONFIG\}\}/g, '```'+ testFramework?.fileLang + `\n// ${testFramework?.configFilePath}` + `\n${testFramework?.configContent || 'No specific configuration'}` + '```')
-      .replace(/\{\{LANGUAGE_CONFIGURATIONS\}\}/g, '```'+ languageConfig.fileLang + `\n// ${languageConfig.configFilePath}` + `\n${languageConfig.configContent || 'No specific language configuration'}` + '```')
-      .replace(/\{\{FORMATTING_RULES\}\}/g, '```'+ formatterConfig.fileLang + `\n// ${formatterConfig.configFilePath}` + `\n${formatterConfig.configContent || 'Follow project conventions'}` + '```')
-      .replace(/\{\{LINTING_RULES\}\}/g, '```'+ linterConfig.fileLang + `\n// ${linterConfig.configFilePath}` + `\n${linterConfig.configContent || 'Follow project linting rules'}` + '```')
-      .replace(/\{\{CODE_SNIPPET\}\}/g, fileContent);
-
-    const { choices = [] } = await this.context.aiClient.createChatCompletion({
-      model: this.context.config.ai.model,
-      temperature: this.context.config.ai.temperature,
-      response_format: { type: "json_object" },
-      format: 'json',
-      messages: [
-        {
-          role: 'system',
-          content: promptTemplate,
-        }
-      ],
-    });
-
-    if (choices.length === 0) {
-      throw new Error('AI did not return any choices for unit test generation');
+    // Must provide either a path, pattern, or --all flag
+    if (!all && (!testPath || testPath.trim().length === 0)) {
+      throw new Error('Either provide a test path/pattern or use --all flag');
     }
 
-    let { content } = choices[0].message;
+    // Scope can only be used with --all
+    if (scope && !all) {
+      throw new Error('Scope filters (component, layout, etc.) can only be used with --all flag');
+    }
 
-    const cleanContent = stripMarkdownCodeBlocks(content as string);
+    for (const type of testTypes) {
+      if (!ALL_TEST_TYPES.includes(type)) {
+        throw new Error(`Invalid test type: ${type}. Valid types are: ${ALL_TEST_TYPES.join(', ')}`);
+      }
+    }
 
-    return cleanContent;
+    // Validate scope if provided
+    if (scope) {
+      if (!SUPPORTED_TEST_SCOPES.includes(scope)) {
+        throw new Error(`Invalid scope: ${scope}. Valid scopes are: ${SUPPORTED_TEST_SCOPES.join(', ')}`);
+      }
+    }
   }
 
 }

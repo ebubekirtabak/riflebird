@@ -4,6 +4,7 @@ export { Riflebird } from './src/riflebird';
 // Export types
 export type { RiflebirdConfig } from './src/config/schema';
 export type { TestFrameworkAdapter, TestPlan, TestStep, Assertion } from './src/adapters/base';
+export type { TestType, TestScope } from './src/commands/fire-command';
 
 // Export config schemas
 export {
@@ -13,11 +14,16 @@ export {
   CoverageProviderSchema,
   CoverageReporterSchema,
   TestEnvironmentSchema,
+} from './src/config/schema';
+
+// Export constants
+export {
   DEFAULT_UNIT_TEST_PATTERNS,
   DEFAULT_E2E_TEST_PATTERNS,
   DEFAULT_COVERAGE_INCLUDE,
   DEFAULT_COVERAGE_EXCLUDE,
-} from './src/config/schema';
+  DEFAULT_FILE_EXCLUDE_PATTERNS,
+} from './src/config/constants';
 
 // Export config helper
 export { defineConfig } from './src/config/loader';
@@ -35,15 +41,17 @@ export {
   findFilesByType,
   findFilesByPattern,
   findFilesByTypes,
+} from './src/utils/file-finder';
+export {
   getFileStats,
   FILE_PATTERNS,
-} from './src/utils/file-finder';
+} from './src/utils/file';
 export type {
   FilePattern,
   FileType,
   FindFilesByPatternOptions,
   FileStats,
-} from './src/utils/file-finder';
+} from './src/utils/file';
 
 // Export common constants
 export {

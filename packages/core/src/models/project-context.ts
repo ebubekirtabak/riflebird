@@ -7,6 +7,7 @@ export type ProjectContext = {
   languageConfig: FrameworkInfo;
   linterConfig: FrameworkInfo;
   formatterConfig: FrameworkInfo;
+  projectRoot: string;
 };
 
 export type TestFrameworks = {

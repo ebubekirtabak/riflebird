@@ -2,14 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import {
-  findFilesByType,
-  findFilesByPattern,
-  findFilesByTypes,
-  getFileStats,
-  FILE_PATTERNS,
-  type FilePattern,
-} from '../file-finder';
+import { findFilesByPattern, findFilesByType, findFilesByTypes, findFilesByStringPattern } from '../file-finder';
+import { FILE_PATTERNS, FilePattern, FileType } from '../file/file-patterns';
+import { getFileStats } from '../file/file-stats';
 
 describe('file-finder', () => {
   let testDir: string;
@@ -169,6 +164,18 @@ describe('file-finder', () => {
         'No patterns defined for file type: custom'
       );
     });
+
+    it('should handle empty patterns array gracefully', async () => {
+      const emptyPattern = { patterns: [], extensions: ['.ts'] };
+      const files = await findFilesByPattern(testDir, emptyPattern);
+      expect(files).toEqual([]);
+    });
+
+    it('should handle undefined file type', async () => {
+      await expect(
+        findFilesByType(testDir, 'nonexistent' as unknown as FileType)
+      ).rejects.toThrow();
+    });
   });
 
   describe('findFilesByPattern', () => {
@@ -224,6 +231,59 @@ describe('file-finder', () => {
 
       expect(files).toHaveLength(3);
     });
+
+    it('should match files with specific directory path patterns', async () => {
+      await createTestFile('src/components/UserSettings/CertificateSection/Certificate.component.tsx');
+      await createTestFile('src/components/UserSettings/CertificateSection/Upload.component.tsx');
+      await createTestFile('src/components/UserSettings/ProfileSection/Profile.component.tsx');
+      await createTestFile('src/components/Dashboard/Widget.component.tsx');
+
+      const pattern: FilePattern = {
+        patterns: ['src/components/UserSettings/CertificateSection/*.component.tsx'],
+        description: 'CertificateSection components',
+      };
+
+      const files = await findFilesByPattern(testDir, pattern);
+
+      expect(files).toHaveLength(2);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'Certificate.component.tsx',
+        'Upload.component.tsx',
+      ]);
+    });
+
+    it('should match files with ** wildcard for nested directories', async () => {
+      await createTestFile('src/components/UserSettings/CertificateSection/Certificate.component.tsx');
+      await createTestFile('src/components/UserSettings/CertificateSection/nested/Upload.component.tsx');
+      await createTestFile('src/components/Dashboard/Widget.component.tsx');
+
+      const pattern: FilePattern = {
+        patterns: ['src/components/UserSettings/**/*.component.tsx'],
+        description: 'All UserSettings components',
+      };
+
+      const files = await findFilesByPattern(testDir, pattern);
+
+      expect(files).toHaveLength(2);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'Certificate.component.tsx',
+        'Upload.component.tsx',
+      ]);
+    });
+
+    it('should handle patterns with leading ./ correctly', async () => {
+      await createTestFile('src/components/Button.component.tsx');
+      await createTestFile('src/utils/helper.ts');
+
+      const pattern: FilePattern = {
+        patterns: ['./src/components/*.component.tsx'],
+      };
+
+      const files = await findFilesByPattern(testDir, pattern);
+
+      expect(files).toHaveLength(1);
+      expect(files[0].name).toBe('Button.component.tsx');
+    });
   });
 
   describe('findFilesByTypes', () => {
@@ -256,6 +316,128 @@ describe('file-finder', () => {
       expect(results.component).toHaveLength(1);
       expect(results.test).toHaveLength(0);
       expect(results.model).toHaveLength(0);
+    });
+
+    it('should handle empty fileTypes array', async () => {
+      await createTestFile('src/file.ts');
+
+      const results = await findFilesByTypes(testDir, []);
+
+      expect(Object.keys(results)).toHaveLength(0);
+    });
+
+    it('should reuse provided fileTree for multiple types', async () => {
+      await createTestFile('src/Button.component.tsx');
+      await createTestFile('src/button.test.ts');
+
+      const { getFileTree } = await import('../file-tree');
+      const fileTree = await getFileTree(testDir);
+
+      const results = await findFilesByTypes(testDir, ['component', 'test'], {
+        fileTree,
+      });
+
+      expect(results.component).toHaveLength(1);
+      expect(results.test).toHaveLength(1);
+    });
+
+    it('should apply excludePatterns across all types', async () => {
+      await createTestFile('src/Button.component.tsx');
+      await createTestFile('node_modules/lib/Input.component.tsx');
+      await createTestFile('src/button.test.ts');
+      await createTestFile('node_modules/lib/input.test.ts');
+
+      const results = await findFilesByTypes(testDir, ['component', 'test'], {
+        excludePatterns: ['**/node_modules/**'],
+      });
+
+      expect(results.component).toHaveLength(1);
+      expect(results.component[0].name).toBe('Button.component.tsx');
+      expect(results.test).toHaveLength(1);
+      expect(results.test[0].name).toBe('button.test.ts');
+    });
+  });
+
+  describe('findFilesByStringPattern', () => {
+    it('should wrap string pattern and find matching files', async () => {
+      await createTestFile('src/utils/helper.ts');
+      await createTestFile('src/utils/formatter.ts');
+      await createTestFile('src/components/Button.tsx');
+
+      const files = await findFilesByStringPattern(testDir, 'src/utils/*.ts');
+
+      expect(files).toHaveLength(2);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'formatter.ts',
+        'helper.ts',
+      ]);
+    });
+
+    it('should support wildcard patterns in string format', async () => {
+      await createTestFile('src/createUser.ts');
+      await createTestFile('src/deleteUser.ts');
+      await createTestFile('src/createPost.ts');
+
+      const files = await findFilesByStringPattern(testDir, '*User*.ts');
+
+      expect(files).toHaveLength(2);
+      expect(files.map((f) => f.name).sort()).toEqual([
+        'createUser.ts',
+        'deleteUser.ts',
+      ]);
+    });
+
+    it('should respect caseSensitive option', async () => {
+      await createTestFile('src/UserHelper.ts');
+      await createTestFile('src/userService.ts');
+
+      const filesInsensitive = await findFilesByStringPattern(testDir, '*user*.ts', {
+        caseSensitive: false,
+      });
+      expect(filesInsensitive).toHaveLength(2);
+
+      const filesSensitive = await findFilesByStringPattern(testDir, '*user*.ts', {
+        caseSensitive: true,
+      });
+      expect(filesSensitive).toHaveLength(1);
+      expect(filesSensitive[0].name).toBe('userService.ts');
+    });
+
+    it('should work with provided fileTree', async () => {
+      await createTestFile('src/file1.ts');
+      await createTestFile('src/file2.ts');
+
+      const { getFileTree } = await import('../file-tree');
+      const fileTree = await getFileTree(testDir);
+
+      const files = await findFilesByStringPattern(testDir, '*.ts', {
+        fileTree,
+      });
+
+      expect(files).toHaveLength(2);
+    });
+
+    it('should handle patterns with ** for deep matching', async () => {
+      await createTestFile('src/a/b/c/deep.ts');
+      await createTestFile('src/shallow.ts');
+
+      const files = await findFilesByStringPattern(testDir, 'src/**/*.ts');
+
+      // Both files should match - one at depth and one at root
+      expect(files.length).toBeGreaterThanOrEqual(1);
+      expect(files.some(f => f.name === 'deep.ts' || f.name === 'shallow.ts')).toBe(true);
+    });
+
+    it('should respect excludePatterns option', async () => {
+      await createTestFile('src/file.ts');
+      await createTestFile('src/file.test.ts');
+
+      const files = await findFilesByStringPattern(testDir, 'src/**/*.ts', {
+        excludePatterns: ['**/*.test.ts'],
+      });
+
+      // Should exclude test files
+      expect(files.every(f => !f.name.includes('.test.ts'))).toBe(true);
     });
   });
 

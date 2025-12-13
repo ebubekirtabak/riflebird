@@ -1,5 +1,6 @@
 import { loadConfig } from './config/loader';
 import type { RiflebirdConfig } from './config/schema';
+import { validateAIConfigOrThrow } from './config/ai-config-validator';
 import type { TestFrameworkAdapter } from './adapters/base';
 import { PlaywrightAdapter } from './adapters/playwright';
 import { CypressAdapter } from './adapters/cypress';
@@ -31,6 +32,9 @@ export class Riflebird {
 
   async init(configPath?: string) {
     this.config = await loadConfig(configPath);
+
+    // Validate AI configuration before proceeding
+    validateAIConfigOrThrow(this.config.ai);
 
     // Initialize AI client using helper
     const { client, openaiInstance } = await createAIClient(this.config.ai);
@@ -85,8 +89,18 @@ export class Riflebird {
   /**
    * Execute tests and analyze project structure
    */
-  async fire(testPath: string): Promise<void> {
-    await this.fireCommand.execute({ testPath });
+  async fire(input: {
+    testPath?: string;
+    all?: boolean;
+    testTypes?: Array<'e2e' | 'unit' | 'visual' | 'performance'>;
+    scope?: 'component' | 'layout' | 'page' | 'service' | 'util' | 'hook' | 'store';
+    onProgress?: (current: number, total: number, file: string, elapsedMs: number) => void;
+  }): Promise<string | undefined> {
+    const result = await this.fireCommand.execute(input);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    return result.result;
   }
 
   async watch(): Promise<void> {
