@@ -1,5 +1,6 @@
 import { loadConfig } from './config/loader';
 import type { RiflebirdConfig } from './config/schema';
+import { validateAIConfigOrThrow } from './config/ai-config-validator';
 import type { TestFrameworkAdapter } from './adapters/base';
 import { PlaywrightAdapter } from './adapters/playwright';
 import { CypressAdapter } from './adapters/cypress';
@@ -31,6 +32,9 @@ export class Riflebird {
 
   async init(configPath?: string) {
     this.config = await loadConfig(configPath);
+
+    // Validate AI configuration before proceeding
+    validateAIConfigOrThrow(this.config.ai);
 
     // Initialize AI client using helper
     const { client, openaiInstance } = await createAIClient(this.config.ai);
