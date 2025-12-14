@@ -33,18 +33,14 @@
 
 ## Project Status
 
-Quick overview of current capabilities and roadmap status:
+For a detailed roadmap including planned features, timelines, and success metrics, see [ROADMAP.md](./ROADMAP.md).
 
-| Test Type | Status | Success Rate | Notes |
-|---|:---:|:---:|---|
-| Unit Testing | ⚠️ Beta | ~70% | Integrated (beta). Needs improved selector robustness and assertion coverage. |
-| Integration Testing | ❌ Planned | N/A | Planned — working on test harness and mocks. |
-| End-to-end (E2E) | ❌ Planned | N/A | Playwright/Cypress adapters exist; end-to-end automation improvements planned. |
-| Performance Testing | ❌ Planned | N/A | Performance harness integration (e.g., Artillery/JMeter) is on the roadmap. |
-| Accessibility Testing | ❌ Planned | N/A | Axe/pa11y integration planned for automated accessibility checks. |
-| Visual Testing | ❌ Planned | N/A | AI-powered visual regression prototypes exist; improving heuristics and thresholds. |
-
-Legend: ✅ Supported · ⚠️ Beta/Experimental/In progress · ❌ Planned
+**Current Status Summary**:
+- ✅ **Unit Testing**: Beta (90% success rate) - Core functionality working, quality improvements ongoing
+- ⚠️ **E2E Testing**: In Progress - Adapters exist, full implementation in progress
+- ⚠️ **Visual Testing**: In Progress - AI-powered regression detection in development
+- ❌ **Performance Testing**: Planned for v2.0 - Architecture design phase
+- ❌ **Accessibility Testing**: Planned for v2.0 - Axe/pa11y integration planned
 
 
 
@@ -63,12 +59,13 @@ Benchmark results from internal testing. Success rate = percentage of generated 
 | Model | Provider | Test Type | Success Rate | Notes |
 |---|---|---:|---:|---|
 | claude-sonnet-4.5 (Copilot CLI) | Anthropic | Unit | 99% | Excellent for complex test cases |
+| Kimi-k2:1t | Moonshot AI | Unit | 99% | Excellent for complex test cases |
+| Devstral 2 | Frontier AI | Unit | 99% | Excellent for complex test cases |
 | gpt-5-mini (Copilot CLI) | OpenAI | Unit | 90% | Handles complex components well |
 | qwen3-coder:480b-cloud | Alibaba | Unit | 50% | Best for simple components |
 | Gemini 3 Pro | Google | Unit / E2E | N/A | Testing in progress |
 | GPT-4 | OpenAI | Unit / E2E | N/A | Testing in progress |
 | GPT-4o | OpenAI | Unit | N/A | Testing in progress |
-| Mistral Large | Mistral | Unit | N/A | Testing in progress |
 
 *Results based on internal validation; performance may vary by use case.*
 
