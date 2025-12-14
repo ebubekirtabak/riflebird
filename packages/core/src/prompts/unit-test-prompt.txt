@@ -54,6 +54,7 @@ You are an expert senior software testing engineer. Generate high-quality unit t
 - **IMPORTANT Rule**: Tests must be immediately runnable
 - NO explanations or comments in OUTPUT
 - **IMPORTANT Rule**: Output should not contains any explanations or comments
+- **IMPORTANT**: File Path in '{{FILE_PATH}}' and test file will be in '{{TEST_FILE_PATH}}', please pay attention this writing the imports.
 
 Generate the full test now based on the component provided code:
 

@@ -1,17 +1,17 @@
-import type { FrameworkInfo } from '@models/project-context';
+import type { FrameworkInfo, TestFile } from '@models';
 
 export type PromptTemplateContext = {
   testFramework?: FrameworkInfo;
   languageConfig: FrameworkInfo;
   linterConfig: FrameworkInfo;
   formatterConfig: FrameworkInfo;
-  fileContent: string;
-  [key: string]: string | FrameworkInfo | undefined;
+  targetFile: TestFile;
+  [key: string]: string | FrameworkInfo | TestFile | undefined;
 };
 
 export type TemplateVariable = {
   placeholder: string;
-  value: string | FrameworkInfo | undefined;
+  value: string | FrameworkInfo | TestFile | undefined;
   type?: 'text' | 'config';
   fallback?: string;
 };
@@ -30,7 +30,8 @@ export class PromptTemplateBuilder {
    * @returns Processed template with all placeholders replaced
    */
   build(template: string, context: PromptTemplateContext): string {
-    const { testFramework, languageConfig, linterConfig, formatterConfig, fileContent, ...customVars } = context;
+    const { testFramework, languageConfig, linterConfig, formatterConfig, targetFile, ...customVars } = context;
+    const { filePath, content, testFilePath } = targetFile;
 
     // Apply standard replacements
     let result = template
@@ -39,7 +40,9 @@ export class PromptTemplateBuilder {
       .replace(/\{\{LANGUAGE_CONFIGURATIONS\}\}/g, this.formatConfig(languageConfig, 'No specific language configuration'))
       .replace(/\{\{FORMATTING_RULES\}\}/g, this.formatConfig(formatterConfig, 'Follow project conventions'))
       .replace(/\{\{LINTING_RULES\}\}/g, this.formatConfig(linterConfig, 'Follow project linting rules'))
-      .replace(/\{\{CODE_SNIPPET\}\}/g, fileContent);
+      .replace(/\{\{FILE_PATH\}\}/g, filePath)
+      .replace(/\{\{TEST_FILE_PATH\}\}/g, testFilePath)
+      .replace(/\{\{CODE_SNIPPET\}\}/g, content);
 
     // Apply custom variables if any
     for (const [key, value] of Object.entries(customVars)) {
