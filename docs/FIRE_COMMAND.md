@@ -240,8 +240,9 @@ export default defineConfig({
   unitTesting: {
     enabled: true,
     framework: 'vitest',
-    testDir: 'tests/unit',
-    testMatch: ['**/*.test.ts', '**/*.spec.ts'],
+    testOutputDir: 'tests/unit', // Directory where generated unit tests will be written
+    // testOutputStrategy auto-detected: 'tests/unit' = root, '__tests__' = colocated
+    testMatch: ['**/*.test.ts', '**/*.spec.ts'], // Patterns to discover existing tests
   },
   
   // E2E Testing (coming soon)
@@ -259,6 +260,41 @@ export default defineConfig({
     threshold: 0.1,
   },
 });
+```
+
+### Test Output Strategies
+
+The strategy is **auto-detected** from `testOutputDir` path:
+
+**Root Strategy** (auto-detected for paths like `tests/unit`, `spec/unit`):
+```typescript
+{
+  testOutputDir: 'tests/unit'
+}
+// src/components/form/component.tsx → tests/unit/src/components/form/component.test.tsx
+```
+
+**Colocated Strategy** (auto-detected for `__tests__`, `__test__`, or paths starting with `./`):
+```typescript
+{
+  testOutputDir: '__tests__'
+}
+// src/components/form/component.tsx → src/components/form/__tests__/component.test.tsx
+```
+
+```typescript
+{
+  testOutputDir: './__tests__'
+}
+// src/components/form/component.tsx → src/components/form/__tests__/component.test.tsx
+```
+
+**Manual Override** (optional):
+```typescript
+{
+  testOutputDir: 'tests/unit',
+  testOutputStrategy: 'colocated' // Explicitly override auto-detection
+}
 ```
 
 ### AI Configuration Validation
