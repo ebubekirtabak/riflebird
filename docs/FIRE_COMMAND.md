@@ -264,7 +264,7 @@ export default defineConfig({
 
 ### Test Output Strategies
 
-The strategy is **auto-detected** from `testOutputDir` path:
+The strategy is **automatically detected** from `testOutputDir` path during project context initialization (not stored in config):
 
 **Root Strategy** (auto-detected for paths like `tests/unit`, `spec/unit`):
 ```typescript
@@ -289,13 +289,7 @@ The strategy is **auto-detected** from `testOutputDir` path:
 // src/components/form/component.tsx → src/components/form/__tests__/component.test.tsx
 ```
 
-**Manual Override** (optional):
-```typescript
-{
-  testOutputDir: 'tests/unit',
-  testOutputStrategy: 'colocated' // Explicitly override auto-detection
-}
-```
+> **Note:** The test output strategy (`unitTestOutputStrategy`) is automatically detected and stored in the project context at runtime. It is not part of the configuration schema but is derived from the `testOutputDir` value.
 
 ### AI Configuration Validation
 

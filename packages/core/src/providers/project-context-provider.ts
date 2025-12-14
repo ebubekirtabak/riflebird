@@ -1,7 +1,7 @@
 import { CommandContext, COMMON_EXCLUDE_DIRS, FileNode, getFileTree } from "@riflebird/core";
 import { ProjectContext, FrameworkInfo, TestFrameworks } from "@models/project-context";
 import { ConfigFile, TestFrameworksConfig } from "@models/project-config-files";
-import { debug, error as errorLog, ProjectFileWalker, FileTreeWalker, FileTreeWalkerContext } from "@utils";
+import { debug, error as errorLog, ProjectFileWalker, FileTreeWalker, FileTreeWalkerContext, detectTestOutputStrategy } from "@utils";
 
 
 export class ProjectContextProvider {
@@ -67,6 +67,10 @@ export class ProjectContextProvider {
       const { testFrameworks, languageConfig, linting, formatting } = configFiles;
       const testFrameworksContext = await this.readTestFramework(testFrameworks, this.projectRoot);
 
+      // Detect unit test output strategy from config
+      const testOutputDir = this.context.config.unitTesting?.testOutputDir;
+      const unitTestOutputStrategy = testOutputDir ? detectTestOutputStrategy(testOutputDir) : undefined;
+
       return {
         configFiles,
         testFrameworks: testFrameworksContext,
@@ -74,6 +78,7 @@ export class ProjectContextProvider {
         linterConfig: await this.readConfigFile(linting),
         formatterConfig: await this.readConfigFile(formatting),
         projectRoot: this.projectRoot,
+        unitTestOutputStrategy,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

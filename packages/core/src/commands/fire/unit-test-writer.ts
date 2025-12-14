@@ -16,6 +16,7 @@ import type { RiflebirdConfig } from '@config/schema';
 import { DEFAULT_FILE_EXCLUDE_PATTERNS, DEFAULT_UNIT_TEST_PATTERNS } from '@config/constants';
 import { PromptTemplateBuilder } from './prompt-template-builder';
 import type { TestFile } from '@models';
+
 export type UnitTestWriterOptions = {
   aiClient: AIClient;
   config: RiflebirdConfig;
@@ -125,7 +126,7 @@ export class UnitTestWriter {
       const testFilePath = generateTestFilePathWithConfig(testPath, {
         testOutputDir: this.options.config.unitTesting?.testOutputDir,
         projectRoot: projectContext.projectRoot,
-        strategy: this.options.config.unitTesting?.testOutputStrategy
+        strategy: projectContext.unitTestOutputStrategy
       });
       // @todo: include test file content when test file already exists
       const unitTestCode = await this.generateTest(projectContext, testFramework,

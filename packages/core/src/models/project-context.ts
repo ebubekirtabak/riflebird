@@ -8,6 +8,7 @@ export type ProjectContext = {
   linterConfig: FrameworkInfo;
   formatterConfig: FrameworkInfo;
   projectRoot: string;
+  unitTestOutputStrategy?: 'root' | 'colocated';
 };
 
 export type TestFrameworks = {
