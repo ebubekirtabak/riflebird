@@ -14,9 +14,8 @@ import { ProjectContextProvider } from '@providers/project-context-provider';
 import type { AIClient } from '@models/ai-client';
 import type { RiflebirdConfig } from '@config/schema';
 import { DEFAULT_FILE_EXCLUDE_PATTERNS, DEFAULT_UNIT_TEST_PATTERNS } from '@config/constants';
-import { PromptTemplateBuilder, TestFile } from './prompt-template-builder';
-
-
+import { PromptTemplateBuilder } from './prompt-template-builder';
+import type { TestFile } from '@models';
 export type UnitTestWriterOptions = {
   aiClient: AIClient;
   config: RiflebirdConfig;
