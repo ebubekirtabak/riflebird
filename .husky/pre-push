@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 echo "🧪 Running unit tests before push..."
 
 # Run all unit tests (turbo will run tests in all packages)
