@@ -1,4 +1,4 @@
 #!/bin/sh
 
-# Use npx to run pnpm (works even if pnpm not in PATH)
-npx --yes pnpm lint-staged
+# Use pnpm to run lint-staged (requires pnpm to be installed as specified in packageManager)
+pnpm lint-staged
