@@ -122,20 +122,24 @@ export class UnitTestWriter {
     try {
       const fileWalker = new ProjectFileWalker({ projectRoot: projectContext.projectRoot });
       const fileContent = await fileWalker.readFileFromProject(testPath, true);
+      const { projectRoot, unitTestOutputStrategy } = projectContext;
       debug(`Test file content:\n${fileContent}`);
       const testFilePath = generateTestFilePathWithConfig(testPath, {
         testOutputDir: this.options.config.unitTesting?.testOutputDir,
-        projectRoot: projectContext.projectRoot,
-        strategy: projectContext.unitTestOutputStrategy
+        projectRoot: projectRoot,
+        strategy: unitTestOutputStrategy
       });
       // @todo: include test file content when test file already exists
-      const unitTestCode = await this.generateTest(projectContext, testFramework,
-      {
-        filePath: testPath,
-        content: fileContent,
-        testFilePath: testFilePath,
-        testContent: '',
-      });
+      const unitTestCode = await this.generateTest(
+        projectContext,
+        {
+          filePath: testPath,
+          content: fileContent,
+          testFilePath: testFilePath,
+          testContent: '',
+        },
+        testFramework
+      );
       info(`Generated test file path: ${testFilePath}`);
       await fileWalker.writeFileToProject(testFilePath, unitTestCode);
     } catch (error) {
@@ -151,15 +155,14 @@ export class UnitTestWriter {
   /**
    * Generate unit test code for a file
    * @param projectContext - Project context with configurations
-   * @param fileContent - Source file content wrapped in markdown
-   * @param testFileContent - Test file content wrapped in markdown
+   * @param targetFile - Target file information
    * @param testFramework - Test framework configuration
    * @returns Generated test code
    */
   async generateTest(
     projectContext: ProjectContext,
-    testFramework?: FrameworkInfo,
     targetFile: TestFile,
+    testFramework?: FrameworkInfo,
   ): Promise<string> {
     const unitTestWriterPrompt = await import('@prompts/unit-test-prompt.txt');
     const { languageConfig, linterConfig, formatterConfig } = projectContext;

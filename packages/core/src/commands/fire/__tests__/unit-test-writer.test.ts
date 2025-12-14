@@ -251,8 +251,8 @@ describe('UnitTestWriter', () => {
 
       const result = await writer.generateTest(
         mockProjectContext,
+        targetFile,
         testFramework,
-        targetFile
       );
 
       expect(result).toBe('import { test } from "vitest";\ntest("should work", () => {});');
@@ -272,7 +272,7 @@ describe('UnitTestWriter', () => {
         testContent: '',
       };
 
-      await writer.generateTest(mockProjectContext, testFramework, targetFile);
+      await writer.generateTest(mockProjectContext, targetFile, testFramework);
 
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledWith({
         model: 'gpt-4o-mini',
@@ -301,7 +301,7 @@ describe('UnitTestWriter', () => {
         testContent: '',
       };
 
-      await writer.generateTest(mockProjectContext, testFramework, targetFile);
+      await writer.generateTest(mockProjectContext, targetFile, testFramework);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -322,7 +322,7 @@ describe('UnitTestWriter', () => {
         testContent: '',
       };
 
-      await writer.generateTest(mockProjectContext, undefined, targetFile);
+      await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -339,7 +339,7 @@ describe('UnitTestWriter', () => {
         testContent: '',
       };
 
-      const result = await writer.generateTest(mockProjectContext, undefined, targetFile);
+      const result = await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       // Should not contain markdown code fences (validates real stripMarkdownCodeBlocks behavior)
       expect(result).not.toContain('```');
@@ -358,7 +358,7 @@ describe('UnitTestWriter', () => {
         testContent: '',
       };
 
-      await expect(writer.generateTest(mockProjectContext, undefined, targetFile)).rejects.toThrow(
+      await expect(writer.generateTest(mockProjectContext, targetFile, undefined)).rejects.toThrow(
         'AI did not return any choices for unit test generation'
       );
     });
@@ -384,7 +384,7 @@ describe('UnitTestWriter', () => {
         testContent: '',
       };
 
-      await customWriter.generateTest(mockProjectContext, undefined, targetFile);
+      await customWriter.generateTest(mockProjectContext, targetFile, undefined);
 
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -410,7 +410,7 @@ describe('UnitTestWriter', () => {
           testContent: '',
         };
 
-        await writer.generateTest(mockProjectContext, framework, targetFile);
+        await writer.generateTest(mockProjectContext, targetFile, framework);
 
         const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
           .calls[0][0];
@@ -435,7 +435,7 @@ describe('UnitTestWriter', () => {
         testContent: '',
       };
 
-      await writer.generateTest(mockProjectContext, testFramework, targetFile);
+      await writer.generateTest(mockProjectContext, targetFile, testFramework);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -454,7 +454,7 @@ describe('UnitTestWriter', () => {
         testContent: '',
       };
 
-      await writer.generateTest(mockProjectContext, undefined, targetFile);
+      await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -489,7 +489,7 @@ describe('UnitTestWriter', () => {
         testFilePath: 'src/plain-response.test.ts',
         testContent: '',
       };
-      const result = await writer.generateTest(mockProjectContext, undefined, targetFile);
+      const result = await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       expect(result).toBe('Plain test code without markdown');
     });
@@ -519,7 +519,7 @@ describe('Calculator', () => {
         testFilePath: 'src/calculator.test.ts',
         testContent: '',
       };
-      const result = await writer.generateTest(mockProjectContext, undefined, targetFile);
+      const result = await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       expect(result).toContain('import { describe, it, expect }');
       expect(result).toContain("describe('Calculator'");
@@ -551,7 +551,7 @@ describe('Calculator', () => {
         testContent: '',
       };
 
-      const result = await writer.generateTest(minimalContext, undefined, targetFile);
+      const result = await writer.generateTest(minimalContext, targetFile, undefined);
 
       expect(result).toBeTruthy();
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledOnce();
@@ -565,7 +565,7 @@ describe('Calculator', () => {
         testContent: 'import { test } from "vitest";',
       };
 
-      await writer.generateTest(mockProjectContext, undefined, targetFile);
+      await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       // The testContent is currently not used in the prompt template,
       // but this test validates that it can be passed without errors
@@ -589,7 +589,7 @@ describe('Calculator', () => {
         testContent: '',
       };
 
-      await writer.generateTest(mockProjectContext, testFramework, targetFile);
+      await writer.generateTest(mockProjectContext, targetFile, testFramework);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -610,7 +610,7 @@ describe('Calculator', () => {
         testContent: '',
       };
 
-      await writer.generateTest(mockProjectContext, undefined, targetFile);
+      await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -636,7 +636,7 @@ describe('Calculator', () => {
         testContent: '',
       };
 
-      await expect(writer.generateTest(mockProjectContext, undefined, targetFile)).rejects.toThrow(
+      await expect(writer.generateTest(mockProjectContext, targetFile, undefined)).rejects.toThrow(
         'API Error'
       );
     });
@@ -660,7 +660,7 @@ describe('Calculator', () => {
       };
 
       // null content will cause an error when stripMarkdownCodeBlocks tries to process it
-      await expect(writer.generateTest(mockProjectContext, undefined, targetFile)).rejects.toThrow();
+      await expect(writer.generateTest(mockProjectContext, targetFile, undefined)).rejects.toThrow();
     });
   });
 
