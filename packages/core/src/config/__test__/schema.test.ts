@@ -107,7 +107,7 @@ describe('config/schema', () => {
       const result = RiflebirdConfigSchema.parse(config);
 
       expect(result.unitTesting?.framework).toBe('vitest');
-      expect(result.unitTesting?.testOutputDir).toBe('tests/unit');
+      expect(result.unitTesting?.testOutputDir).toBe('./__tests__/');
       expect(result.unitTesting?.testMatch).toEqual(['**/*.test.ts', '**/*.spec.ts']);
       expect(result.unitTesting?.globals).toBe(true);
       expect(result.unitTesting?.environment).toBe('node');
