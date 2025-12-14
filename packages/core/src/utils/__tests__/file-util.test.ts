@@ -1,7 +1,39 @@
 import { describe, it, expect } from 'vitest';
-import { generateTestFilePath, isTestFile, getSourceFilePath } from '../file-util';
+import { generateTestFilePath, generateTestFilePathWithConfig, detectTestOutputStrategy, isTestFile, getSourceFilePath } from '../file-util';
 
 describe('file-util', () => {
+  describe('detectTestOutputStrategy', () => {
+    it('should detect colocated for paths starting with ./', () => {
+      expect(detectTestOutputStrategy('./__tests__')).toBe('colocated');
+      expect(detectTestOutputStrategy('./__test__')).toBe('colocated');
+      expect(detectTestOutputStrategy('./tests')).toBe('colocated');
+    });
+
+    it('should detect colocated for common test directory names without slashes', () => {
+      expect(detectTestOutputStrategy('__tests__')).toBe('colocated');
+      expect(detectTestOutputStrategy('__test__')).toBe('colocated');
+      expect(detectTestOutputStrategy('tests')).toBe('colocated');
+      expect(detectTestOutputStrategy('test')).toBe('colocated');
+      expect(detectTestOutputStrategy('__specs__')).toBe('colocated');
+      expect(detectTestOutputStrategy('__spec__')).toBe('colocated');
+      expect(detectTestOutputStrategy('specs')).toBe('colocated');
+      expect(detectTestOutputStrategy('spec')).toBe('colocated');
+    });
+
+    it('should detect root for paths with slashes', () => {
+      expect(detectTestOutputStrategy('tests/unit')).toBe('root');
+      expect(detectTestOutputStrategy('spec/unit')).toBe('root');
+      expect(detectTestOutputStrategy('test/integration')).toBe('root');
+      expect(detectTestOutputStrategy('__tests__/unit')).toBe('root');
+    });
+
+    it('should detect root for non-standard directory names', () => {
+      expect(detectTestOutputStrategy('my-tests')).toBe('root');
+      expect(detectTestOutputStrategy('unit')).toBe('root');
+      expect(detectTestOutputStrategy('integration')).toBe('root');
+    });
+  });
+
   describe('generateTestFilePath', () => {
     it('should generate test file path for .tsx file', () => {
       expect(generateTestFilePath('src/component.tsx')).toBe('src/component.test.tsx');
@@ -26,6 +58,113 @@ describe('file-util', () => {
     it('should handle deeply nested paths', () => {
       expect(generateTestFilePath('src/components/UserSettings/CertificateSection/CertificateModal.component.tsx'))
         .toBe('src/components/UserSettings/CertificateSection/CertificateModal.component.test.tsx');
+    });
+  });
+
+  describe('generateTestFilePathWithConfig', () => {
+    it('should generate co-located test file when no testOutputDir specified', () => {
+      expect(generateTestFilePathWithConfig('src/component.tsx'))
+        .toBe('src/component.test.tsx');
+    });
+
+    it('should auto-detect root strategy for tests/unit path', () => {
+      expect(generateTestFilePathWithConfig('src/component.tsx', {
+        testOutputDir: 'tests/unit'
+      }))
+        .toBe('tests/unit/src/component.test.tsx');
+    });
+
+    it('should auto-detect colocated strategy for __tests__ path', () => {
+      expect(generateTestFilePathWithConfig('src/components/form/component.tsx', {
+        testOutputDir: '__tests__'
+      }))
+        .toBe('src/components/form/__tests__/component.test.tsx');
+    });
+
+    it('should auto-detect colocated strategy for paths starting with ./', () => {
+      expect(generateTestFilePathWithConfig('src/utils/helper.ts', {
+        testOutputDir: './__tests__'
+      }))
+        .toBe('src/utils/__tests__/helper.test.ts');
+    });
+
+    it('should respect explicit strategy when provided (override auto-detection)', () => {
+      expect(generateTestFilePathWithConfig('src/component.tsx', {
+        testOutputDir: 'tests/unit',
+        strategy: 'colocated' // Override auto-detected 'root'
+      }))
+        .toBe('src/tests/unit/component.test.tsx');
+    });
+
+    it('should use root strategy by default when testOutputDir is provided (deprecated test)', () => {
+      // This now auto-detects to 'root' for 'tests/unit'
+      expect(generateTestFilePathWithConfig('src/component.tsx', {
+        testOutputDir: 'tests/unit',
+        strategy: 'root'
+      }))
+        .toBe('tests/unit/src/component.test.tsx');
+    });
+
+    it('should generate test file in colocated subdirectory with explicit strategy', () => {
+      expect(generateTestFilePathWithConfig('src/components/form/component.tsx', {
+        testOutputDir: '__tests__',
+        strategy: 'colocated'
+      }))
+        .toBe('src/components/form/__tests__/component.test.tsx');
+    });
+
+    it('should handle root-level files with colocated strategy', () => {
+      expect(generateTestFilePathWithConfig('component.tsx', {
+        testOutputDir: '__tests__'
+      }))
+        .toBe('__tests__/component.test.tsx');
+    });
+
+    it('should handle testOutputDir with leading ./ in colocated strategy', () => {
+      expect(generateTestFilePathWithConfig('src/utils/helper.ts', {
+        testOutputDir: './__tests__'
+      }))
+        .toBe('src/utils/__tests__/helper.test.ts');
+    });
+
+    it('should handle absolute paths with projectRoot (root strategy)', () => {
+      expect(generateTestFilePathWithConfig('/project/src/component.tsx', {
+        testOutputDir: 'tests/unit',
+        projectRoot: '/project',
+        strategy: 'root'
+      }))
+        .toBe('tests/unit/src/component.test.tsx');
+    });
+
+    it('should handle absolute paths with colocated strategy (projectRoot ignored)', () => {
+      expect(generateTestFilePathWithConfig('/project/src/component.tsx', {
+        testOutputDir: '__tests__',
+        projectRoot: '/project'
+      }))
+        .toBe('/project/src/__tests__/component.test.tsx');
+    });
+
+    it('should preserve deep directory structure (root strategy)', () => {
+      expect(generateTestFilePathWithConfig('src/features/auth/components/LoginForm.tsx', {
+        testOutputDir: 'tests/unit',
+        strategy: 'root'
+      }))
+        .toBe('tests/unit/src/features/auth/components/LoginForm.test.tsx');
+    });
+
+    it('should preserve deep directory structure (colocated strategy)', () => {
+      expect(generateTestFilePathWithConfig('src/features/auth/components/LoginForm.tsx', {
+        testOutputDir: '__tests__'
+      }))
+        .toBe('src/features/auth/components/__tests__/LoginForm.test.tsx');
+    });
+
+    it('should work with relative paths when projectRoot not specified (root strategy)', () => {
+      expect(generateTestFilePathWithConfig('components/Button.jsx', {
+        testOutputDir: 'tests',
+        strategy: 'root'
+      }))
+        .toBe('tests/components/Button.test.jsx');
     });
   });
 
