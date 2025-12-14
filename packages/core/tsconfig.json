@@ -20,6 +20,7 @@
       "@riflebird/core": ["index.ts"],
       "@/*": ["src/*"],
       "@models/*": ["src/models/*"],
+      "@models": ["src/models/index.ts"],
       "@helpers/*": ["src/helpers/*"],
       "@utils": ["src/utils/index.ts"],
       "@utils/*": ["src/utils/*"],
