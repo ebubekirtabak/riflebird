@@ -19,20 +19,14 @@ export const detectTestOutputStrategy = (testOutputDir: string): 'root' | 'coloc
   // Common test directory names that suggest colocated strategy
   const colocatedPatterns = ['__tests__', '__test__', 'tests', 'test', '__specs__', '__spec__', 'specs', 'spec'];
 
-  // Remove leading ./ for comparison
-  const normalized = testOutputDir.replace(/^\.\//, '');
-
-  // If it starts with ./, it's colocated
   if (testOutputDir.startsWith('./')) {
     return 'colocated';
   }
 
-  // If it's just a simple directory name (no slashes) matching common patterns, it's colocated
-  if (!normalized.includes('/') && colocatedPatterns.includes(normalized)) {
+  if (!testOutputDir.includes('/') && colocatedPatterns.includes(testOutputDir)) {
     return 'colocated';
   }
 
-  // Otherwise, it's a root strategy (e.g., 'tests/unit', 'spec/unit')
   return 'root';
 };
 
