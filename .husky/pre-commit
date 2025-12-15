@@ -1,4 +1,4 @@
 #!/bin/sh
 
 # Use pnpm to run lint-staged (requires pnpm to be installed as specified in packageManager)
-pnpm lint-staged
+npx --yes pnpm lint-staged

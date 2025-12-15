@@ -3,7 +3,7 @@
 echo "🧪 Running unit tests before push..."
 
 # Run all unit tests (turbo will run tests in all packages)
-pnpm test -- --run
+npx --yes pnpm test -- --run
 
 # Check if tests passed
 if [ $? -ne 0 ]; then
