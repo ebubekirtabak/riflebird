@@ -1,6 +1,6 @@
 import type { ProjectContext, FrameworkInfo } from '@models/project-context';
 import {
-  generateTestFilePath,
+  generateTestFilePathWithConfig,
   info,
   ProjectFileWalker,
   stripMarkdownCodeBlocks,
@@ -15,7 +15,7 @@ import type { AIClient } from '@models/ai-client';
 import type { RiflebirdConfig } from '@config/schema';
 import { DEFAULT_FILE_EXCLUDE_PATTERNS, DEFAULT_UNIT_TEST_PATTERNS } from '@config/constants';
 import { PromptTemplateBuilder } from './prompt-template-builder';
-
+import type { TestFile } from '@models';
 
 export type UnitTestWriterOptions = {
   aiClient: AIClient;
@@ -100,10 +100,9 @@ export class UnitTestWriter {
         await this.writeTestFile(
           projectContext,
           file.path,
-          testFramework
+          testFramework,
         );
-        const testFilePath = generateTestFilePath(file.path);
-        results.push(`Unit test: ${testFilePath}`);
+        results.push(`Unit test: ${file.path}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         checkAndThrowFatalError(error);
@@ -118,15 +117,29 @@ export class UnitTestWriter {
   async writeTestFile(
     projectContext: ProjectContext,
     testPath: string,
-    testFramework?: FrameworkInfo
+    testFramework?: FrameworkInfo,
   ): Promise<void> {
     try {
       const fileWalker = new ProjectFileWalker({ projectRoot: projectContext.projectRoot });
       const fileContent = await fileWalker.readFileFromProject(testPath, true);
+      const { projectRoot, unitTestOutputStrategy } = projectContext;
       debug(`Test file content:\n${fileContent}`);
-      const unitTestCode = await this.generateTest(projectContext, fileContent, '', testFramework);
+      const testFilePath = generateTestFilePathWithConfig(testPath, {
+        testOutputDir: this.options.config.unitTesting?.testOutputDir,
+        projectRoot: projectRoot,
+        strategy: unitTestOutputStrategy
+      });
       // @todo: include test file content when test file already exists
-      const testFilePath = generateTestFilePath(testPath);
+      const unitTestCode = await this.generateTest(
+        projectContext,
+        {
+          filePath: testPath,
+          content: fileContent,
+          testFilePath: testFilePath,
+          testContent: '',
+        },
+        testFramework
+      );
       info(`Generated test file path: ${testFilePath}`);
       await fileWalker.writeFileToProject(testFilePath, unitTestCode);
     } catch (error) {
@@ -142,16 +155,14 @@ export class UnitTestWriter {
   /**
    * Generate unit test code for a file
    * @param projectContext - Project context with configurations
-   * @param fileContent - Source file content wrapped in markdown
-   * @param testFileContent - Test file content wrapped in markdown
+   * @param targetFile - Target file information
    * @param testFramework - Test framework configuration
    * @returns Generated test code
    */
   async generateTest(
     projectContext: ProjectContext,
-    fileContent: string,
-    testFileContent?: string,
-    testFramework?: FrameworkInfo
+    targetFile: TestFile,
+    testFramework?: FrameworkInfo,
   ): Promise<string> {
     const unitTestWriterPrompt = await import('@prompts/unit-test-prompt.txt');
     const { languageConfig, linterConfig, formatterConfig } = projectContext;
@@ -161,8 +172,7 @@ export class UnitTestWriter {
       languageConfig,
       linterConfig,
       formatterConfig,
-      fileContent,
-      testFileContent
+      targetFile,
     });
 
     try {

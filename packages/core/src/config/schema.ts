@@ -142,7 +142,8 @@ export const RiflebirdConfigSchema = z.object({
     .object({
       enabled: z.boolean().default(false),
       framework: UnitTestFrameworkSchema.default('vitest'),
-      testDir: z.string().default('tests/unit'),
+      /** Directory where generated unit test files will be written */
+      testOutputDir: z.string().default('./__tests__/'),
       testMatch: z.array(z.string()).default([...DEFAULT_UNIT_TEST_PATTERNS]),
       coverage: z
         .object({

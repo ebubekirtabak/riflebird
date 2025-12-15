@@ -240,8 +240,9 @@ export default defineConfig({
   unitTesting: {
     enabled: true,
     framework: 'vitest',
-    testDir: 'tests/unit',
-    testMatch: ['**/*.test.ts', '**/*.spec.ts'],
+    testOutputDir: 'tests/unit', // Directory where generated unit tests will be written
+    // testOutputStrategy auto-detected: 'tests/unit' = root, '__tests__' = colocated
+    testMatch: ['**/*.test.ts', '**/*.spec.ts'], // Patterns to discover existing tests
   },
   
   // E2E Testing (coming soon)
@@ -260,6 +261,35 @@ export default defineConfig({
   },
 });
 ```
+
+### Test Output Strategies
+
+The strategy is **automatically detected** from `testOutputDir` path during project context initialization (not stored in config):
+
+**Root Strategy** (auto-detected for paths like `tests/unit`, `spec/unit`):
+```typescript
+{
+  testOutputDir: 'tests/unit'
+}
+// src/components/form/component.tsx → tests/unit/src/components/form/component.test.tsx
+```
+
+**Colocated Strategy** (auto-detected for `__tests__`, `__test__`, or paths starting with `./`):
+```typescript
+{
+  testOutputDir: '__tests__'
+}
+// src/components/form/component.tsx → src/components/form/__tests__/component.test.tsx
+```
+
+```typescript
+{
+  testOutputDir: './__tests__'
+}
+// src/components/form/component.tsx → src/components/form/__tests__/component.test.tsx
+```
+
+> **Note:** The test output strategy (`unitTestOutputStrategy`) is automatically detected and stored in the project context at runtime. It is not part of the configuration schema but is derived from the `testOutputDir` value.
 
 ### AI Configuration Validation
 

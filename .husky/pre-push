@@ -1,0 +1,14 @@
+#!/bin/sh
+
+echo "🧪 Running unit tests before push..."
+
+# Run all unit tests (turbo will run tests in all packages)
+npx --yes pnpm test -- --run
+
+# Check if tests passed
+if [ $? -ne 0 ]; then
+  echo "❌ Unit tests failed. Push aborted."
+  exit 1
+fi
+
+echo "✅ All tests passed!"

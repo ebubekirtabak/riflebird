@@ -1,3 +1,35 @@
+import path from 'node:path';
+
+export type GenerateTestFilePathOptions = {
+  testOutputDir?: string;
+  projectRoot?: string;
+  strategy?: 'root' | 'colocated';
+};
+
+/**
+ * Detect test output strategy from testOutputDir path pattern
+ * @param testOutputDir - Test output directory path
+ * @returns Detected strategy ('root' or 'colocated')
+ * @example
+ * detectTestOutputStrategy('./__tests__') // 'colocated'
+ * detectTestOutputStrategy('__tests__') // 'colocated'
+ * detectTestOutputStrategy('tests/unit') // 'root'
+ */
+export const detectTestOutputStrategy = (testOutputDir: string): 'root' | 'colocated' => {
+  // Common test directory names that suggest colocated strategy
+  const colocatedPatterns = ['__tests__', '__test__', 'tests', 'test', '__specs__', '__spec__', 'specs', 'spec'];
+
+  if (testOutputDir.startsWith('./')) {
+    return 'colocated';
+  }
+
+  if (!testOutputDir.includes('/') && colocatedPatterns.includes(testOutputDir)) {
+    return 'colocated';
+  }
+
+  return 'root';
+};
+
 /**
  * Generate test file path by inserting .test before the file extension
  * @param filePath - Original file path
@@ -18,6 +50,42 @@ export const generateTestFilePath = (filePath: string): string => {
   const extension = filePath.substring(lastDotIndex);
 
   return `${pathWithoutExt}.test${extension}`;
+};
+
+/**
+ * Generate test file path with configurable output directory
+ * @param filePath - Original file path (can be absolute or relative)
+ * @param options - Configuration options
+ * @returns Test file path, either co-located or in testOutputDir
+ */
+export const generateTestFilePathWithConfig = (
+  filePath: string,
+  options?: GenerateTestFilePathOptions
+): string => {
+  const { testOutputDir, projectRoot, strategy } = options || {};
+
+  const effectiveStrategy = strategy || (testOutputDir ? detectTestOutputStrategy(testOutputDir) : 'root');
+
+  const testFileName = generateTestFilePath(filePath);
+
+  if (!testOutputDir) {
+    return testFileName;
+  }
+
+  if (effectiveStrategy === 'colocated') {
+    const dir = path.dirname(filePath);
+    const filename = path.basename(testFileName);
+    return path.join(dir, testOutputDir, filename);
+  }
+
+  let relativePath = filePath;
+  if (projectRoot && path.isAbsolute(filePath)) {
+    relativePath = path.relative(projectRoot, filePath);
+  }
+
+  const relativeTestPath = generateTestFilePath(relativePath);
+
+  return path.join(testOutputDir, relativeTestPath);
 };
 
 /**

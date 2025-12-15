@@ -188,6 +188,7 @@ describe('ProjectContextProvider', () => {
       expect(context).toHaveProperty('languageConfig');
       expect(context).toHaveProperty('linterConfig');
       expect(context).toHaveProperty('formatterConfig');
+      expect(context).toHaveProperty('unitTestOutputStrategy');
     });
 
     it('should call init before building context', async () => {
@@ -233,6 +234,44 @@ describe('ProjectContextProvider', () => {
       provider = new ProjectContextProvider(mockContext, projectRoot);
 
       await expect(provider.getContext()).rejects.toThrow();
+    });
+
+    it('should detect unit test output strategy from config', async () => {
+      mockConfig.unitTesting = {
+        enabled: true,
+        framework: 'vitest',
+        testOutputDir: './__tests__',
+      };
+
+      provider = new ProjectContextProvider(mockContext, projectRoot);
+      const context = await provider.getContext();
+
+      expect(context.unitTestOutputStrategy).toBe('colocated');
+    });
+
+    it('should detect root strategy for non-colocated paths', async () => {
+      mockConfig.unitTesting = {
+        enabled: true,
+        framework: 'vitest',
+        testOutputDir: 'tests/unit',
+      };
+
+      provider = new ProjectContextProvider(mockContext, projectRoot);
+      const context = await provider.getContext();
+
+      expect(context.unitTestOutputStrategy).toBe('root');
+    });
+
+    it('should handle undefined testOutputDir', async () => {
+      mockConfig.unitTesting = {
+        enabled: true,
+        framework: 'vitest',
+      };
+
+      provider = new ProjectContextProvider(mockContext, projectRoot);
+      const context = await provider.getContext();
+
+      expect(context.unitTestOutputStrategy).toBeUndefined();
     });
   });
 

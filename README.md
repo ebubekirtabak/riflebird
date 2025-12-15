@@ -36,7 +36,7 @@
 For a detailed roadmap including planned features, timelines, and success metrics, see [ROADMAP.md](./ROADMAP.md).
 
 **Current Status Summary**:
-- ✅ **Unit Testing**: Beta (90% success rate) - Core functionality working, quality improvements ongoing
+- ✅ **Unit Testing**: Beta (90% success rate) - Core functionality working, auto healing improvements ongoing
 - ⚠️ **E2E Testing**: In Progress - Adapters exist, full implementation in progress
 - ⚠️ **Visual Testing**: In Progress - AI-powered regression detection in development
 - ❌ **Performance Testing**: Planned for v2.0 - Architecture design phase

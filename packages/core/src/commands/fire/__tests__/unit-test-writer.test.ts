@@ -46,6 +46,7 @@ import { ConfigFile } from '@models/project-config-files';
 import type { AIClient } from '@models/ai-client';
 import type { RiflebirdConfig } from '@config/schema';
 import { ProjectContextProvider } from '@providers/project-context-provider';
+import type { TestFile } from '@models';
 
 
 vi.mock('@prompts/unit-test-prompt.txt', () => ({
@@ -233,7 +234,6 @@ describe('UnitTestWriter', () => {
 
   describe('generateTest', () => {
     it('should generate test code with AI', async () => {
-      const fileContent = 'export function add(a: number, b: number) { return a + b; }';
       const testFramework: FrameworkInfo = {
         name: 'vitest',
         version: '1.0.0',
@@ -242,11 +242,17 @@ describe('UnitTestWriter', () => {
         configContent: 'export default {}',
       };
 
+      const targetFile: TestFile = {
+        filePath: 'src/add.ts',
+        content: 'export function add(a: number, b: number) { return a + b; }',
+        testFilePath: 'src/add.test.ts',
+        testContent: '',
+      };
+
       const result = await writer.generateTest(
         mockProjectContext,
-        fileContent,
-        undefined,
-        testFramework
+        targetFile,
+        testFramework,
       );
 
       expect(result).toBe('import { test } from "vitest";\ntest("should work", () => {});');
@@ -254,13 +260,19 @@ describe('UnitTestWriter', () => {
     });
 
     it('should call AI client with correct parameters', async () => {
-      const fileContent = 'function test() {}';
       const testFramework: FrameworkInfo = {
         name: 'vitest',
         fileLang: 'typescript',
       };
 
-      await writer.generateTest(mockProjectContext, fileContent, undefined, testFramework);
+      const targetFile: TestFile = {
+        filePath: 'src/test-file.ts',
+        content: 'function test() {}',
+        testFilePath: 'src/test-file.test.ts',
+        testContent: '',
+      };
+
+      await writer.generateTest(mockProjectContext, targetFile, testFramework);
 
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledWith({
         model: 'gpt-4o-mini',
@@ -277,13 +289,19 @@ describe('UnitTestWriter', () => {
     });
 
     it('should build prompt with project context', async () => {
-      const fileContent = 'const x = 1;';
       const testFramework: FrameworkInfo = {
         name: 'jest',
         fileLang: 'javascript',
       };
 
-      await writer.generateTest(mockProjectContext, fileContent, undefined, testFramework);
+      const targetFile: TestFile = {
+        filePath: 'src/context.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/context.test.ts',
+        testContent: '',
+      };
+
+      await writer.generateTest(mockProjectContext, targetFile, testFramework);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -297,9 +315,14 @@ describe('UnitTestWriter', () => {
     });
 
     it('should handle missing test framework', async () => {
-      const fileContent = 'function test() {}';
+      const targetFile: TestFile = {
+        filePath: 'src/missing.ts',
+        content: 'function test() {}',
+        testFilePath: 'src/missing.test.ts',
+        testContent: '',
+      };
 
-      await writer.generateTest(mockProjectContext, fileContent);
+      await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -309,9 +332,14 @@ describe('UnitTestWriter', () => {
     });
 
     it('should strip markdown code blocks from AI response', async () => {
-      const fileContent = 'const x = 1;';
+      const targetFile: TestFile = {
+        filePath: 'src/markdown.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/markdown.test.ts',
+        testContent: '',
+      };
 
-      const result = await writer.generateTest(mockProjectContext, fileContent);
+      const result = await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       // Should not contain markdown code fences (validates real stripMarkdownCodeBlocks behavior)
       expect(result).not.toContain('```');
@@ -323,9 +351,14 @@ describe('UnitTestWriter', () => {
         choices: [],
       });
 
-      const fileContent = 'const x = 1;';
+      const targetFile: TestFile = {
+        filePath: 'src/no-choices.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/no-choices.test.ts',
+        testContent: '',
+      };
 
-      await expect(writer.generateTest(mockProjectContext, fileContent)).rejects.toThrow(
+      await expect(writer.generateTest(mockProjectContext, targetFile, undefined)).rejects.toThrow(
         'AI did not return any choices for unit test generation'
       );
     });
@@ -344,9 +377,14 @@ describe('UnitTestWriter', () => {
         config: customConfig,
       });
 
-      const fileContent = 'const x = 1;';
+      const targetFile: TestFile = {
+        filePath: 'src/custom-ai.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/custom-ai.test.ts',
+        testContent: '',
+      };
 
-      await customWriter.generateTest(mockProjectContext, fileContent);
+      await customWriter.generateTest(mockProjectContext, targetFile, undefined);
 
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -365,9 +403,14 @@ describe('UnitTestWriter', () => {
 
       for (const framework of testFrameworks) {
         vi.clearAllMocks();
-        const fileContent = 'const x = 1;';
+        const targetFile: TestFile = {
+          filePath: 'src/framework-test.ts',
+          content: 'const x = 1;',
+          testFilePath: 'src/framework-test.test.ts',
+          testContent: '',
+        };
 
-        await writer.generateTest(mockProjectContext, fileContent, undefined, framework);
+        await writer.generateTest(mockProjectContext, targetFile, framework);
 
         const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
           .calls[0][0];
@@ -385,9 +428,14 @@ describe('UnitTestWriter', () => {
         configContent: 'export default { test: { globals: true, coverage: { enabled: true } } }',
       };
 
-      const fileContent = 'const x = 1;';
+      const targetFile: TestFile = {
+        filePath: 'src/config-test.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/config-test.test.ts',
+        testContent: '',
+      };
 
-      await writer.generateTest(mockProjectContext, fileContent, undefined, testFramework);
+      await writer.generateTest(mockProjectContext, targetFile, testFramework);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -399,9 +447,14 @@ describe('UnitTestWriter', () => {
     });
 
     it('should include all project configurations in prompt', async () => {
-      const fileContent = 'const x = 1;';
+      const targetFile: TestFile = {
+        filePath: 'src/all-configs.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/all-configs.test.ts',
+        testContent: '',
+      };
 
-      await writer.generateTest(mockProjectContext, fileContent);
+      await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -430,8 +483,13 @@ describe('UnitTestWriter', () => {
         ],
       });
 
-      const fileContent = 'const x = 1;';
-      const result = await writer.generateTest(mockProjectContext, fileContent);
+      const targetFile: TestFile = {
+        filePath: 'src/plain-response.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/plain-response.test.ts',
+        testContent: '',
+      };
+      const result = await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       expect(result).toBe('Plain test code without markdown');
     });
@@ -455,8 +513,13 @@ describe('Calculator', () => {
         ],
       });
 
-      const fileContent = 'function add(a, b) { return a + b; }';
-      const result = await writer.generateTest(mockProjectContext, fileContent);
+      const targetFile: TestFile = {
+        filePath: 'src/calculator.ts',
+        content: 'function add(a, b) { return a + b; }',
+        testFilePath: 'src/calculator.test.ts',
+        testContent: '',
+      };
+      const result = await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       expect(result).toContain('import { describe, it, expect }');
       expect(result).toContain("describe('Calculator'");
@@ -481,21 +544,30 @@ describe('Calculator', () => {
         },
       };
 
-      const fileContent = 'function test() {}';
+      const targetFile: TestFile = {
+        filePath: 'src/minimal.ts',
+        content: 'function test() {}',
+        testFilePath: 'src/minimal.test.ts',
+        testContent: '',
+      };
 
-      const result = await writer.generateTest(minimalContext, fileContent);
+      const result = await writer.generateTest(minimalContext, targetFile, undefined);
 
       expect(result).toBeTruthy();
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledOnce();
     });
 
     it('should pass testFileContent parameter when provided', async () => {
-      const fileContent = 'export function add(a, b) { return a + b; }';
-      const testFileContent = 'import { test } from "vitest";';
+      const targetFile: TestFile = {
+        filePath: 'src/with-test.ts',
+        content: 'export function add(a, b) { return a + b; }',
+        testFilePath: 'src/with-test.test.ts',
+        testContent: 'import { test } from "vitest";',
+      };
 
-      await writer.generateTest(mockProjectContext, fileContent, testFileContent);
+      await writer.generateTest(mockProjectContext, targetFile, undefined);
 
-      // The testFileContent is currently not used in the prompt template,
+      // The testContent is currently not used in the prompt template,
       // but this test validates that it can be passed without errors
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledOnce();
     });
@@ -503,7 +575,6 @@ describe('Calculator', () => {
 
   describe('integration with PromptTemplateBuilder', () => {
     it('should use PromptTemplateBuilder to format prompt', async () => {
-      const fileContent = 'const x = 1;';
       const testFramework: FrameworkInfo = {
         name: 'vitest',
         fileLang: 'typescript',
@@ -511,7 +582,14 @@ describe('Calculator', () => {
         configContent: 'export default {}',
       };
 
-      await writer.generateTest(mockProjectContext, fileContent, undefined, testFramework);
+      const targetFile: TestFile = {
+        filePath: 'src/template-test.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/template-test.test.ts',
+        testContent: '',
+      };
+
+      await writer.generateTest(mockProjectContext, targetFile, testFramework);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -525,9 +603,14 @@ describe('Calculator', () => {
     });
 
     it('should handle custom variables through PromptTemplateBuilder', async () => {
-      const fileContent = 'const x = 1;';
+      const targetFile: TestFile = {
+        filePath: 'src/custom-vars.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/custom-vars.test.ts',
+        testContent: '',
+      };
 
-      await writer.generateTest(mockProjectContext, fileContent);
+      await writer.generateTest(mockProjectContext, targetFile, undefined);
 
       const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
         .calls[0][0];
@@ -546,9 +629,14 @@ describe('Calculator', () => {
         new Error('API Error')
       );
 
-      const fileContent = 'const x = 1;';
+      const targetFile: TestFile = {
+        filePath: 'src/api-error.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/api-error.test.ts',
+        testContent: '',
+      };
 
-      await expect(writer.generateTest(mockProjectContext, fileContent)).rejects.toThrow(
+      await expect(writer.generateTest(mockProjectContext, targetFile, undefined)).rejects.toThrow(
         'API Error'
       );
     });
@@ -564,10 +652,15 @@ describe('Calculator', () => {
         ],
       });
 
-      const fileContent = 'const x = 1;';
+      const targetFile: TestFile = {
+        filePath: 'src/malformed.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/malformed.test.ts',
+        testContent: '',
+      };
 
       // null content will cause an error when stripMarkdownCodeBlocks tries to process it
-      await expect(writer.generateTest(mockProjectContext, fileContent)).rejects.toThrow();
+      await expect(writer.generateTest(mockProjectContext, targetFile, undefined)).rejects.toThrow();
     });
   });
 
