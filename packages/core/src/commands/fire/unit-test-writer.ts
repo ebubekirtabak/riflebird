@@ -3,12 +3,12 @@ import {
   generateTestFilePathWithConfig,
   info,
   ProjectFileWalker,
-  stripMarkdownCodeBlocks,
   matchesPattern,
   debug,
   checkAndThrowFatalError,
   getFileTree,
   findFilesByPatternInFileTree,
+  cleanCodeContent,
 } from '@utils';
 import { ProjectContextProvider } from '@providers/project-context-provider';
 import type { AIClient } from '@models/ai-client';
@@ -195,7 +195,8 @@ export class UnitTestWriter {
       }
 
       const { content } = choices[0].message;
-      const cleanContent = stripMarkdownCodeBlocks(content as string);
+      let cleanContent = cleanCodeContent(content as string);
+
 
       return cleanContent;
     } catch (error) {
