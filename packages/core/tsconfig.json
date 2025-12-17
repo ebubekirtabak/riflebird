@@ -30,7 +30,8 @@
       "@prompts/*": ["src/prompts/*"],
       "@providers/*": ["src/providers/*"],
       "@security/*": ["src/security/*"],
-      "@security": ["src/security/index.ts"]
+      "@security": ["src/security/index.ts"],
+      "@runners": ["src/runners/index.ts"]
     }
   },
   "include": ["src/**/*", "index.ts"],

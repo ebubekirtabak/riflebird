@@ -40,6 +40,7 @@ export default defineConfig({
       '@prompts': resolve(__dirname, './src/prompts'),
       '@providers': resolve(__dirname, './src/providers'),
       '@security': resolve(__dirname, './src/security'),
+      '@runners': resolve(__dirname, './src/runners'),
     },
   },
 });
