@@ -41,6 +41,7 @@ export default defineConfig({
       '@providers': resolve(__dirname, './src/providers'),
       '@security': resolve(__dirname, './src/security'),
       '@runners': resolve(__dirname, './src/runners'),
+      '@types': resolve(__dirname, './src/types'),
     },
   },
 });
