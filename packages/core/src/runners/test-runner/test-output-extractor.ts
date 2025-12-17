@@ -138,7 +138,7 @@ export function parseFailingTestsFromJson(result: TestRunResult): FailedTestDeta
 export function parseFailingTests(result: TestRunResult, testFileContent: string): FailedTest[] {
   if (result.success) return [];
 
-  const output = result.stderr || result.stdout;
+  const output = [result.stderr, result.stdout].filter(Boolean).join('\n');
 
   // Try parsing with specific framework patterns
   const vitestTests = parseOutputWithPattern(output, PATTERNS.VITEST_FAIL, testFileContent);
