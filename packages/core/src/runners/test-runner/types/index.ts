@@ -75,3 +75,8 @@ export type FailedTest = {
 export type ReporterArgsParams = {
   jsonReportPath: string;
 };
+
+export type UnitTestErrorContext = {
+  failingTests: FailedTestDetail[];
+  fullTestOutput: string;
+};

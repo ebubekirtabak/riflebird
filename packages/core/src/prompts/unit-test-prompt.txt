@@ -36,6 +36,20 @@ You are an expert senior software testing engineer. Generate high-quality unit t
 **Testing Framework Configuration:**
 {{TEST_FRAMEWORK_CONFIG}}
 
+**Package Manager:**
+- Type: {{PACKAGE_MANAGER_TYPE}}
+- Test Command: {{PACKAGE_MANAGER_TEST_COMMAND}}
+- Test Script: {{PACKAGE_MANAGER_TEST_SCRIPT}}
+
+**Package Information:**
+{{PACKAGE_INFO}}
+
+Use the package manager and dependency information above to:
+- Ensure tests are compatible with installed testing libraries and their versions
+- Use appropriate mocking strategies based on available dependencies
+- Follow conventions from the detected test frameworks
+- Leverage utility libraries that are already installed in the project
+
 **Language & Project Rules:**
 
 {{LANGUAGE_CONFIGURATIONS}}

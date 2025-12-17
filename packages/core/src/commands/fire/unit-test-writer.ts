@@ -1,4 +1,4 @@
-import type { ProjectContext, FrameworkInfo } from '@models/project-context';
+import type { TestFile, AIClient, ProjectContext, FrameworkInfo } from '@models';
 import {
   generateTestFilePathWithConfig,
   info,
@@ -11,11 +11,16 @@ import {
   cleanCodeContent,
 } from '@utils';
 import { ProjectContextProvider } from '@providers/project-context-provider';
-import type { AIClient } from '@models/ai-client';
 import type { RiflebirdConfig } from '@config/schema';
 import { DEFAULT_FILE_EXCLUDE_PATTERNS, DEFAULT_UNIT_TEST_PATTERNS } from '@config/constants';
 import { PromptTemplateBuilder } from './prompt-template-builder';
-import type { TestFile } from '@models';
+import {
+  extractTestErrors,
+  parseFailingTestsFromJson,
+  runTest,
+  getFailingTestsDetail,
+  UnitTestErrorContext
+} from '@runners/test-runner';
 
 export type UnitTestWriterOptions = {
   aiClient: AIClient;
@@ -119,37 +124,192 @@ export class UnitTestWriter {
     testPath: string,
     testFramework?: FrameworkInfo,
   ): Promise<void> {
-    try {
-      const fileWalker = new ProjectFileWalker({ projectRoot: projectContext.projectRoot });
-      const fileContent = await fileWalker.readFileFromProject(testPath, true);
-      const { projectRoot, unitTestOutputStrategy } = projectContext;
-      debug(`Test file content:\n${fileContent}`);
-      const testFilePath = generateTestFilePathWithConfig(testPath, {
-        testOutputDir: this.options.config.unitTesting?.testOutputDir,
-        projectRoot: projectRoot,
-        strategy: unitTestOutputStrategy
-      });
-      // @todo: include test file content when test file already exists
-      const unitTestCode = await this.generateTest(
+    const healingConfig = this.options.config.healing;
+    const isHealingEnabled = healingConfig?.enabled !== false && healingConfig?.mode === 'auto';
+    const maxRetries = healingConfig?.maxRetries ?? 3;
+
+    const fileWalker = new ProjectFileWalker({ projectRoot: projectContext.projectRoot });
+    const fileContent = await fileWalker.readFileFromProject(testPath, true);
+    const { projectRoot, unitTestOutputStrategy } = projectContext;
+
+    debug(`Test file content:\n${fileContent}`);
+
+    const testFilePath = generateTestFilePathWithConfig(testPath, {
+      testOutputDir: this.options.config.unitTesting?.testOutputDir,
+      projectRoot: projectRoot,
+      strategy: unitTestOutputStrategy
+    });
+
+    let lastTestCode: string | undefined;
+    let lastTestResult: Awaited<ReturnType<typeof runTest>> | undefined;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const unitTestCode = await this.generateOrFixTest(
+          projectContext,
+          {
+            testPath,
+            fileContent,
+            testFilePath,
+          },
+          testFramework,
+          attempt,
+          lastTestCode,
+          lastTestResult
+        );
+
+        info(`Generated test file path: ${testFilePath}${attempt > 1 ? ` (fix attempt ${attempt}/${maxRetries})` : ''}`);
+        await fileWalker.writeFileToProject(testFilePath, unitTestCode);
+        lastTestCode = unitTestCode;
+
+        if (!isHealingEnabled) {
+          return;
+        }
+
+        const { passed, result } = await this.verifyTest(
+          projectContext,
+          testFilePath,
+          attempt,
+          maxRetries
+        );
+
+        if (passed) {
+          return; // Success!
+        }
+
+        lastTestResult = result;
+        const errorInfo = extractTestErrors(result);
+        debug(`Test output:\n${errorInfo}`);
+
+        if (attempt < maxRetries) {
+          info(`Will attempt to fix the test...`);
+          continue; // Try again with fix
+        } else {
+          // Max retries reached
+          throw new Error(
+            `Test failed after ${maxRetries} attempts. Last error:\n${errorInfo.slice(0, 500)}`
+          );
+        }
+      } catch (error) {
+        checkAndThrowFatalError(error);
+
+        if (attempt === maxRetries) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new Error(`Failed to process ${testPath}: ${message}`);
+        }
+
+        // Non-fatal error, continue to next attempt if healing is enabled
+        if (!isHealingEnabled) {
+          throw error;
+        }
+
+        info(`Error on attempt ${attempt}, retrying...`);
+        debug(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+
+  private async generateOrFixTest(
+    projectContext: ProjectContext,
+    params: {
+      testPath: string;
+      fileContent: string;
+      testFilePath: string;
+    },
+    testFramework: FrameworkInfo | undefined,
+    attempt: number,
+    lastTestCode?: string,
+    lastTestResult?: Awaited<ReturnType<typeof runTest>>
+  ): Promise<string> {
+    if (attempt === 1) {
+      // First attempt: generate new test
+      return this.generateTest(
         projectContext,
         {
-          filePath: testPath,
-          content: fileContent,
-          testFilePath: testFilePath,
+          filePath: params.testPath,
+          content: params.fileContent,
+          testFilePath: params.testFilePath,
           testContent: '',
         },
-        testFramework
+        testFramework,
       );
-      info(`Generated test file path: ${testFilePath}`);
-      await fileWalker.writeFileToProject(testFilePath, unitTestCode);
-    } catch (error) {
-      // Check for fatal AI errors first (these should stop execution immediately)
-      checkAndThrowFatalError(error);
-
-      const message = error instanceof Error ? error.message : String(error);
-      // Enhance error message with context
-      throw new Error(`Failed to process ${testPath}: ${message}`);
     }
+
+    if (!lastTestResult || !lastTestCode) {
+      throw new Error('Cannot fix test without previous test result');
+    }
+
+    const failingTests = parseFailingTestsFromJson(lastTestResult);
+
+    return this.fixTest(
+      projectContext,
+      {
+        filePath: params.testPath,
+        content: params.fileContent,
+        testFilePath: params.testFilePath,
+        testContent: lastTestCode,
+      },
+      testFramework,
+      {
+        failingTests,
+        fullTestOutput: lastTestResult.stderr || lastTestResult.stdout,
+      }
+    );
+  }
+
+  private async verifyTest(
+    projectContext: ProjectContext,
+    testFilePath: string,
+    attempt: number,
+    maxRetries: number
+  ): Promise<{ passed: boolean; result: Awaited<ReturnType<typeof runTest>> }> {
+    if (!projectContext.packageManager?.testCommand) {
+      info('⚠ No test command configured, skipping test verification');
+      return {
+        passed: true,
+        result: { success: true, stdout: '', stderr: '', jsonReport: null, exitCode: 0, duration: 0 }
+      };
+    }
+
+    info(`Running test to verify: ${testFilePath}`);
+    const { projectRoot } = projectContext;
+
+    const testResult = await runTest(
+      projectContext.packageManager.type,
+      projectContext.packageManager.testCommand,
+      {
+        cwd: projectRoot,
+        testFilePath: testFilePath,
+        timeout: 30000,
+        framework: projectContext.testFrameworks?.unit?.name as 'vitest' | 'jest' | 'mocha' | 'ava' | undefined,
+      }
+    );
+
+    // Check if OUR specific test file passed (not the overall command)
+    let ourTestFilePassed = false;
+
+    if (testResult.jsonReport) {
+      // If we have JSON report, check if our specific test file has any failures
+      const ourTestFileResult = testResult.jsonReport.testResults.find(
+        (result) => result.name.includes(testFilePath)
+      );
+
+      if (ourTestFileResult) {
+        ourTestFilePassed = ourTestFileResult.status === 'passed';
+      } else {
+        ourTestFilePassed = true;
+      }
+    } else {
+      ourTestFilePassed = testResult.success;
+    }
+
+    if (ourTestFilePassed) {
+      info(`✓ Test passed successfully${attempt > 1 ? ` after ${attempt} attempt(s)` : ''}`);
+      return { passed: true, result: testResult };
+    }
+
+    info(`✗ Test failed (attempt ${attempt}/${maxRetries})`);
+    return { passed: false, result: testResult };
   }
 
   /**
@@ -165,7 +325,7 @@ export class UnitTestWriter {
     testFramework?: FrameworkInfo,
   ): Promise<string> {
     const unitTestWriterPrompt = await import('@prompts/unit-test-prompt.txt');
-    const { languageConfig, linterConfig, formatterConfig } = projectContext;
+    const { languageConfig, linterConfig, formatterConfig, packageManager } = projectContext;
 
     const promptTemplate = this.promptBuilder.build(unitTestWriterPrompt.default, {
       testFramework,
@@ -173,6 +333,7 @@ export class UnitTestWriter {
       linterConfig,
       formatterConfig,
       targetFile,
+      packageManager,
     });
 
     try {
@@ -197,12 +358,72 @@ export class UnitTestWriter {
       const { content } = choices[0].message;
       let cleanContent = cleanCodeContent(content as string);
 
-
       return cleanContent;
     } catch (error) {
       // Check for rate limit or quota exceeded errors
       checkAndThrowFatalError(error);
 
+      throw error;
+    }
+  }
+
+  /**
+   * Fix a failing test by analyzing errors and generating corrected version
+   * @param projectContext - Project context with configurations
+   * @param targetFile - Target file information with failed test code
+   * @param testFramework - Test framework configuration
+   * @param errorContext - Parsed failing tests from JSON report with specific error details
+   * @returns Fixed test code
+   */
+  async fixTest(
+    projectContext: ProjectContext,
+    targetFile: TestFile,
+    testFramework?: FrameworkInfo,
+    errorContext?: UnitTestErrorContext
+  ): Promise<string> {
+    const unitTestFixPrompt = await import('@prompts/unit-test-fix-prompt.txt');
+    const { languageConfig, linterConfig, formatterConfig, packageManager } = projectContext;
+
+    const failingTestsDetail = getFailingTestsDetail(errorContext);
+
+    const promptTemplate = this.promptBuilder.build(unitTestFixPrompt.default, {
+      testFramework,
+      languageConfig,
+      linterConfig,
+      formatterConfig,
+      targetFile: {
+        ...targetFile,
+        content: targetFile.content,
+      },
+      packageManager,
+      failed_test_code: targetFile.testContent,
+      failing_tests_detail: failingTestsDetail,
+    });
+
+    try {
+      const response = await this.options.aiClient.createChatCompletion({
+        model: this.options.config.ai.model,
+        temperature: this.options.config.ai.temperature,
+        response_format: { type: 'json_object' },
+        format: 'json',
+        messages: [
+          {
+            role: 'system',
+            content: promptTemplate,
+          },
+        ],
+      });
+
+      const { choices = [] } = response;
+      if (choices.length === 0) {
+        throw new Error('AI did not return any choices for test fix');
+      }
+
+      const { content } = choices[0].message;
+      let cleanContent = cleanCodeContent(content as string);
+      return cleanContent;
+    } catch (error) {
+      checkAndThrowFatalError(error);
       throw error;
     }
   }

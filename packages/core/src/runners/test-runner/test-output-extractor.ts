@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { TestRunResult, FailedTestDetail, FailedTest, VitestAssertionResult, VitestTestResult } from './types';
+import { TestRunResult, FailedTestDetail, FailedTest, VitestAssertionResult, VitestTestResult, UnitTestErrorContext } from './types';
 
 // ============================================================================
 // Constants & Regex Patterns
@@ -169,6 +169,23 @@ export function formatFailingTestsForPrompt(failedTests: FailedTestDetail[]): st
     `## Failed Tests (${failedTests.length})\n`,
     ...failedTests.map((test, i) => formatSingleFailedTest(test, i + 1))
   ].join('\n');
+}
+
+/**
+ * Format failing tests detail for the prompt
+ * @param errorContext - Error context containing failing tests and output
+ * @returns Formatted string describing the failures
+ */
+export function getFailingTestsDetail(errorContext?: UnitTestErrorContext): string {
+  if (errorContext?.failingTests && errorContext.failingTests.length > 0) {
+    return formatFailingTestsForPrompt(errorContext.failingTests);
+  }
+
+  if (errorContext?.fullTestOutput) {
+    return `No specific failing test information extracted. Raw Output:\n\`\`\`\n${errorContext.fullTestOutput.slice(0, 5000)}\n\`\`\``;
+  }
+
+  return 'No specific failing test information available';
 }
 
 // ============================================================================

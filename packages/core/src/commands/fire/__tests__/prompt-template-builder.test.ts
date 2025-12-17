@@ -531,4 +531,212 @@ Code:
       expect(result).toContain('should login');
     });
   });
+
+  describe('package info formatting', () => {
+    it('should format package info with all details', () => {
+      const template = `
+Package Manager: {{PACKAGE_MANAGER_TYPE}}
+Test Command: {{PACKAGE_MANAGER_TEST_COMMAND}}
+Package Info:
+{{PACKAGE_INFO}}
+      `.trim();
+
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'export const test = true;',
+        testFilePath: 'src/test.spec.ts',
+        testContent: '',
+      };
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        targetFile,
+        packageManager: {
+          type: 'pnpm',
+          testCommand: 'pnpm test',
+          testScript: 'vitest',
+          packageInfo: {
+            name: 'my-project',
+            version: '1.0.0',
+            description: 'Test project',
+            testFrameworks: ['vitest', '@testing-library/react'],
+            dependencies: {
+              react: '^18.2.0',
+              'react-dom': '^18.2.0',
+            },
+            devDependencies: {
+              vitest: '^1.0.0',
+              '@testing-library/react': '^14.0.0',
+              typescript: '^5.0.0',
+            },
+            scripts: {
+              test: 'vitest',
+              'test:coverage': 'vitest --coverage',
+              build: 'tsc',
+              dev: 'vite',
+            },
+            engines: {
+              node: '>=18.0.0',
+            },
+          },
+        },
+      };
+
+      const result = builder.build(template, context);
+
+      // Basic info
+      expect(result).toContain('Package Manager: pnpm');
+      expect(result).toContain('Test Command: pnpm test');
+
+      // Package info
+      expect(result).toContain('Name: my-project');
+      expect(result).toContain('Version: 1.0.0');
+      expect(result).toContain('Description: Test project');
+
+      // Test frameworks
+      expect(result).toContain('Test Frameworks:');
+      expect(result).toContain('vitest, @testing-library/react');
+
+      // Dev dependencies
+      expect(result).toContain('Dev Dependencies:');
+      expect(result).toContain('vitest@^1.0.0');
+      expect(result).toContain('@testing-library/react@^14.0.0');
+
+      // Dependencies
+      expect(result).toContain('Dependencies:');
+      expect(result).toContain('react@^18.2.0');
+
+      // Scripts
+      expect(result).toContain('Relevant Scripts:');
+      expect(result).toContain('test: vitest');
+      expect(result).toContain('test:coverage: vitest --coverage');
+
+      // Engine
+      expect(result).toContain('**Node Version:** >=18.0.0');
+    });
+
+    it('should handle missing package info gracefully', () => {
+      const template = 'Package Info: {{PACKAGE_INFO}}';
+
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'export const test = true;',
+        testFilePath: 'src/test.spec.ts',
+        testContent: '',
+      };
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        targetFile,
+        packageManager: {
+          type: 'npm',
+          testCommand: 'npm test',
+        },
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('No package information available');
+    });
+
+    it('should limit dependency lists to 10 items', () => {
+      const template = '{{PACKAGE_INFO}}';
+
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'export const test = true;',
+        testFilePath: 'src/test.spec.ts',
+        testContent: '',
+      };
+
+      // Create 15 dependencies
+      const dependencies: Record<string, string> = {};
+      for (let i = 1; i <= 15; i++) {
+        dependencies[`package-${i}`] = `^${i}.0.0`;
+      }
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        targetFile,
+        packageManager: {
+          type: 'npm',
+          testCommand: 'npm test',
+          packageInfo: {
+            dependencies,
+          },
+        },
+      };
+
+      const result = builder.build(template, context);
+
+      // Should show first 10
+      expect(result).toContain('package-1@^1.0.0');
+      expect(result).toContain('package-10@^10.0.0');
+
+      // Should indicate there are more
+      expect(result).toContain('... and 5 more');
+
+      // Should not show all 15
+      expect(result).not.toContain('package-15@^15.0.0');
+    });
+
+    it('should only show relevant scripts', () => {
+      const template = '{{PACKAGE_INFO}}';
+
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'export const test = true;',
+        testFilePath: 'src/test.spec.ts',
+        testContent: '',
+      };
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        targetFile,
+        packageManager: {
+          type: 'npm',
+          testCommand: 'npm test',
+          packageInfo: {
+            scripts: {
+              test: 'vitest',
+              'test:unit': 'vitest run',
+              'test:coverage': 'vitest --coverage',
+              build: 'tsc',
+              dev: 'vite',
+              lint: 'eslint .',
+              deploy: 'echo "deploying"',
+              'random-script': 'echo "random"',
+            },
+          },
+        },
+      };
+
+      const result = builder.build(template, context);
+
+      // Should show test-related and build/dev/lint scripts
+      expect(result).toContain('test: vitest');
+      expect(result).toContain('test:unit: vitest run');
+      expect(result).toContain('test:coverage: vitest --coverage');
+      expect(result).toContain('build: tsc');
+      expect(result).toContain('dev: vite');
+      expect(result).toContain('lint: eslint .');
+
+      // Should not show irrelevant scripts
+      expect(result).not.toContain('deploy:');
+      expect(result).not.toContain('random-script:');
+    });
+  });
 });
+

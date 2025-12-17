@@ -1,4 +1,5 @@
 import type { FrameworkInfo, TestFile } from '@models';
+import type { PackageManager } from '@models/project-context';
 
 export type PromptTemplateContext = {
   testFramework?: FrameworkInfo;
@@ -6,7 +7,8 @@ export type PromptTemplateContext = {
   linterConfig: FrameworkInfo;
   formatterConfig: FrameworkInfo;
   targetFile: TestFile;
-  [key: string]: string | FrameworkInfo | TestFile | undefined;
+  packageManager?: PackageManager;
+  [key: string]: string | FrameworkInfo | TestFile | PackageManager | undefined;
 };
 
 export type TemplateVariable = {
@@ -30,7 +32,7 @@ export class PromptTemplateBuilder {
    * @returns Processed template with all placeholders replaced
    */
   build(template: string, context: PromptTemplateContext): string {
-    const { testFramework, languageConfig, linterConfig, formatterConfig, targetFile, ...customVars } = context;
+    const { testFramework, languageConfig, linterConfig, formatterConfig, targetFile, packageManager, ...customVars } = context;
     const { filePath, content, testFilePath } = targetFile;
 
     // Apply standard replacements
@@ -42,7 +44,12 @@ export class PromptTemplateBuilder {
       .replace(/\{\{LINTING_RULES\}\}/g, this.formatConfig(linterConfig, 'Follow project linting rules'))
       .replace(/\{\{FILE_PATH\}\}/g, filePath)
       .replace(/\{\{TEST_FILE_PATH\}\}/g, testFilePath)
-      .replace(/\{\{CODE_SNIPPET\}\}/g, content);
+      .replace(/\{\{CODE_SNIPPET\}\}/g, content)
+      // todo add dependencies and dev dependencies as toon
+      .replace(/\{\{PACKAGE_MANAGER_TYPE\}\}/g, packageManager?.type || 'npm')
+      .replace(/\{\{PACKAGE_MANAGER_TEST_COMMAND\}\}/g, packageManager?.testCommand || 'npm test')
+      .replace(/\{\{PACKAGE_MANAGER_TEST_SCRIPT\}\}/g, packageManager?.testScript || 'test')
+      .replace(/\{\{PACKAGE_INFO\}\}/g, this.formatPackageInfo(packageManager));
 
     // Apply custom variables if any
     for (const [key, value] of Object.entries(customVars)) {
@@ -96,5 +103,84 @@ export class PromptTemplateBuilder {
     const header = configFilePath ? `// ${configFilePath}\n` : '';
 
     return `\`\`\`${fileLang || ''}\n${header}${content}\n\`\`\``;
+  }
+
+  /**
+   * Format package.json information in a readable format
+   * @param packageManager - Package manager configuration with full package info
+   * @returns Formatted package information for AI context
+   */
+  private formatPackageInfo(packageManager?: PackageManager): string {
+    if (!packageManager?.packageInfo) {
+      return 'No package information available';
+    }
+
+    const { packageInfo } = packageManager;
+    const sections: string[] = [];
+
+    // Project metadata
+    if (packageInfo.name || packageInfo.version || packageInfo.description) {
+      sections.push('**Project:**');
+      if (packageInfo.name) sections.push(`- Name: ${packageInfo.name}`);
+      if (packageInfo.version) sections.push(`- Version: ${packageInfo.version}`);
+      if (packageInfo.description) sections.push(`- Description: ${packageInfo.description}`);
+    }
+
+    // Detected test frameworks
+    if (packageInfo.testFrameworks && packageInfo.testFrameworks.length > 0) {
+      sections.push('\n**Test Frameworks:**');
+      sections.push(`- ${packageInfo.testFrameworks.join(', ')}`);
+    }
+
+    // Key dependencies (limit to most relevant for testing)
+    if (packageInfo.devDependencies && Object.keys(packageInfo.devDependencies).length > 0) {
+      sections.push('\n**Dev Dependencies:**');
+      const deps = Object.entries(packageInfo.devDependencies)
+        .slice(0, 10) // Limit to first 10
+        .map(([name, version]) => `- ${name}@${version}`)
+        .join('\n');
+      sections.push(deps);
+
+      const remaining = Object.keys(packageInfo.devDependencies).length - 10;
+      if (remaining > 0) {
+        sections.push(`- ... and ${remaining} more`);
+      }
+    }
+
+    // Dependencies (limit to most relevant)
+    if (packageInfo.dependencies && Object.keys(packageInfo.dependencies).length > 0) {
+      sections.push('\n**Dependencies:**');
+      const deps = Object.entries(packageInfo.dependencies)
+        .slice(0, 10) // Limit to first 10
+        .map(([name, version]) => `- ${name}@${version}`)
+        .join('\n');
+      sections.push(deps);
+
+      const remaining = Object.keys(packageInfo.dependencies).length - 10;
+      if (remaining > 0) {
+        sections.push(`- ... and ${remaining} more`);
+      }
+    }
+
+    // Useful scripts
+    if (packageInfo.scripts) {
+      const relevantScripts = ['test', 'test:unit', 'test:watch', 'test:coverage', 'build', 'dev', 'lint'];
+      const foundScripts = Object.entries(packageInfo.scripts)
+        .filter(([name]) => relevantScripts.includes(name))
+        .map(([name, script]) => `- ${name}: ${script}`)
+        .join('\n');
+
+      if (foundScripts) {
+        sections.push('\n**Relevant Scripts:**');
+        sections.push(foundScripts);
+      }
+    }
+
+    // Node engine requirements
+    if (packageInfo.engines?.node) {
+      sections.push(`\n**Node Version:** ${packageInfo.engines.node}`);
+    }
+
+    return sections.join('\n');
   }
 }
