@@ -29,7 +29,17 @@ vi.mock('@prompts/unit-test-prompt.txt', () => ({
 }));
 
 vi.mock('@prompts/unit-test-fix-prompt.txt', () => ({
-  default: 'Fix the failing test for {{TEST_FRAMEWORK}}. Failed code: {{FAILED_TEST_CODE}}. Error: {{ERROR_MESSAGE}}.',
+  default:
+    'Fix the failing test for {{TEST_FRAMEWORK}}. Failed code: {{FAILED_TEST_CODE}}. Error: {{ERROR_MESSAGE}}.',
+}));
+
+vi.mock('@prompts/unit-test-agentic-prompt.txt', () => ({
+  default: 'Generate unit test for {{TEST_FRAMEWORK}}.',
+}));
+
+vi.mock('@prompts/unit-test-fix-agentic-prompt.txt', () => ({
+  default:
+    'Fix the failing test for {{TEST_FRAMEWORK}}. Failed code: {{FAILED_TEST_CODE}}. Error: {{ERROR_MESSAGE}}.',
 }));
 
 vi.mock('@utils/project-file-walker', () => {
@@ -114,8 +124,12 @@ describe('UnitTestWriter - Healing', () => {
     const testRunner = await import('@runners/test-runner');
     mockRunTest = testRunner.runTest as ReturnType<typeof vi.fn>;
     mockExtractTestErrors = testRunner.extractTestErrors as ReturnType<typeof vi.fn>;
-    mockParseFailingTestsFromJson = testRunner.parseFailingTestsFromJson as ReturnType<typeof vi.fn>;
-    mockFormatFailingTestsForPrompt = testRunner.formatFailingTestsForPrompt as ReturnType<typeof vi.fn>;
+    mockParseFailingTestsFromJson = testRunner.parseFailingTestsFromJson as ReturnType<
+      typeof vi.fn
+    >;
+    mockFormatFailingTestsForPrompt = testRunner.formatFailingTestsForPrompt as ReturnType<
+      typeof vi.fn
+    >;
 
     // Default mock returns
     mockParseFailingTestsFromJson.mockReturnValue([]);
@@ -148,7 +162,10 @@ describe('UnitTestWriter - Healing', () => {
           choices: [
             {
               message: {
-                content: '```typescript\nimport { test } from "vitest";\ntest("works", () => {});\n```',
+                content: JSON.stringify({
+                  action: 'generate_test',
+                  code: 'import { test } from "vitest";\ntest("works", () => {});',
+                }),
               },
             },
           ],
@@ -164,11 +181,7 @@ describe('UnitTestWriter - Healing', () => {
     it('should not run tests when healing is disabled', async () => {
       const testFramework: FrameworkInfo = mockProjectContext.testFrameworks.unit!;
 
-      await writer.writeTestFile(
-        mockProjectContext,
-        'src/add.ts',
-        testFramework
-      );
+      await writer.writeTestFile(mockProjectContext, 'src/add.ts', testFramework);
 
       expect(mockRunTest).not.toHaveBeenCalled();
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(1);
@@ -195,7 +208,10 @@ describe('UnitTestWriter - Healing', () => {
           choices: [
             {
               message: {
-                content: '```typescript\nimport { test } from "vitest";\ntest("works", () => {});\n```',
+                content: JSON.stringify({
+                  action: 'generate_test',
+                  code: 'import { test } from "vitest";\ntest("works", () => {});',
+                }),
               },
             },
           ],
@@ -220,26 +236,19 @@ describe('UnitTestWriter - Healing', () => {
     it('should run test once and succeed', async () => {
       const testFramework: FrameworkInfo = mockProjectContext.testFrameworks.unit!;
 
-      await writer.writeTestFile(
-        mockProjectContext,
-        'src/add.ts',
-        testFramework
-      );
+      await writer.writeTestFile(mockProjectContext, 'src/add.ts', testFramework);
 
       // Should generate test once
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(1);
 
       // Should run test once
       expect(mockRunTest).toHaveBeenCalledTimes(1);
-      expect(mockRunTest).toHaveBeenCalledWith(
-        'pnpm test',
-        {
-          cwd: '/test/project',
-          testFilePath: 'src/add.test.ts',
-          timeout: 30000,
-          framework: 'vitest',
-        }
-      );
+      expect(mockRunTest).toHaveBeenCalledWith('pnpm test', {
+        cwd: '/test/project',
+        testFilePath: 'src/add.test.ts',
+        timeout: 30000,
+        framework: 'vitest',
+      });
 
       // Should write file once
       expect(mockWalkerInstance.writeFileToProject).toHaveBeenCalledTimes(1);
@@ -269,7 +278,10 @@ describe('UnitTestWriter - Healing', () => {
             choices: [
               {
                 message: {
-                  content: '```typescript\nimport { test } from "vitest";\ntest("broken", () => { expect(undefined).toBe(true); });\n```',
+                  content: JSON.stringify({
+                    action: 'generate_test',
+                    code: 'import { test } from "vitest";\ntest("broken", () => { expect(undefined).toBe(true); });',
+                  }),
                 },
               },
             ],
@@ -278,7 +290,10 @@ describe('UnitTestWriter - Healing', () => {
             choices: [
               {
                 message: {
-                  content: '```typescript\nimport { test, expect } from "vitest";\ntest("fixed", () => { expect(true).toBe(true); });\n```',
+                  content: JSON.stringify({
+                    action: 'fix_test',
+                    code: 'import { test, expect } from "vitest";\ntest("fixed", () => { expect(true).toBe(true); });',
+                  }),
                 },
               },
             ],
@@ -334,11 +349,7 @@ describe('UnitTestWriter - Healing', () => {
     it('should retry with healing context when test fails', async () => {
       const testFramework: FrameworkInfo = mockProjectContext.testFrameworks.unit!;
 
-      await writer.writeTestFile(
-        mockProjectContext,
-        'src/add.ts',
-        testFramework
-      );
+      await writer.writeTestFile(mockProjectContext, 'src/add.ts', testFramework);
 
       // Should generate test twice (initial + 1 fix)
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2);
@@ -382,7 +393,10 @@ describe('UnitTestWriter - Healing', () => {
           choices: [
             {
               message: {
-                content: '```typescript\nimport { test } from "vitest";\ntest("still broken", () => { throw new Error("fail"); });\n```',
+                content: JSON.stringify({
+                  action: 'generate_test',
+                  code: 'import { test } from "vitest";\ntest("still broken", () => { throw new Error("fail"); });',
+                }),
               },
             },
           ],
@@ -428,9 +442,7 @@ describe('UnitTestWriter - Healing', () => {
 
       await expect(
         writer.writeTestFile(mockProjectContext, 'src/add.ts', testFramework)
-      ).rejects.toThrow(
-        /Test failed after 3 attempt/
-      );
+      ).rejects.toThrow(/Test failed after 3 attempt/);
 
       // Should try maxRetries times (3): 1 generate + 2 fix attempts
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(3);
@@ -460,7 +472,10 @@ describe('UnitTestWriter - Healing', () => {
           choices: [
             {
               message: {
-                content: '```typescript\nimport { test } from "vitest";\ntest("works", () => {});\n```',
+                content: JSON.stringify({
+                  action: 'generate_test',
+                  code: 'import { test } from "vitest";\ntest("works", () => {});',
+                }),
               },
             },
           ],
@@ -476,11 +491,7 @@ describe('UnitTestWriter - Healing', () => {
 
       // Mode is checked but currently only 'auto' is implemented
       // This test documents expected behavior for future implementation
-      await writer.writeTestFile(
-        mockProjectContext,
-        'src/add.ts',
-        testFramework
-      );
+      await writer.writeTestFile(mockProjectContext, 'src/add.ts', testFramework);
 
       // Manual mode currently behaves like disabled healing
       expect(mockRunTest).not.toHaveBeenCalled();
