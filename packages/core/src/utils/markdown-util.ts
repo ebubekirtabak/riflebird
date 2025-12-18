@@ -41,39 +41,55 @@ export const stripLLMComments = (content: string): string => {
       continue;
     }
 
-    // Patterns that indicate LLM commentary (not actual code)
-    const isLLMComment =
-      // Lines with checkmarks, crosses, or tree characters
-      /^[✔✓✗✘→└├─│]/.test(trimmedLine) ||
-      // Lines that look like progress indicators (e.g., "   └ 33 files found")
-      /^\s+[└├─│]/.test(line) ||
-      // Lines that are descriptive sentences (end with period, no code-like syntax)
-      // But avoid matching JSDoc comments or string literals
-      (/\.$/.test(trimmedLine) &&
-        !trimmedLine.startsWith('//') &&
-        !trimmedLine.startsWith('*') &&
-        !trimmedLine.startsWith('import') &&
-        !trimmedLine.startsWith('export') &&
-        !trimmedLine.includes('=') &&
-        !trimmedLine.includes('{') &&
-        !trimmedLine.includes('}') &&
-        !trimmedLine.includes(';')) ||
-      // Lines that look like task descriptions or explanations
-      (/^(Searching|Finding|Looking|Reading|Writing|Creating|Generating|Analyzing)/i.test(trimmedLine) &&
-        !trimmedLine.includes('(') &&
-        !trimmedLine.includes('='));
+    // High-confidence LLM artifacts that should always be stripped
+    // Checkmarks, crosses, tree characters, or explicit progress indicators
+    const isHighConfidenceArtifact =
+      /^[\u2714\u2713\u2717\u2718\u2192\u2514\u251c\u2500\u2502]/.test(trimmedLine) || // ✔, ✓, ✗, ✘, →, └, ├, ─, │
+      /^\s+[└├─│]/.test(line);
 
-    // If we find actual code, mark that we've started
-    if (!foundCodeStart && !isLLMComment && trimmedLine !== '') {
-      foundCodeStart = true;
+    if (isHighConfidenceArtifact) {
+      continue;
     }
 
-    // Only include lines after we've found code start, and skip LLM comments
-    if (foundCodeStart && !isLLMComment) {
+    if (foundCodeStart) {
+      // PHASE 2: Code Phase
+      // Once we've found the start of code, we are conservative.
+      // We only strip high-confidence artifacts (handled above).
+      // We process everything else as code.
       cleanedLines.push(line);
-    } else if (!foundCodeStart && isLLMComment) {
-      // Skip LLM comments before code starts
-      continue;
+    } else {
+      // PHASE 1: Preamble Phase
+      // We are looking for the start of code.
+      // logic is aggressive here to strip "Here is the code:" chatter.
+
+      const isPreambleComment =
+        // Lines that are descriptive sentences (end with period, no code-like syntax)
+        (/\.$/.test(trimmedLine) &&
+          !trimmedLine.startsWith('//') &&
+          !trimmedLine.startsWith('*') &&
+          !trimmedLine.startsWith('import') &&
+          !trimmedLine.startsWith('export') &&
+          !trimmedLine.includes('=') &&
+          !trimmedLine.includes('{') &&
+          !trimmedLine.includes('}') &&
+          !trimmedLine.includes(';') &&
+          // Extra safety: sentences usually don't have parens unless explaining code
+          // But code often has parens.
+          !trimmedLine.includes('(') &&
+          !trimmedLine.includes(')')) ||
+        // Lines that look like task descriptions or explanations
+        // We include common preamble starters like "Here", "This" to catch sentences with parens that fail the period check.
+        (/^(Searching|Finding|Looking|Reading|Writing|Creating|Generating|Analyzing|Here|This|The|Note|Please)/i.test(trimmedLine) &&
+          !trimmedLine.includes('=') &&
+          // Allow parens in these comments IF they have spaces (e.g. "Searching for (file)"),
+          // but protect function calls like "Searching(x)" or "Searching.call()".
+          (!trimmedLine.includes('(') || /\s/.test(trimmedLine)));
+
+      if (!isPreambleComment) {
+        // Not a known comment pattern, so assume it's code
+        foundCodeStart = true;
+        cleanedLines.push(line);
+      }
     }
   }
 
