@@ -118,3 +118,42 @@ export const getSourceFilePath = (filePath: string): string => {
     .replace(/\.test\./, '.')
     .replace(/\.spec\./, '.');
 };
+
+
+const JS_TS_FAMILY = ['.tsx', '.ts', '.jsx', '.js', '.d.ts', '.mjs', '.cjs'];
+const STYLES_FAMILY = ['.css', '.scss', '.less', '.sass'];
+const HTML_FAMILY = ['.html', '.htm'];
+const JSON_FAMILY = ['.json', '.json5', '.jsonc'];
+const MD_FAMILY = ['.md', '.markdown'];
+
+/**
+ * Get related extensions for file recovery based on input extension
+ * @param extension - File extension (e.g., '.ts', '.js')
+ * @returns Array of related extensions to try
+ */
+export const getRelatedExtensions = (extension: string): string[] => {
+  const ext = extension.toLowerCase();
+
+  if (JS_TS_FAMILY.includes(ext)) {
+    return JS_TS_FAMILY;
+  }
+
+  if (STYLES_FAMILY.includes(ext)) {
+    return STYLES_FAMILY;
+  }
+
+  if (HTML_FAMILY.includes(ext)) {
+    return HTML_FAMILY;
+  }
+
+  if (JSON_FAMILY.includes(ext)) {
+    return JSON_FAMILY;
+  }
+
+  if (MD_FAMILY.includes(ext)) {
+    return MD_FAMILY;
+  }
+
+  // Default: return just the input extension to be safe, or empty if we want to rely on the caller's fallback
+  return [extension];
+};

@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createAIClient } from '../ai-client';
 import type { RiflebirdConfig } from '@config/schema';
 
+vi.mock('../copilot-cli-client', () => ({
+  createCopilotCliClient: vi.fn(),
+}));
+
 describe('ai-client', () => {
   describe('createAIClient', () => {
     it('should throw error for anthropic provider', async () => {
@@ -510,6 +514,21 @@ describe('ai-client', () => {
 
       const result = await createAIClient(config);
       expect(result.client).toBeDefined();
+    });
+
+    it('should reject malformed URLs', async () => {
+      const config: RiflebirdConfig['ai'] = {
+        provider: 'local',
+        model: 'llama2',
+        temperature: 0.5,
+        url: 'not-a-valid-url',
+      };
+
+      // Security error is thrown if URL parsing fails or verification fails
+      // The current implementation catches parsing errors and returns false, triggering security error
+      await expect(createAIClient(config)).rejects.toThrow(
+        'Security error: Local provider URL must be a localhost address'
+      );
     });
 
     it('should reject IP address outside 127.0.0.0/8 range', async () => {

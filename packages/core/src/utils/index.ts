@@ -8,6 +8,7 @@ export * from './pattern-matcher';
 export * from './ai-error-handler';
 export * from './project-file-walker';
 export * from './project-paths';
+export * from './package-manager-detector';
 
 // Logging utilities
 export * from './log-util';
