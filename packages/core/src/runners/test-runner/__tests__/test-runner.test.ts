@@ -97,7 +97,7 @@ describe('Test Runner Integration', () => {
   });
 
   it('should execute successfully and read JSON report', async () => {
-    const result = await runTest('node', `node ${dummyRunnerPath}`, {
+    const result = await runTest(`node ${dummyRunnerPath}`, {
       cwd: tmpDir,
       testFilePath: path.join(tmpDir, 'test.spec.js'),
       framework: 'vitest', // triggers --outputFile arg
@@ -119,7 +119,7 @@ describe('Test Runner Integration', () => {
     // parseTestCommand splits by space.
 
     // Command: "node runner.js fail"
-    const result = await runTest('node', `node ${dummyRunnerPath} fail`, {
+    const result = await runTest(`node ${dummyRunnerPath} fail`, {
       cwd: tmpDir,
       testFilePath: path.join(tmpDir, 'test.spec.js'),
       framework: 'vitest',
@@ -137,7 +137,7 @@ describe('Test Runner Integration', () => {
   });
 
   it('should handle timeouts', async () => {
-    const result = await runTest('node', `node ${dummyRunnerPath} timeout`, {
+    const result = await runTest(`node ${dummyRunnerPath} timeout`, {
       cwd: tmpDir,
       testFilePath: path.join(tmpDir, 'test.spec.js'),
       framework: 'vitest',

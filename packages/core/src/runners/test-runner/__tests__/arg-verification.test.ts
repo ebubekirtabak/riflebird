@@ -26,7 +26,7 @@ describe('runTest argument verification', () => {
             mockChildProcess.emit('exit', 0, null);
         }, 10);
 
-        await runTest('pnpm', 'run test', {
+        await runTest('pnpm run test', {
             cwd: '/tmp',
             testFilePath: '/tmp/foo.test.ts',
             framework: 'vitest',
@@ -54,7 +54,7 @@ describe('runTest argument verification', () => {
             mockChildProcess.emit('exit', 0, null);
         }, 10);
 
-        await runTest('npm', 'npm run test', {
+        await runTest('npm run test', {
             cwd: '/tmp',
             testFilePath: '/tmp/foo.test.ts',
             framework: 'vitest',
