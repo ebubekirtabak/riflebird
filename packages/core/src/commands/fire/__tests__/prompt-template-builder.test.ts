@@ -737,6 +737,87 @@ Package Info:
       expect(result).not.toContain('deploy:');
       expect(result).not.toContain('random-script:');
     });
+    it('should limit devDependency lists to 10 items', () => {
+      const template = '{{PACKAGE_INFO}}';
+
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'export const test = true;',
+        testFilePath: 'src/test.spec.ts',
+        testContent: '',
+      };
+
+      // Create 15 devDependencies
+      const devDependencies: Record<string, string> = {};
+      for (let i = 1; i <= 15; i++) {
+        devDependencies[`dev-dep-${i}`] = `^${i}.0.0`;
+      }
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        targetFile,
+        packageManager: {
+          type: 'npm',
+          testCommand: 'npm test',
+          packageInfo: {
+            devDependencies,
+          },
+        },
+      };
+
+      const result = builder.build(template, context);
+
+      // Should show first 10
+      expect(result).toContain('dev-dep-1@^1.0.0');
+      expect(result).toContain('dev-dep-10@^10.0.0');
+
+      // Should indicate there are more
+      expect(result).toContain('... and 5 more');
+
+      // Should not show all 15
+      expect(result).not.toContain('dev-dep-15@^15.0.0');
+    });
+  });
+
+  describe('formatConfig (edge cases)', () => {
+    // This targets line 97: return fallback ? ... : ''
+    it('should return empty string if no config and no fallback', () => {
+       // We can trigger this by passing a template that uses a config variable that is undefined in context
+       // But wait, the standard template placeholders always have fallbacks in the build() method.
+       // We need to use buildWithVariables with type='config' and NO fallback to hit line 97's empty string branch.
+       // Or rely on the private method being called with undefined config.
+
+       // Let's use buildWithVariables as it exposes formatConfig somewhat directly
+       const variables: TemplateVariable[] = [
+         { placeholder: 'MISSING_CONFIG', value: undefined, type: 'config' } // No fallback
+       ];
+       const template = 'Start|{{MISSING_CONFIG}}|End';
+       const result = builder.buildWithVariables(template, variables);
+       expect(result).toBe('Start||End');
+    });
+
+    // This targets line 101/104 coverage details if needed, but existing tests might cover it.
+    // Let's add explicit test for variable fallback on non-string value (line 81)
+    it('should use fallback for non-string values with text type', () => {
+        // Line 81: const stringValue = typeof value === 'string' ? value : fallback || '';
+        // We need value to NOT be a string (maybe undefined or object? types say value can be FrameworkInfo)
+        // AND type is NOT 'config' (defaults to 'text')
+
+       const variables: TemplateVariable[] = [
+         {
+             placeholder: 'WEIRD_VAR',
+             value: { name: 'obj' } as unknown as string, // forcing non-string value for text type
+             type: 'text',
+             fallback: 'fallback-text'
+         }
+       ];
+       const template = 'Val: {{WEIRD_VAR}}';
+       const result = builder.buildWithVariables(template, variables);
+       expect(result).toBe('Val: fallback-text');
+    });
   });
 });
 
