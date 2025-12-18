@@ -57,11 +57,13 @@ export type TestRunResult = {
     error?: string;
 };
 
+export type TestRunnerFramework = 'vitest' | 'jest' | 'mocha' | 'ava';
+
 export type TestRunOptions = {
     cwd: string;
     testFilePath: string;
     timeout?: number;
-    framework?: 'vitest' | 'jest' | 'mocha' | 'ava';
+    framework?: TestRunnerFramework;
 };
 
 export type FailedTest = {

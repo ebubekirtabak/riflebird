@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { extractRenderedHTML, stripAnsiCodes, runTest, getReporterArgsByFramework, parseTestCommand } from '../index';
-import type { TestRunResult } from '../index';
+import type { TestRunResult, TestRunnerFramework } from '../index';
 import { spawn } from 'node:child_process';
 
 vi.mock('node:child_process', () => ({
@@ -297,8 +297,7 @@ describe('runTest', () => {
     await runTest('npm', 'npm test', {
       cwd: '/tmp',
       testFilePath: '/tmp/test.js',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      framework: 'unknown' as any,
+      framework: 'unknown' as unknown as TestRunnerFramework,
     });
 
     const mockedSpawn = vi.mocked(spawn);
