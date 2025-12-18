@@ -39,8 +39,15 @@
  * ```
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { UnitTestWriter } from '../unit-test-writer';
+
+vi.mock('@runners/test-runner', () => ({
+  extractTestErrors: vi.fn(),
+  parseFailingTestsFromJson: vi.fn(),
+  runTest: vi.fn(),
+  getFailingTestsDetail: vi.fn(),
+}));
 import type { ProjectContext, FrameworkInfo } from '@models/project-context';
 import { ConfigFile } from '@models/project-config-files';
 import type { AIClient } from '@models/ai-client';
@@ -74,19 +81,29 @@ vi.mock('@utils/project-file-walker', () => {
   };
 });
 
+type MockWalker = {
+  readFileFromProject: ReturnType<typeof vi.fn>;
+  writeFileToProject: ReturnType<typeof vi.fn>;
+};
+
+type MockProjectFileWalkerModule = {
+  getMockWalkerInstance: () => MockWalker;
+  ProjectFileWalker: Mock;
+};
+
 describe('UnitTestWriter', () => {
   let writer: UnitTestWriter;
   let mockAiClient: AIClient;
   let mockConfig: RiflebirdConfig;
   let mockProjectContext: ProjectContext;
-  let mockWalkerInstance: ReturnType<typeof vi.fn>;
+  let mockWalkerInstance: MockWalker;
 
   beforeEach(async () => {
     // Reset mocks
     vi.clearAllMocks();
 
     // Get and configure the file walker mock instance
-    const { getMockWalkerInstance } = await import('@utils/project-file-walker');
+    const { getMockWalkerInstance } = await import('@utils/project-file-walker') as unknown as MockProjectFileWalkerModule;
     mockWalkerInstance = getMockWalkerInstance();
 
     mockWalkerInstance.readFileFromProject.mockResolvedValue('// source code');
@@ -154,6 +171,7 @@ describe('UnitTestWriter', () => {
         languageConfig: {} as ConfigFile,
         importantConfigFiles: {},
       },
+      projectRoot: '/test/project',
     };
 
     writer = new UnitTestWriter({
@@ -542,6 +560,7 @@ describe('Calculator', () => {
           languageConfig: {} as ConfigFile,
           importantConfigFiles: {},
         },
+        projectRoot: '/test/project'
       };
 
       const targetFile: TestFile = {
@@ -721,8 +740,27 @@ describe('Calculator', () => {
       );
     });
 
-    it.skip('should filter out excluded files using matchesPattern', async () => {
-      // Complex mocking scenario - skipping for now
+    it('should filter out excluded files using matchesPattern', async () => {
+      const mockFiles = [
+        { name: 'file1.ts', path: '/test/project/src/file1.ts', type: 'file' as const },
+        { name: 'file2.spec.ts', path: '/test/project/src/file2.spec.ts', type: 'file' as const }, // Should be excluded
+      ];
+
+      findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
+
+      // matchesPattern mock implementation: return true if filename ends with .spec.ts
+      matchesPatternMock.mockImplementation((name, _path) => name.endsWith('.spec.ts'));
+
+      await writer.writeTestByPattern(mockProvider, 'src/**/*.ts');
+
+      // Only file1.ts should be processed (file2 is excluded)
+      expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(1);
+
+
+
+      // We can't easily inspect which file was processed inside generateTest from here without spying on writeTestFile
+      // But we know if generateTest was called only once, and matchesPattern returned true for one file,
+      // then filtering worked.
     });
 
     it('should call onProgress callback for each file', async () => {
@@ -913,10 +951,10 @@ describe('Calculator', () => {
     });
   });
 
-  describe.skip('writeTestFile', () => {
+  describe('writeTestFile', () => {
     beforeEach(async () => {
       // Reset mock instance
-      const { getMockWalkerInstance } = await import('@utils/file-walker');
+      const { getMockWalkerInstance } = await import('@utils/project-file-walker') as unknown as MockProjectFileWalkerModule;
       const mockInstance = getMockWalkerInstance();
 
       mockInstance.readFileFromProject.mockClear();
@@ -924,5 +962,104 @@ describe('Calculator', () => {
       mockInstance.readFileFromProject.mockResolvedValue('export function add(a, b) { return a + b; }');
       mockInstance.writeFileToProject.mockResolvedValue(undefined);
     });
+
+  describe('verifyTest logic (via integration or spying)', () => {
+     // We test this via writeTestFile with healing enabled
+     // To test verifyTest logic, we need to mock runTest return values
+
+     it('should skip verification if no test command is present', async () => {
+         // Create context without test command
+         const noTestContext = {
+             ...mockProjectContext,
+             packageManager: { type: 'npm' } // failed test command
+         };
+
+         // Mock readFile to return content
+         mockWalkerInstance.readFileFromProject.mockResolvedValue('code');
+
+         // We need to enable healing to trigger verifyTest
+         const healingWriter = new UnitTestWriter({
+             aiClient: mockAiClient,
+             config: {
+                 ...mockConfig,
+                 healing: { enabled: true, mode: 'auto', maxRetries: 1 }
+             }
+         });
+
+         const { runTest } = await import('@runners/test-runner');
+
+         await healingWriter.writeTestFile(noTestContext as unknown as ProjectContext, 'src/no-cmd.ts');
+
+         // runTest should NOT be called because testCommand is missing
+         expect(runTest).not.toHaveBeenCalled();
+     });
+
+     it('should call verifyTest and pass if runTest succeeds', async () => {
+         const healingWriter = new UnitTestWriter({
+             aiClient: mockAiClient,
+             config: {
+                 ...mockConfig,
+                 healing: { enabled: true, mode: 'auto', maxRetries: 1 }
+             }
+         });
+
+         const { runTest } = await import('@runners/test-runner');
+         (runTest as ReturnType<typeof vi.fn>).mockResolvedValue({
+             success: true,
+             stdout: 'passed',
+             stderr: '',
+             jsonReport: null
+         });
+
+         // Ensure package manager has test command
+         const contextWithTest = {
+             ...mockProjectContext,
+             packageManager: { type: 'npm', testCommand: 'npm test' }
+         };
+
+         await healingWriter.writeTestFile(contextWithTest as unknown as ProjectContext, 'src/verify-success.ts');
+
+         expect(runTest).toHaveBeenCalled();
+     });
+
+    it('should retry if verification fails (check maxRetries logic)', async () => {
+         const healingWriter = new UnitTestWriter({
+             aiClient: mockAiClient,
+             config: {
+                 ...mockConfig,
+                 healing: { enabled: true, mode: 'auto', maxRetries: 2 }
+             }
+         });
+
+         const { runTest, extractTestErrors } = await import('@runners/test-runner');
+
+         // First run fails, second run passes (requires generateOrFixTest to be called twice)
+         // Mock runTest to fail first time, then pass?
+         // writeTestFile loop:
+         // 1. generateOrFixTest (attempt 1)
+         // 2. verifyTest -> fails
+         // 3. generateOrFixTest (attempt 2, fix mode) -> requires lastTestResult to be passed
+         // 4. verifyTest -> passes or fails
+
+         // Mock runTest sequences
+         (runTest as ReturnType<typeof vi.fn>)
+            .mockResolvedValueOnce({ success: false, stderr: 'error' }) // Attempt 1 verify
+            .mockResolvedValueOnce({ success: true }); // Attempt 2 verify
+
+         (extractTestErrors as ReturnType<typeof vi.fn>).mockReturnValue('Extracted Error');
+
+         const contextWithTest = {
+             ...mockProjectContext,
+             packageManager: { type: 'npm', testCommand: 'npm test' }
+         };
+
+         await healingWriter.writeTestFile(contextWithTest as unknown as ProjectContext, 'src/retry.ts');
+
+         // Should have called runTest twice
+         expect(runTest).toHaveBeenCalledTimes(2);
+         // AI should have been called twice (once generate, once fix)
+         expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2);
+     });
   });
+});
 });
