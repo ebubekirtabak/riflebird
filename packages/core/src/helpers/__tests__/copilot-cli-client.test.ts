@@ -74,6 +74,7 @@ vi.mock('child_process', () => {
 // Import after mocking
 import { createCopilotCliClient } from '../copilot-cli-client';
 import { spawn, spawnSync } from 'child_process';
+import { ChatCompletionContentPartText } from 'openai/resources/chat';
 
 describe('createCopilotCliClient', () => {
   beforeEach(() => {
@@ -201,6 +202,44 @@ describe('createCopilotCliClient', () => {
 
       await expect(createCopilotCliClient(ai)).rejects.toThrow('not authenticated');
       await expect(createCopilotCliClient(ai)).rejects.toThrow('copilot auth login');
+    });
+
+    it('should handle spawn errors during command checks', async () => {
+       const mockSpawnSync = vi.mocked(spawnSync);
+       mockSpawnSync.mockImplementation(() => {
+         throw new Error('Spawn process failed');
+       });
+
+       const ai = {
+         provider: 'copilot-cli',
+         model: 'gpt-4',
+         copilotCli: { args: [] },
+       } as unknown as RiflebirdConfig['ai'];
+
+       await expect(createCopilotCliClient(ai)).rejects.toThrow('Copilot CLI not found');
+    });
+
+    it('should handle spawn errors during auth checks', async () => {
+       const mockSpawnSync = vi.mocked(spawnSync);
+       // @ts-expect-error - Mock return type doesn't match exact signature
+       mockSpawnSync.mockImplementation((cmd: string) => {
+         if (cmd === 'which') {
+           return { status: 0, stdout: Buffer.from('/bin/copilot'), stderr: Buffer.from('') } as SpawnSyncReturns<Buffer>;
+         }
+         if (cmd === 'copilot') {
+           throw new Error('Auth command failed');
+         }
+         return { status: 1 } as SpawnSyncReturns<Buffer>;
+       });
+
+       const ai = {
+         provider: 'copilot-cli',
+         model: 'gpt-4',
+         copilotCli: { args: [] },
+       } as unknown as RiflebirdConfig['ai'];
+
+       await expect(createCopilotCliClient(ai)).rejects.toThrow('Unable to confirm Copilot CLI authentication');
+       await expect(createCopilotCliClient(ai)).rejects.toThrow('Auth command failed');
     });
   });
 
@@ -361,6 +400,52 @@ describe('createCopilotCliClient', () => {
 
       expect(capturedInput).toContain('system: You are a helpful assistant');
       expect(capturedInput).toContain('user: Hello');
+    });
+
+    it('should handle complex message content (objects)', async () => {
+      const ai = {
+        provider: 'copilot-cli',
+        model: 'gpt-4',
+        copilotCli: { args: ['query'] },
+      } as unknown as RiflebirdConfig['ai'];
+
+      const mockSpawn = vi.mocked(spawn);
+      let capturedInput = '';
+
+      mockSpawn.mockImplementationOnce((_cmd: string, _args: readonly string[] = []): ChildProcess => {
+        const stdout = new PassThrough();
+        const stderr = new PassThrough();
+        const stdin = new PassThrough();
+
+        stdin.on('data', (chunk) => {
+          capturedInput += chunk.toString();
+        });
+
+        process.nextTick(() => {
+          stdout.write('response');
+          stdout.end();
+        });
+
+        const mockProcess = {
+            stdout, stderr, stdin,
+            on: vi.fn((e, cb) => { if (e === 'exit') process.nextTick(() => cb(0)); return mockProcess; }),
+            once: vi.fn((e, cb) => { if (e === 'exit') process.nextTick(() => cb(0)); return mockProcess; }),
+        } as MockChildProcess;
+
+        return mockProcess as unknown as ChildProcess;
+      });
+
+      const { client } = await createCopilotCliClient(ai);
+
+      await client.createChatCompletion({
+        model: 'gpt-4',
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'Hello' }] as string | Array<ChatCompletionContentPartText> },
+        ],
+      });
+
+      // Should be JSON stringified
+      expect(capturedInput).toContain('user: [{"type":"text","text":"Hello"}]');
     });
 
     it('should handle CLI process errors', async () => {
