@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `fire` command generates and executes tests with flexible filtering options. Currently, **unit test generation is fully supported** with glob patterns, scope filtering, and batch processing. E2E, visual, and performance testing infrastructure is in place but not yet fully implemented.
+The `fire` command generates and executes tests with flexible filtering options. Currently, **unit test generation is fully supported** with glob patterns, scope filtering, batch processing, and **auto-healing capabilities**. E2E, visual, and performance testing infrastructure is in place but not yet fully implemented.
 
 The command automatically validates your AI configuration (API keys, model settings) before execution to ensure proper setup.
 
@@ -198,6 +198,26 @@ The command enforces the following validation:
    - Valid: `component`, `layout`, `page`, `service`, `util`, `hook`, `store`
    - Invalid scopes throw an error
 
+## Auto-Healing
+
+Riflebird's **Auto-Healing** feature ensures that generated unit tests functionality and pass without manual intervention.
+
+### How It Works
+
+1. **Generation**: The AI generates a unit test file.
+2. **Verification**: The system automatically executes the test using your project's package manager (detected automatically).
+3. **Detection**: If the test fails, Riflebird captures the error output (stdout/stderr).
+4. **Healing**: The AI analyzes the error, regenerates the test code with fixes, and retries.
+5. **Loop**: This process repeats (default: max 3 attempts) until the test passes.
+
+### Benefits
+
+- **Zero Manual Fixes**: Reduces the need to manually fix import errors, syntax issues, or incorrect assertions.
+- **Context-Aware**: Uses actual runtime error messages to guide the AI's corrections.
+- **Robust**: Handles missing dependencies, mock issues, and framework-specific quirks.
+
+By default, auto-healing is **enabled** for all unit test generation commands.
+
 ## Current Implementation Status
 
 ### ✅ Fully Implemented
@@ -213,6 +233,7 @@ The command enforces the following validation:
 - [x] AI configuration validation (checks API keys before execution)
 - [x] Error handling and failure collection
 - [x] Type safety with TypeScript
+- [x] Auto-healing for unit tests (self-correction loop)
 
 ### 🚧 Coming Soon (Stubs in Place)
 
@@ -258,6 +279,13 @@ export default defineConfig({
   visual: {
     enabled: true,
     threshold: 0.1,
+  },
+
+  // Auto-Healing Configuration
+  healing: {
+    enabled: true,      // Set to false to disable auto-healing
+    maxRetries: 3,      // Number of retry attempts (1-3)
+    mode: 'auto',       // 'auto' or 'manual' (manual not yet implemented)
   },
 });
 ```
