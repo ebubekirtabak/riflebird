@@ -232,7 +232,6 @@ describe('UnitTestWriter - Healing', () => {
       // Should run test once
       expect(mockRunTest).toHaveBeenCalledTimes(1);
       expect(mockRunTest).toHaveBeenCalledWith(
-        'pnpm',
         'pnpm test',
         {
           cwd: '/test/project',

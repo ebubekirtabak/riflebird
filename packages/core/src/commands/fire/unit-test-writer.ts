@@ -275,7 +275,6 @@ export class UnitTestWriter {
     const { projectRoot } = projectContext;
 
     const testResult = await runTest(
-      projectContext.packageManager.type,
       projectContext.packageManager.testCommand,
       {
         cwd: projectRoot,
