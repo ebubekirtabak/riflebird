@@ -45,7 +45,6 @@ export class PromptTemplateBuilder {
       .replace(/\{\{FILE_PATH\}\}/g, filePath)
       .replace(/\{\{TEST_FILE_PATH\}\}/g, testFilePath)
       .replace(/\{\{CODE_SNIPPET\}\}/g, content)
-      // todo add dependencies and dev dependencies as toon
       .replace(/\{\{PACKAGE_MANAGER_TYPE\}\}/g, packageManager?.type || 'npm')
       .replace(/\{\{PACKAGE_MANAGER_TEST_COMMAND\}\}/g, packageManager?.testCommand || 'npm test')
       .replace(/\{\{PACKAGE_MANAGER_TEST_SCRIPT\}\}/g, packageManager?.testScript || 'test')
