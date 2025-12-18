@@ -21,6 +21,7 @@ import {
   getFailingTestsDetail,
   UnitTestErrorContext
 } from '@runners/test-runner';
+import { AgenticRunner } from '@agentic/agentic-runner';
 
 export type UnitTestWriterOptions = {
   aiClient: AIClient;
@@ -235,25 +236,36 @@ export class UnitTestWriter {
       );
     }
 
-    if (!lastTestResult || !lastTestCode) {
-      throw new Error('Cannot fix test without previous test result');
+    if (lastTestResult && lastTestCode) {
+      const failingTests = parseFailingTestsFromJson(lastTestResult);
+      const errorContext = {
+        failingTests,
+        fullTestOutput: lastTestResult.stderr || lastTestResult.stdout,
+      };
+
+      return this.fixTest(
+        projectContext,
+        {
+          filePath: params.testPath,
+          content: params.fileContent,
+          testFilePath: params.testFilePath,
+          testContent: lastTestCode,
+        },
+        testFramework,
+         errorContext
+      );
     }
 
-    const failingTests = parseFailingTestsFromJson(lastTestResult);
-
-    return this.fixTest(
+    // Fallback: If attempt > 1 but no result/code (e.g. generation failed), try generating again
+    return this.generateTest(
       projectContext,
       {
         filePath: params.testPath,
         content: params.fileContent,
         testFilePath: params.testFilePath,
-        testContent: lastTestCode,
+        testContent: '',
       },
-      testFramework,
-      {
-        failingTests,
-        fullTestOutput: lastTestResult.stderr || lastTestResult.stdout,
-      }
+      testFramework
     );
   }
 
@@ -323,10 +335,27 @@ export class UnitTestWriter {
     targetFile: TestFile,
     testFramework?: FrameworkInfo,
   ): Promise<string> {
-    const unitTestWriterPrompt = await import('@prompts/unit-test-prompt.txt');
     const { languageConfig, linterConfig, formatterConfig, packageManager } = projectContext;
+    const isCopilot = this.options.config.ai.provider === 'copilot-cli';
 
-    const promptTemplate = this.promptBuilder.build(unitTestWriterPrompt.default, {
+    // Copilot: Use original prompt (simple generation)
+    if (isCopilot) {
+      const unitTestWriterPrompt = await import('@prompts/unit-test-prompt.txt');
+      const promptTemplate = this.promptBuilder.build(unitTestWriterPrompt.default, {
+        testFramework,
+        languageConfig,
+        linterConfig,
+        formatterConfig,
+        targetFile,
+        packageManager,
+      });
+
+      return this.simpleGeneration(promptTemplate);
+    }
+
+    // Agentic: Use agentic prompt + AgenticRunner
+    const unitTestAgenticPrompt = await import('@prompts/unit-test-agentic-prompt.txt');
+    const promptTemplate = this.promptBuilder.build(unitTestAgenticPrompt.default, {
       testFramework,
       languageConfig,
       linterConfig,
@@ -335,18 +364,24 @@ export class UnitTestWriter {
       packageManager,
     });
 
+    const runner = new AgenticRunner({
+      aiClient: this.options.aiClient,
+      config: this.options.config,
+      projectRoot: projectContext.projectRoot,
+    });
+
+    return runner.run(promptTemplate);
+  }
+
+  /**
+   * Simple one-shot generation (for Copilot or fallback)
+   */
+  private async simpleGeneration(prompt: string): Promise<string> {
     try {
       const response = await this.options.aiClient.createChatCompletion({
         model: this.options.config.ai.model,
         temperature: this.options.config.ai.temperature,
-        response_format: { type: 'json_object' },
-        format: 'json',
-        messages: [
-          {
-            role: 'system',
-            content: promptTemplate,
-          },
-        ],
+        messages: [{ role: 'system', content: prompt }],
       });
 
       const { choices = [] } = response;
@@ -355,13 +390,9 @@ export class UnitTestWriter {
       }
 
       const { content } = choices[0].message;
-      let cleanContent = cleanCodeContent(content as string);
-
-      return cleanContent;
+      return cleanCodeContent(content as string);
     } catch (error) {
-      // Check for rate limit or quota exceeded errors
       checkAndThrowFatalError(error);
-
       throw error;
     }
   }
@@ -380,12 +411,33 @@ export class UnitTestWriter {
     testFramework?: FrameworkInfo,
     errorContext?: UnitTestErrorContext
   ): Promise<string> {
-    const unitTestFixPrompt = await import('@prompts/unit-test-fix-prompt.txt');
     const { languageConfig, linterConfig, formatterConfig, packageManager } = projectContext;
-
     const failingTestsDetail = getFailingTestsDetail(errorContext);
+    const isCopilot = this.options.config.ai.provider === 'copilot-cli';
 
-    const promptTemplate = this.promptBuilder.build(unitTestFixPrompt.default, {
+    // Copilot: Use original prompt
+    if (isCopilot) {
+      const unitTestFixPrompt = await import('@prompts/unit-test-fix-prompt.txt');
+      const promptTemplate = this.promptBuilder.build(unitTestFixPrompt.default, {
+        testFramework,
+        languageConfig,
+        linterConfig,
+        formatterConfig,
+        targetFile: {
+          ...targetFile,
+          content: targetFile.content,
+        },
+        packageManager,
+        failed_test_code: targetFile.testContent,
+        failing_tests_detail: failingTestsDetail,
+      });
+
+      return this.simpleGeneration(promptTemplate);
+    }
+
+    // Agentic: Use agentic prompt + AgenticRunner
+    const unitTestFixAgenticPrompt = await import('@prompts/unit-test-fix-agentic-prompt.txt');
+    const promptTemplate = this.promptBuilder.build(unitTestFixAgenticPrompt.default, {
       testFramework,
       languageConfig,
       linterConfig,
@@ -399,31 +451,12 @@ export class UnitTestWriter {
       failing_tests_detail: failingTestsDetail,
     });
 
-    try {
-      const response = await this.options.aiClient.createChatCompletion({
-        model: this.options.config.ai.model,
-        temperature: this.options.config.ai.temperature,
-        response_format: { type: 'json_object' },
-        format: 'json',
-        messages: [
-          {
-            role: 'system',
-            content: promptTemplate,
-          },
-        ],
-      });
+    const runner = new AgenticRunner({
+      aiClient: this.options.aiClient,
+      config: this.options.config,
+      projectRoot: projectContext.projectRoot,
+    });
 
-      const { choices = [] } = response;
-      if (choices.length === 0) {
-        throw new Error('AI did not return any choices for test fix');
-      }
-
-      const { content } = choices[0].message;
-      let cleanContent = cleanCodeContent(content as string);
-      return cleanContent;
-    } catch (error) {
-      checkAndThrowFatalError(error);
-      throw error;
-    }
+    return runner.run(promptTemplate);
   }
 }

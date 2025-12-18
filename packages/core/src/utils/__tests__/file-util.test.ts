@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateTestFilePath, generateTestFilePathWithConfig, detectTestOutputStrategy, isTestFile, getSourceFilePath } from '../file-util';
+import { generateTestFilePath, generateTestFilePathWithConfig, detectTestOutputStrategy, isTestFile, getSourceFilePath, getRelatedExtensions } from '../file-util';
 
 describe('file-util', () => {
   describe('detectTestOutputStrategy', () => {
@@ -227,6 +227,61 @@ describe('file-util', () => {
 
     it('should only replace first occurrence of .test.', () => {
       expect(getSourceFilePath('test.test.ts')).toBe('test.ts');
+    });
+  });
+
+  describe('getRelatedExtensions', () => {
+
+
+    it('should return JS/TS family extensions for .ts', () => {
+      const extensions = getRelatedExtensions('.ts');
+      expect(extensions).toContain('.ts');
+      expect(extensions).toContain('.tsx');
+      expect(extensions).toContain('.js');
+      expect(extensions.length).toBeGreaterThan(1);
+    });
+
+    it('should return JS/TS family extensions for .js', () => {
+      const extensions = getRelatedExtensions('.js');
+      expect(extensions).toContain('.ts');
+      expect(extensions).toContain('.js');
+      expect(extensions).toContain('.mjs');
+    });
+
+    it('should return Styles family extensions for .css', () => {
+      const extensions = getRelatedExtensions('.css');
+      expect(extensions).toContain('.css');
+      expect(extensions).toContain('.scss');
+      expect(extensions).toContain('.less');
+      expect(extensions).toContain('.sass');
+    });
+
+    it('should return HTML family extensions for .html', () => {
+      const extensions = getRelatedExtensions('.html');
+      expect(extensions).toEqual(['.html', '.htm']);
+    });
+
+    it('should return JSON family extensions for .json', () => {
+      const extensions = getRelatedExtensions('.json');
+      expect(extensions).toContain('.json');
+      expect(extensions).toContain('.json5');
+      expect(extensions).toContain('.jsonc');
+    });
+
+    it('should return Markdown family extensions for .md', () => {
+      const extensions = getRelatedExtensions('.md');
+      expect(extensions).toEqual(['.md', '.markdown']);
+    });
+
+    it('should return input extension for unknown extension', () => {
+      expect(getRelatedExtensions('.unknown')).toEqual(['.unknown']);
+      expect(getRelatedExtensions('.txt')).toEqual(['.txt']);
+    });
+
+    it('should handle uppercase extensions', () => {
+      const extensions = getRelatedExtensions('.TS');
+      expect(extensions).toContain('.ts');
+      expect(extensions).toContain('.js');
     });
   });
 });

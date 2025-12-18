@@ -127,7 +127,7 @@ describe('UnitTestWriter', () => {
       ai: {
         model: 'gpt-4o-mini',
         temperature: 0.2,
-        provider: 'openai',
+        provider: 'copilot-cli',
       },
     } as RiflebirdConfig;
 
@@ -295,8 +295,6 @@ describe('UnitTestWriter', () => {
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledWith({
         model: 'gpt-4o-mini',
         temperature: 0.2,
-        response_format: { type: 'json_object' },
-        format: 'json',
         messages: [
           {
             role: 'system',
@@ -393,6 +391,45 @@ describe('UnitTestWriter', () => {
       const customWriter = new UnitTestWriter({
         aiClient: mockAiClient,
         config: customConfig,
+      });
+
+      (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                action: 'generate_test',
+                code: 'const x = 1;',
+              }),
+            },
+          },
+        ],
+      });
+
+      (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                action: 'generate_test',
+                code: 'const x = 1;',
+              }),
+            },
+          },
+        ],
+      });
+
+      (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                action: 'generate_test',
+                code: 'const x = 1;',
+              }),
+            },
+          },
+        ],
       });
 
       const targetFile: TestFile = {
@@ -591,6 +628,46 @@ describe('Calculator', () => {
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledOnce();
     });
   });
+
+    it('should handle markdown-wrapped JSON response in agentic mode', async () => {
+      // Setup config for agentic mode
+      const agenticConfig = {
+        ...mockConfig,
+        ai: {
+          ...mockConfig.ai,
+          provider: 'openai', // Triggers agentic loop
+        }
+      } as RiflebirdConfig;
+
+      const agenticWriter = new UnitTestWriter({
+        aiClient: mockAiClient,
+        config: agenticConfig,
+      });
+
+      // Mock AI response with markdown-wrapped JSON
+      const markdownJson = '```json\n{\n  "action": "generate_test",\n  "code": "import { test } from \'vitest\';"\n}\n```';
+
+      (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: markdownJson,
+            },
+          },
+        ],
+      });
+
+      const targetFile: TestFile = {
+        filePath: 'src/agentic.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/agentic.test.ts',
+        testContent: '',
+      };
+
+      const result = await agenticWriter.generateTest(mockProjectContext, targetFile, undefined);
+
+      expect(result).toBe("import { test } from 'vitest';");
+    });
 
   describe('integration with PromptTemplateBuilder', () => {
     it('should use PromptTemplateBuilder to format prompt', async () => {
@@ -1060,6 +1137,54 @@ describe('Calculator', () => {
          // AI should have been called twice (once generate, once fix)
          expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2);
      });
+  });
+
+  describe('Smart File Resolution', () => {
+    it('should resolve file with alternative extension when requested file is missing', async () => {
+      // 1. Setup agentic writer
+      const agenticConfig = {
+        ...mockConfig,
+        ai: { ...mockConfig.ai, provider: 'openai' },
+      } as RiflebirdConfig;
+
+      const agenticWriter = new UnitTestWriter({
+        aiClient: mockAiClient,
+        config: agenticConfig,
+      });
+
+      // 2. Setup mocks
+      (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({
+          choices: [{ message: { content: JSON.stringify({ action: 'request_files', files: ['src/component.ts'] }) } }]
+        })
+        .mockResolvedValueOnce({
+          choices: [{ message: { content: JSON.stringify({ action: 'generate_test', code: 'test code' }) } }]
+        });
+
+      mockWalkerInstance.readFileFromProject.mockImplementation(async (path: string) => {
+        if (path === 'src/component.ts') throw new Error('File not found');
+        if (path === 'src/component.tsx') return 'import React from "react";';
+        return '// unknown file';
+      });
+
+      const targetFile: TestFile = {
+        filePath: 'src/dummy.ts', content: '', testFilePath: 'src/dummy.test.ts', testContent: ''
+      };
+
+      // 3. Execute
+      await agenticWriter.generateTest(mockProjectContext, targetFile, undefined);
+
+      // 4. Verify
+      expect(mockWalkerInstance.readFileFromProject).toHaveBeenCalledWith('src/component.ts');
+      expect(mockWalkerInstance.readFileFromProject).toHaveBeenCalledWith('src/component.tsx');
+
+      const secondCallArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock.calls[1][0];
+      const lastUserMessage = secondCallArgs.messages[secondCallArgs.messages.length - 1];
+
+      expect(lastUserMessage.role).toBe('user');
+      expect(lastUserMessage.content).toContain('FILE: src/component.ts (Resolved to src/component.tsx)');
+      expect(lastUserMessage.content).toContain('import React from "react";');
+    });
   });
 });
 });

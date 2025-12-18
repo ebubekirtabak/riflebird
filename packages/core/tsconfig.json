@@ -34,7 +34,9 @@
       "@runners": ["src/runners/index.ts"],
       "@runners/*": ["src/runners/*"],
       "@types/*": ["src/types/*"],
-      "@types": ["src/types/index.ts"]
+      "@types": ["src/types/index.ts"],
+      "@agentic": ["src/agentic/index.ts"],
+      "@agentic/*": ["src/agentic/*"]
     }
   },
   "include": ["src/**/*", "index.ts"],
