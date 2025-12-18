@@ -171,5 +171,29 @@ describe('cli/commands/init', () => {
       const [[, configContent]] = mockWriteFile.mock.calls;
       expect(configContent).not.toContain('unitTesting:');
     });
+    it('should have healing enabled by default in prompts', async () => {
+      const mockPrompt = vi.mocked(inquirer.prompt);
+      const mockWriteFile = vi.mocked(fs.writeFile);
+
+      const mockAnswers: InitAnswers = {
+        framework: 'playwright',
+        aiProvider: 'openai',
+        outputDir: 'tests/e2e',
+        healing: true,
+        visual: true,
+        unitTesting: true,
+      };
+
+      mockPrompt.mockResolvedValue(mockAnswers);
+      mockWriteFile.mockResolvedValue(undefined);
+
+      await initCommand();
+
+      const questions = mockPrompt.mock.calls[0][0] as Array<{ name: string; default: unknown }>;
+      const healingQuestion = questions.find(q => q.name === 'healing');
+
+      expect(healingQuestion).toBeDefined();
+      expect(healingQuestion?.default).toBe(true);
+    });
   });
 });

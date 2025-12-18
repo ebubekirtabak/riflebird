@@ -32,4 +32,23 @@ export type PackageManager = {
   lockFilePath?: string;
   packageJsonPath?: string;
   packageJsonContent?: string;
+  testCommand?: string;
+  testScript?: string;
+  packageInfo?: PackageInfo;
+};
+
+export type PackageInfo = {
+  name?: string;
+  version?: string;
+  description?: string;
+  // Dependencies
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  scripts?: Record<string, string>;
+  testFrameworks?: string[]; // Detected from dependencies
+  engines?: Record<string, string>;
+  private?: boolean;
+  workspaces?: string[] | { packages: string[] };
 };
