@@ -16,13 +16,20 @@ vi.mock('../project-file-walker', () => {
   };
 });
 
+type MockWalker = {
+  readFileFromProject: ReturnType<typeof vi.fn>;
+};
+
+type MockProjectFileWalkerModule = {
+  getMockWalkerInstance: () => MockWalker;
+};
+
 describe('package-manager-detector', () => {
-   
-  let mockWalker: { readFileFromProject: ReturnType<typeof vi.fn> };
+
+  let mockWalker: MockWalker;
 
   beforeEach(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { getMockWalkerInstance } = await import('../project-file-walker') as any;
+    const { getMockWalkerInstance } = await import('../project-file-walker') as unknown as MockProjectFileWalkerModule;
     mockWalker = getMockWalkerInstance();
     vi.clearAllMocks();
   });
