@@ -17,13 +17,10 @@ export default defineConfig({
         '**/types/**',
       ],
       thresholds: {
-        // @todo: Increase thresholds as test coverage improves
-        // Current coverage: ~85% lines/statements, ~84% branches, ~67% functions
-        // Target: 80% for all metrics. Priority: add tests for commands/ and file-tree-walker.ts
-        lines: 65,
-        functions: 65,
-        branches: 65,
-        statements: 65,
+        lines: 85,
+        functions: 85,
+        branches: 85,
+        statements: 85,
       },
     },
   },
