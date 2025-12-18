@@ -11,3 +11,10 @@ export type FileTreeOptions = {
   excludeDirs?: string[];
   maxDepth?: number;
 };
+
+export type TestFile = {
+  filePath: string;
+  content: string;
+  testFilePath: string;
+  testContent: string;
+};

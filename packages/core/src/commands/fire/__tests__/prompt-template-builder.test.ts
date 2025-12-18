@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PromptTemplateBuilder, type PromptTemplateContext, type TemplateVariable } from '../prompt-template-builder';
 import type { FrameworkInfo } from '@models/project-context';
+import type { TestFile } from '@models';
 
 describe('PromptTemplateBuilder', () => {
   let builder: PromptTemplateBuilder;
@@ -18,7 +19,16 @@ Language: {{LANGUAGE_CONFIGURATIONS}}
 Formatting: {{FORMATTING_RULES}}
 Linting: {{LINTING_RULES}}
 Code: {{CODE_SNIPPET}}
+File: {{FILE_PATH}}
+Test File: {{TEST_FILE_PATH}}
       `.trim();
+
+      const targetFile: TestFile = {
+        filePath: 'src/utils.ts',
+        content: 'function add(a, b) { return a + b; }',
+        testFilePath: 'src/utils.test.ts',
+        testContent: '',
+      };
 
       const context: PromptTemplateContext = {
         testFramework: {
@@ -46,7 +56,7 @@ Code: {{CODE_SNIPPET}}
           configFilePath: '.prettierrc',
           configContent: '{ "semi": true }',
         },
-        fileContent: 'function add(a, b) { return a + b; }',
+        targetFile,
       };
 
       const result = builder.build(template, context);
@@ -56,16 +66,25 @@ Code: {{CODE_SNIPPET}}
       expect(result).toContain('vitest.config.ts');
       expect(result).toContain('export default { test: { globals: true } }');
       expect(result).toContain('Code: function add(a, b) { return a + b; }');
+      expect(result).toContain('File: src/utils.ts');
+      expect(result).toContain('Test File: src/utils.test.ts');
     });
 
     it('should handle missing test framework with fallback', () => {
       const template = 'Framework: {{TEST_FRAMEWORK}}\nConfig: {{TEST_FRAMEWORK_CONFIG}}';
 
+      const targetFile: TestFile = {
+        filePath: 'src/fallback.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/fallback.test.ts',
+        testContent: '',
+      };
+
       const context: PromptTemplateContext = {
         languageConfig: { name: 'typescript' } as FrameworkInfo,
         linterConfig: { name: 'eslint' } as FrameworkInfo,
         formatterConfig: { name: 'prettier' } as FrameworkInfo,
-        fileContent: 'const x = 1;',
+        targetFile,
       };
 
       const result = builder.build(template, context);
@@ -77,11 +96,18 @@ Code: {{CODE_SNIPPET}}
     it('should handle multiple occurrences of same placeholder', () => {
       const template = '{{CODE_SNIPPET}} and {{CODE_SNIPPET}} again';
 
+      const targetFile: TestFile = {
+        filePath: 'src/example.ts',
+        content: 'test code',
+        testFilePath: 'src/example.test.ts',
+        testContent: '',
+      };
+
       const context: PromptTemplateContext = {
         languageConfig: { name: 'typescript' } as FrameworkInfo,
         linterConfig: { name: 'eslint' } as FrameworkInfo,
         formatterConfig: { name: 'prettier' } as FrameworkInfo,
-        fileContent: 'test code',
+        targetFile,
       };
 
       const result = builder.build(template, context);
@@ -92,12 +118,19 @@ Code: {{CODE_SNIPPET}}
     it('should replace custom variables', () => {
       const template = 'Framework: {{TEST_FRAMEWORK}}\nBrowser: {{BROWSER}}\nURL: {{BASE_URL}}';
 
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'const test = 1;',
+        testFilePath: 'src/test.test.ts',
+        testContent: '',
+      };
+
       const context: PromptTemplateContext = {
         testFramework: { name: 'playwright' } as FrameworkInfo,
         languageConfig: { name: 'typescript' } as FrameworkInfo,
         linterConfig: { name: 'eslint' } as FrameworkInfo,
         formatterConfig: { name: 'prettier' } as FrameworkInfo,
-        fileContent: 'const test = 1;',
+        targetFile,
         browser: 'chromium',
         base_url: 'https://example.com',
       };
@@ -119,12 +152,19 @@ Code: {{CODE_SNIPPET}}
         configContent: 'module.exports = {}',
       };
 
+      const targetFile: TestFile = {
+        filePath: 'src/main.ts',
+        content: 'test',
+        testFilePath: 'src/main.test.ts',
+        testContent: '',
+      };
+
       const context: PromptTemplateContext = {
         testFramework: { name: 'playwright' } as FrameworkInfo,
         languageConfig: { name: 'typescript' } as FrameworkInfo,
         linterConfig: { name: 'eslint' } as FrameworkInfo,
         formatterConfig: { name: 'prettier' } as FrameworkInfo,
-        fileContent: 'test',
+        targetFile,
         extra_config: extraConfig,
       };
 
@@ -138,6 +178,13 @@ Code: {{CODE_SNIPPET}}
     it('should format config with proper markdown code blocks', () => {
       const template = '{{TEST_FRAMEWORK_CONFIG}}';
 
+      const targetFile: TestFile = {
+        filePath: 'src/config.ts',
+        content: 'test',
+        testFilePath: 'src/config.test.ts',
+        testContent: '',
+      };
+
       const context: PromptTemplateContext = {
         testFramework: {
           name: 'vitest',
@@ -148,7 +195,7 @@ Code: {{CODE_SNIPPET}}
         languageConfig: { name: 'typescript' } as FrameworkInfo,
         linterConfig: { name: 'eslint' } as FrameworkInfo,
         formatterConfig: { name: 'prettier' } as FrameworkInfo,
-        fileContent: 'test',
+        targetFile,
       };
 
       const result = builder.build(template, context);
@@ -158,6 +205,13 @@ Code: {{CODE_SNIPPET}}
 
     it('should handle empty config content with fallback message', () => {
       const template = '{{LANGUAGE_CONFIGURATIONS}}';
+
+      const targetFile: TestFile = {
+        filePath: 'src/empty.ts',
+        content: 'test',
+        testFilePath: 'src/empty.test.ts',
+        testContent: '',
+      };
 
       const context: PromptTemplateContext = {
         testFramework: { name: 'vitest' } as FrameworkInfo,
@@ -169,7 +223,7 @@ Code: {{CODE_SNIPPET}}
         },
         linterConfig: { name: 'eslint' } as FrameworkInfo,
         formatterConfig: { name: 'prettier' } as FrameworkInfo,
-        fileContent: 'test',
+        targetFile,
       };
 
       const result = builder.build(template, context);
@@ -297,6 +351,13 @@ Code: {{CODE_SNIPPET}}
     it('should format config with all properties', () => {
       const template = '{{TEST_FRAMEWORK_CONFIG}}';
 
+      const targetFile: TestFile = {
+        filePath: 'src/jest-test.ts',
+        content: 'test',
+        testFilePath: 'src/jest-test.test.ts',
+        testContent: '',
+      };
+
       const context: PromptTemplateContext = {
         testFramework: {
           name: 'jest',
@@ -308,7 +369,7 @@ Code: {{CODE_SNIPPET}}
         languageConfig: { name: 'typescript' } as FrameworkInfo,
         linterConfig: { name: 'eslint' } as FrameworkInfo,
         formatterConfig: { name: 'prettier' } as FrameworkInfo,
-        fileContent: 'test',
+        targetFile,
       };
 
       const result = builder.build(template, context);
@@ -322,6 +383,13 @@ Code: {{CODE_SNIPPET}}
     it('should handle missing fileLang gracefully', () => {
       const template = '{{TEST_FRAMEWORK_CONFIG}}';
 
+      const targetFile: TestFile = {
+        filePath: 'src/no-lang.ts',
+        content: 'test',
+        testFilePath: 'src/no-lang.test.ts',
+        testContent: '',
+      };
+
       const context: PromptTemplateContext = {
         testFramework: {
           name: 'vitest',
@@ -331,7 +399,7 @@ Code: {{CODE_SNIPPET}}
         languageConfig: { name: 'typescript' } as FrameworkInfo,
         linterConfig: { name: 'eslint' } as FrameworkInfo,
         formatterConfig: { name: 'prettier' } as FrameworkInfo,
-        fileContent: 'test',
+        targetFile,
       };
 
       const result = builder.build(template, context);
@@ -344,6 +412,13 @@ Code: {{CODE_SNIPPET}}
     it('should handle missing configFilePath', () => {
       const template = '{{TEST_FRAMEWORK_CONFIG}}';
 
+      const targetFile: TestFile = {
+        filePath: 'src/no-path.ts',
+        content: 'test',
+        testFilePath: 'src/no-path.test.ts',
+        testContent: '',
+      };
+
       const context: PromptTemplateContext = {
         testFramework: {
           name: 'vitest',
@@ -353,7 +428,7 @@ Code: {{CODE_SNIPPET}}
         languageConfig: { name: 'typescript' } as FrameworkInfo,
         linterConfig: { name: 'eslint' } as FrameworkInfo,
         formatterConfig: { name: 'prettier' } as FrameworkInfo,
-        fileContent: 'test',
+        targetFile,
       };
 
       const result = builder.build(template, context);
@@ -379,6 +454,13 @@ Code to Test:
 {{CODE_SNIPPET}}
       `.trim();
 
+      const targetFile: TestFile = {
+        filePath: 'src/sum.ts',
+        content: 'export function sum(a: number, b: number): number { return a + b; }',
+        testFilePath: 'src/sum.test.ts',
+        testContent: '',
+      };
+
       const context: PromptTemplateContext = {
         testFramework: {
           name: 'vitest',
@@ -402,7 +484,7 @@ Code to Test:
           fileLang: 'json',
           configContent: '{ "semi": true }',
         },
-        fileContent: 'export function sum(a: number, b: number): number { return a + b; }',
+        targetFile,
       };
 
       const result = builder.build(template, context);
@@ -424,12 +506,19 @@ Code:
 {{CODE_SNIPPET}}
       `.trim();
 
+      const targetFile: TestFile = {
+        filePath: 'src/e2e.spec.ts',
+        content: 'test("should login", async ({ page }) => { })',
+        testFilePath: 'src/e2e.spec.ts',
+        testContent: '',
+      };
+
       const context: PromptTemplateContext = {
         testFramework: { name: 'playwright' } as FrameworkInfo,
         languageConfig: { name: 'typescript' } as FrameworkInfo,
         linterConfig: { name: 'eslint' } as FrameworkInfo,
         formatterConfig: { name: 'prettier' } as FrameworkInfo,
-        fileContent: 'test("should login", async ({ page }) => { })',
+        targetFile,
         browser: 'chromium',
         base_url: 'https://app.example.com',
       };
@@ -442,4 +531,293 @@ Code:
       expect(result).toContain('should login');
     });
   });
+
+  describe('package info formatting', () => {
+    it('should format package info with all details', () => {
+      const template = `
+Package Manager: {{PACKAGE_MANAGER_TYPE}}
+Test Command: {{PACKAGE_MANAGER_TEST_COMMAND}}
+Package Info:
+{{PACKAGE_INFO}}
+      `.trim();
+
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'export const test = true;',
+        testFilePath: 'src/test.spec.ts',
+        testContent: '',
+      };
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        targetFile,
+        packageManager: {
+          type: 'pnpm',
+          testCommand: 'pnpm test',
+          testScript: 'vitest',
+          packageInfo: {
+            name: 'my-project',
+            version: '1.0.0',
+            description: 'Test project',
+            testFrameworks: ['vitest', '@testing-library/react'],
+            dependencies: {
+              react: '^18.2.0',
+              'react-dom': '^18.2.0',
+            },
+            devDependencies: {
+              vitest: '^1.0.0',
+              '@testing-library/react': '^14.0.0',
+              typescript: '^5.0.0',
+            },
+            scripts: {
+              test: 'vitest',
+              'test:coverage': 'vitest --coverage',
+              build: 'tsc',
+              dev: 'vite',
+            },
+            engines: {
+              node: '>=18.0.0',
+            },
+          },
+        },
+      };
+
+      const result = builder.build(template, context);
+
+      // Basic info
+      expect(result).toContain('Package Manager: pnpm');
+      expect(result).toContain('Test Command: pnpm test');
+
+      // Package info
+      expect(result).toContain('Name: my-project');
+      expect(result).toContain('Version: 1.0.0');
+      expect(result).toContain('Description: Test project');
+
+      // Test frameworks
+      expect(result).toContain('Test Frameworks:');
+      expect(result).toContain('vitest, @testing-library/react');
+
+      // Dev dependencies
+      expect(result).toContain('Dev Dependencies:');
+      expect(result).toContain('vitest@^1.0.0');
+      expect(result).toContain('@testing-library/react@^14.0.0');
+
+      // Dependencies
+      expect(result).toContain('Dependencies:');
+      expect(result).toContain('react@^18.2.0');
+
+      // Scripts
+      expect(result).toContain('Relevant Scripts:');
+      expect(result).toContain('test: vitest');
+      expect(result).toContain('test:coverage: vitest --coverage');
+
+      // Engine
+      expect(result).toContain('**Node Version:** >=18.0.0');
+    });
+
+    it('should handle missing package info gracefully', () => {
+      const template = 'Package Info: {{PACKAGE_INFO}}';
+
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'export const test = true;',
+        testFilePath: 'src/test.spec.ts',
+        testContent: '',
+      };
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        targetFile,
+        packageManager: {
+          type: 'npm',
+          testCommand: 'npm test',
+        },
+      };
+
+      const result = builder.build(template, context);
+
+      expect(result).toContain('No package information available');
+    });
+
+    it('should limit dependency lists to 10 items', () => {
+      const template = '{{PACKAGE_INFO}}';
+
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'export const test = true;',
+        testFilePath: 'src/test.spec.ts',
+        testContent: '',
+      };
+
+      // Create 15 dependencies
+      const dependencies: Record<string, string> = {};
+      for (let i = 1; i <= 15; i++) {
+        dependencies[`package-${i}`] = `^${i}.0.0`;
+      }
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        targetFile,
+        packageManager: {
+          type: 'npm',
+          testCommand: 'npm test',
+          packageInfo: {
+            dependencies,
+          },
+        },
+      };
+
+      const result = builder.build(template, context);
+
+      // Should show first 10
+      expect(result).toContain('package-1@^1.0.0');
+      expect(result).toContain('package-10@^10.0.0');
+
+      // Should indicate there are more
+      expect(result).toContain('... and 5 more');
+
+      // Should not show all 15
+      expect(result).not.toContain('package-15@^15.0.0');
+    });
+
+    it('should only show relevant scripts', () => {
+      const template = '{{PACKAGE_INFO}}';
+
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'export const test = true;',
+        testFilePath: 'src/test.spec.ts',
+        testContent: '',
+      };
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        targetFile,
+        packageManager: {
+          type: 'npm',
+          testCommand: 'npm test',
+          packageInfo: {
+            scripts: {
+              test: 'vitest',
+              'test:unit': 'vitest run',
+              'test:coverage': 'vitest --coverage',
+              build: 'tsc',
+              dev: 'vite',
+              lint: 'eslint .',
+              deploy: 'echo "deploying"',
+              'random-script': 'echo "random"',
+            },
+          },
+        },
+      };
+
+      const result = builder.build(template, context);
+
+      // Should show test-related and build/dev/lint scripts
+      expect(result).toContain('test: vitest');
+      expect(result).toContain('test:unit: vitest run');
+      expect(result).toContain('test:coverage: vitest --coverage');
+      expect(result).toContain('build: tsc');
+      expect(result).toContain('dev: vite');
+      expect(result).toContain('lint: eslint .');
+
+      // Should not show irrelevant scripts
+      expect(result).not.toContain('deploy:');
+      expect(result).not.toContain('random-script:');
+    });
+    it('should limit devDependency lists to 10 items', () => {
+      const template = '{{PACKAGE_INFO}}';
+
+      const targetFile: TestFile = {
+        filePath: 'src/test.ts',
+        content: 'export const test = true;',
+        testFilePath: 'src/test.spec.ts',
+        testContent: '',
+      };
+
+      // Create 15 devDependencies
+      const devDependencies: Record<string, string> = {};
+      for (let i = 1; i <= 15; i++) {
+        devDependencies[`dev-dep-${i}`] = `^${i}.0.0`;
+      }
+
+      const context: PromptTemplateContext = {
+        testFramework: { name: 'vitest' } as FrameworkInfo,
+        languageConfig: { name: 'typescript' } as FrameworkInfo,
+        linterConfig: { name: 'eslint' } as FrameworkInfo,
+        formatterConfig: { name: 'prettier' } as FrameworkInfo,
+        targetFile,
+        packageManager: {
+          type: 'npm',
+          testCommand: 'npm test',
+          packageInfo: {
+            devDependencies,
+          },
+        },
+      };
+
+      const result = builder.build(template, context);
+
+      // Should show first 10
+      expect(result).toContain('dev-dep-1@^1.0.0');
+      expect(result).toContain('dev-dep-10@^10.0.0');
+
+      // Should indicate there are more
+      expect(result).toContain('... and 5 more');
+
+      // Should not show all 15
+      expect(result).not.toContain('dev-dep-15@^15.0.0');
+    });
+  });
+
+  describe('formatConfig (edge cases)', () => {
+    // This targets line 97: return fallback ? ... : ''
+    it('should return empty string if no config and no fallback', () => {
+       // We can trigger this by passing a template that uses a config variable that is undefined in context
+       // But wait, the standard template placeholders always have fallbacks in the build() method.
+       // We need to use buildWithVariables with type='config' and NO fallback to hit line 97's empty string branch.
+       // Or rely on the private method being called with undefined config.
+
+       // Let's use buildWithVariables as it exposes formatConfig somewhat directly
+       const variables: TemplateVariable[] = [
+         { placeholder: 'MISSING_CONFIG', value: undefined, type: 'config' } // No fallback
+       ];
+       const template = 'Start|{{MISSING_CONFIG}}|End';
+       const result = builder.buildWithVariables(template, variables);
+       expect(result).toBe('Start||End');
+    });
+
+    // This targets line 101/104 coverage details if needed, but existing tests might cover it.
+    // Let's add explicit test for variable fallback on non-string value (line 81)
+    it('should use fallback for non-string values with text type', () => {
+        // Line 81: const stringValue = typeof value === 'string' ? value : fallback || '';
+        // We need value to NOT be a string (maybe undefined or object? types say value can be FrameworkInfo)
+        // AND type is NOT 'config' (defaults to 'text')
+
+       const variables: TemplateVariable[] = [
+         {
+             placeholder: 'WEIRD_VAR',
+             value: { name: 'obj' } as unknown as string, // forcing non-string value for text type
+             type: 'text',
+             fallback: 'fallback-text'
+         }
+       ];
+       const template = 'Val: {{WEIRD_VAR}}';
+       const result = builder.buildWithVariables(template, variables);
+       expect(result).toBe('Val: fallback-text');
+    });
+  });
 });
+

@@ -53,7 +53,7 @@ describe('config/schema', () => {
         unitTesting: {
           enabled: true,
           framework: 'vitest',
-          testDir: 'tests/unit',
+          testOutputDir: 'tests/unit',
           testMatch: ['**/*.test.ts'],
           coverage: {
             enabled: true,
@@ -83,7 +83,7 @@ describe('config/schema', () => {
 
       expect(result.unitTesting?.enabled).toBe(true);
       expect(result.unitTesting?.framework).toBe('vitest');
-      expect(result.unitTesting?.testDir).toBe('tests/unit');
+      expect(result.unitTesting?.testOutputDir).toBe('tests/unit');
       expect(result.unitTesting?.coverage?.enabled).toBe(true);
       expect(result.unitTesting?.coverage?.threshold?.lines).toBe(90);
       expect(result.unitTesting?.environment).toBe('node');
@@ -107,7 +107,7 @@ describe('config/schema', () => {
       const result = RiflebirdConfigSchema.parse(config);
 
       expect(result.unitTesting?.framework).toBe('vitest');
-      expect(result.unitTesting?.testDir).toBe('tests/unit');
+      expect(result.unitTesting?.testOutputDir).toBe('./__tests__/');
       expect(result.unitTesting?.testMatch).toEqual(['**/*.test.ts', '**/*.spec.ts']);
       expect(result.unitTesting?.globals).toBe(true);
       expect(result.unitTesting?.environment).toBe('node');
