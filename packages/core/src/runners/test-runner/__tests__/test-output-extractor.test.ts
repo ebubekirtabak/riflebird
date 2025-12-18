@@ -5,6 +5,7 @@ import {
   parseFailingTestsFromJson,
   formatFailingTestsForPrompt,
   getFailingTestsDetail,
+  extractTestCodeFromFile,
 } from '../test-output-extractor';
 import { TestRunResult, VitestJsonReport, UnitTestErrorContext, FailedTestDetail } from '../types';
 
@@ -320,5 +321,91 @@ describe('getFailingTestsDetail', () => {
   it('should return generic message if no info', () => {
       const detail = getFailingTestsDetail({} as UnitTestErrorContext);
       expect(detail).toBe('No specific failing test information available');
+  });
+});
+
+describe('extractTestCodeFromFile', () => {
+  it('should extract simple arrow function test', () => {
+    const code = `
+      test('simple test', () => {
+        expect(1).toBe(1);
+      });
+    `;
+    const extracted = extractTestCodeFromFile(code, 'simple test');
+    expect(extracted).toBeDefined();
+    expect(extracted).toContain("expect(1).toBe(1);");
+  });
+
+  it('should extract simple function test', () => {
+    const code = `
+      test('function test', function() {
+        expect(1).toBe(1);
+      });
+    `;
+    const extracted = extractTestCodeFromFile(code, 'function test');
+    expect(extracted).toBeDefined();
+    expect(extracted).toContain("expect(1).toBe(1);");
+  });
+
+  it('should handle nested function calls correctly', () => {
+    // This was failing with the old regex
+    const code = `
+      test('nested calls', () => {
+        someFn(() => {
+           return true;
+        });
+        expect(true).toBe(true);
+      });
+    `;
+    const extracted = extractTestCodeFromFile(code, 'nested calls');
+    expect(extracted).toContain('expect(true).toBe(true);');
+  });
+
+  it('should handle strings containing braces', () => {
+     // This requires string state awareness
+     const code = `
+       test('strings with braces', () => {
+         const s = "}";
+         const s2 = '{';
+         expect(s).toBe("}");
+       });
+     `;
+     const extracted = extractTestCodeFromFile(code, 'strings with braces');
+     expect(extracted).toContain('expect(s).toBe("}");');
+  });
+
+  it('should handle comments containing braces', () => {
+    // This requires comment state awareness
+    const code = `
+      test('comments with braces', () => {
+        // }
+        /* { */
+        expect(true).toBe(true);
+      });
+    `;
+    const extracted = extractTestCodeFromFile(code, 'comments with braces');
+    expect(extracted).toContain('expect(true).toBe(true);');
+  });
+
+  it('should handle async tests', () => {
+    const code = `
+      test('async test', async () => {
+        await val;
+      });
+    `;
+    const extracted = extractTestCodeFromFile(code, 'async test');
+    expect(extracted).toContain('await val;');
+  });
+
+  it('should handle tests with complex structure', () => {
+    const code = `
+      test('complex', () => {
+        if (true) {
+           console.log('nested');
+        }
+      });
+    `;
+    const extracted = extractTestCodeFromFile(code, 'complex');
+    expect(extracted).toContain("console.log('nested');");
   });
 });

@@ -300,29 +300,113 @@ function formatSingleFailedTest(test: FailedTestDetail, index: number): string {
   return sections.join('\n');
 }
 
-function extractTestCodeFromFile(fileContent: string, testName: string): string | undefined {
+export function extractTestCodeFromFile(fileContent: string, testName: string): string | undefined {
   const parts = testName.split(/\s+›\s+/).map(p => p.trim());
   const testTitle = parts[parts.length - 1];
+  const escapedTitle = escapeRegExp(testTitle);
 
-  // Arrow function pattern
-  const arrowPattern = new RegExp(
-    `(it|test)\\s*\\(['\`"]${escapeRegExp(testTitle)}['\`"]\\s*,\\s*(?:async\\s+)?\\([^)]*\\)\\s*=>\\s*\\{([\\s\\S]*?)\\n\\s*\\}\\s*\\)`,
+  // Match the start of the test declaration:
+  // it('title', ... { OR test('title', ... {
+  // Supports:
+  // - Arrow functions: test('title', () => {
+  // - Classic functions: test('title', function() {
+  // - Async: test('title', async () => {
+  const startPattern = new RegExp(
+    // (it|test) \s* \( ['"`] title ['"`] \s* , \s* (?:async\s+)? (?: \([^)]*\)\s*=> | function\s*\([^)]*\) ) \s* \{
+    `(it|test)\\s*\\(['\`"]${escapedTitle}['\`"]\\s*,\\s*(?:async\\s+)?(?:\\([^)]*\\)\\s*=>|function\\s*\\([^)]*\\))\\s*\\{`,
     'i'
   );
-  const arrowMatch = fileContent.match(arrowPattern);
-  if (arrowMatch) {
-    return `${arrowMatch[1]}('${testTitle}', ${arrowMatch[0].split(',').slice(1).join(',')}`;
+
+  const match = fileContent.match(startPattern);
+  if (!match || match.index === undefined) {
+    return undefined;
   }
 
-  // Classic function pattern
-  const functionPattern = new RegExp(
-    `(it|test)\\s*\\(['\`"]${escapeRegExp(testTitle)}['\`"]\\s*,\\s*(?:async\\s+)?function\\s*\\([^)]*\\)\\s*\\{([\\s\\S]*?)\\n\\s*\\}\\s*\\)`,
-    'i'
-  );
-  const functionMatch = fileContent.match(functionPattern);
-  if (functionMatch) {
-    return functionMatch[0];
+  const startIndex = match.index;
+  // Locate the opening brace within the match
+  const relativeBraceIndex = match[0].lastIndexOf('{');
+  if (relativeBraceIndex === -1) return undefined;
+
+  const absoluteBraceIndex = startIndex + relativeBraceIndex;
+
+  // Use bracket counting to find the end
+  const endIndex = findMatchingBrace(fileContent, absoluteBraceIndex);
+  if (endIndex === -1) return undefined;
+
+  // Capture from start of test definition to closing brace
+  let testCode = fileContent.substring(startIndex, endIndex + 1);
+
+  // Check for trailing ); which often follows the closing brace
+  const rest = fileContent.slice(endIndex + 1);
+  const trailingMatch = rest.match(/^\s*\);?/);
+  if (trailingMatch) {
+    testCode += trailingMatch[0];
   }
 
-  return undefined;
+  return testCode;
+}
+
+/**
+ * Finds the index of the matching closing brace '}' for the opening brace at startIndex.
+ * Handles nested braces, strings, and comments.
+ */
+function findMatchingBrace(content: string, startIndex: number): number {
+  let braceCount = 0;
+  let inString: null | "'" | '"' | '`' = null;
+  let inComment: null | '//' | '/*' = null;
+
+  for (let i = startIndex; i < content.length; i++) {
+    const char = content[i];
+    const nextChar = content[i + 1] || '';
+    const prevChar = content[i - 1] || '';
+
+    // 1. Handle Comments
+    if (inComment) {
+      if (inComment === '//' && char === '\n') {
+        inComment = null;
+      } else if (inComment === '/*' && char === '*' && nextChar === '/') {
+        inComment = null;
+        i++; // skip /
+      }
+      continue;
+    }
+
+    // 2. Handle Strings
+    if (inString) {
+      if (char === inString && prevChar !== '\\') {
+        inString = null;
+      }
+      continue;
+    }
+
+    // 3. Check for start of comments
+    if (char === '/' && nextChar === '/') {
+      inComment = '//';
+      i++;
+      continue;
+    }
+    if (char === '/' && nextChar === '*') {
+      inComment = '/*';
+      i++;
+      continue;
+    }
+
+    // 4. Check for start of strings
+    if (char === '"' || char === "'" || char === '`') {
+      inString = char;
+      continue;
+    }
+
+    // 5. Handle Braces
+    if (char === '{') {
+      braceCount++;
+    } else if (char === '}') {
+      braceCount--;
+      if (braceCount === 0) {
+        return i;
+      }
+    }
+  }
+
+  return -1;
 }
