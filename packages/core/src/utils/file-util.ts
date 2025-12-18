@@ -1,3 +1,35 @@
+import path from 'node:path';
+
+export type GenerateTestFilePathOptions = {
+  testOutputDir?: string;
+  projectRoot?: string;
+  strategy?: 'root' | 'colocated';
+};
+
+/**
+ * Detect test output strategy from testOutputDir path pattern
+ * @param testOutputDir - Test output directory path
+ * @returns Detected strategy ('root' or 'colocated')
+ * @example
+ * detectTestOutputStrategy('./__tests__') // 'colocated'
+ * detectTestOutputStrategy('__tests__') // 'colocated'
+ * detectTestOutputStrategy('tests/unit') // 'root'
+ */
+export const detectTestOutputStrategy = (testOutputDir: string): 'root' | 'colocated' => {
+  // Common test directory names that suggest colocated strategy
+  const colocatedPatterns = ['__tests__', '__test__', 'tests', 'test', '__specs__', '__spec__', 'specs', 'spec'];
+
+  if (testOutputDir.startsWith('./')) {
+    return 'colocated';
+  }
+
+  if (!testOutputDir.includes('/') && colocatedPatterns.includes(testOutputDir)) {
+    return 'colocated';
+  }
+
+  return 'root';
+};
+
 /**
  * Generate test file path by inserting .test before the file extension
  * @param filePath - Original file path
@@ -18,6 +50,42 @@ export const generateTestFilePath = (filePath: string): string => {
   const extension = filePath.substring(lastDotIndex);
 
   return `${pathWithoutExt}.test${extension}`;
+};
+
+/**
+ * Generate test file path with configurable output directory
+ * @param filePath - Original file path (can be absolute or relative)
+ * @param options - Configuration options
+ * @returns Test file path, either co-located or in testOutputDir
+ */
+export const generateTestFilePathWithConfig = (
+  filePath: string,
+  options?: GenerateTestFilePathOptions
+): string => {
+  const { testOutputDir, projectRoot, strategy } = options || {};
+
+  const effectiveStrategy = strategy || (testOutputDir ? detectTestOutputStrategy(testOutputDir) : 'root');
+
+  const testFileName = generateTestFilePath(filePath);
+
+  if (!testOutputDir) {
+    return testFileName;
+  }
+
+  if (effectiveStrategy === 'colocated') {
+    const dir = path.dirname(filePath);
+    const filename = path.basename(testFileName);
+    return path.join(dir, testOutputDir, filename);
+  }
+
+  let relativePath = filePath;
+  if (projectRoot && path.isAbsolute(filePath)) {
+    relativePath = path.relative(projectRoot, filePath);
+  }
+
+  const relativeTestPath = generateTestFilePath(relativePath);
+
+  return path.join(testOutputDir, relativeTestPath);
 };
 
 /**
@@ -49,4 +117,43 @@ export const getSourceFilePath = (filePath: string): string => {
   return filePath
     .replace(/\.test\./, '.')
     .replace(/\.spec\./, '.');
+};
+
+
+const JS_TS_FAMILY = ['.tsx', '.ts', '.jsx', '.js', '.d.ts', '.mjs', '.cjs'];
+const STYLES_FAMILY = ['.css', '.scss', '.less', '.sass'];
+const HTML_FAMILY = ['.html', '.htm'];
+const JSON_FAMILY = ['.json', '.json5', '.jsonc'];
+const MD_FAMILY = ['.md', '.markdown'];
+
+/**
+ * Get related extensions for file recovery based on input extension
+ * @param extension - File extension (e.g., '.ts', '.js')
+ * @returns Array of related extensions to try
+ */
+export const getRelatedExtensions = (extension: string): string[] => {
+  const ext = extension.toLowerCase();
+
+  if (JS_TS_FAMILY.includes(ext)) {
+    return JS_TS_FAMILY;
+  }
+
+  if (STYLES_FAMILY.includes(ext)) {
+    return STYLES_FAMILY;
+  }
+
+  if (HTML_FAMILY.includes(ext)) {
+    return HTML_FAMILY;
+  }
+
+  if (JSON_FAMILY.includes(ext)) {
+    return JSON_FAMILY;
+  }
+
+  if (MD_FAMILY.includes(ext)) {
+    return MD_FAMILY;
+  }
+
+  // Default: return just the input extension to be safe, or empty if we want to rely on the caller's fallback
+  return [extension];
 };

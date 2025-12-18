@@ -20,6 +20,7 @@
       "@riflebird/core": ["index.ts"],
       "@/*": ["src/*"],
       "@models/*": ["src/models/*"],
+      "@models": ["src/models/index.ts"],
       "@helpers/*": ["src/helpers/*"],
       "@utils": ["src/utils/index.ts"],
       "@utils/*": ["src/utils/*"],
@@ -29,7 +30,13 @@
       "@prompts/*": ["src/prompts/*"],
       "@providers/*": ["src/providers/*"],
       "@security/*": ["src/security/*"],
-      "@security": ["src/security/index.ts"]
+      "@security": ["src/security/index.ts"],
+      "@runners": ["src/runners/index.ts"],
+      "@runners/*": ["src/runners/*"],
+      "@types/*": ["src/types/*"],
+      "@types": ["src/types/index.ts"],
+      "@agentic": ["src/agentic/index.ts"],
+      "@agentic/*": ["src/agentic/*"]
     }
   },
   "include": ["src/**/*", "index.ts"],

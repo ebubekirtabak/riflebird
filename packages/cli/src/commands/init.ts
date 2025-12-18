@@ -175,7 +175,7 @@ ${
   unitTesting: {
     enabled: true,
     framework: '${answers.unitTestFramework || 'vitest'}',
-    testDir: 'tests/unit',
+    testOutputDir: './__tests__/',
     testMatch: ${JSON.stringify([...DEFAULT_UNIT_TEST_PATTERNS])},
     coverage: {
       enabled: true,
