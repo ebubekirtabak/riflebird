@@ -108,13 +108,11 @@ export function parseTestCommand(testCommand: string): { command: string; args: 
 
 /**
  * Run a test file using the specified package manager and test command with JSON reporter
- * @param packageManagerType - Package manager type (npm, yarn, pnpm, bun)
  * @param testCommand - Test command from package.json (e.g., "test", "run test")
  * @param options - Test execution options
  * @returns Test execution result with JSON report
  */
 export async function runTest(
-  packageManagerType: string,
   testCommand: string,
   options: TestRunOptions
 ): Promise<TestRunResult> {
