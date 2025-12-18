@@ -78,7 +78,7 @@ export async function readJsonReport(
     const fileWalker = new ProjectFileWalker({ projectRoot: cwd });
     const jsonContent = await fileWalker.readFileFromProject(jsonReportPath);
     const jsonReport = JSON.parse(jsonContent) as VitestJsonReport;
-    cleanTempFiles(jsonReportPath);
+    await cleanTempFiles(jsonReportPath);
     return jsonReport;
   } catch {
     // JSON report not available, will use stdout/stderr
@@ -165,7 +165,7 @@ export async function runTest(
     const duration = Date.now() - startTime;
     const message = error instanceof Error ? error.message : String(error);
 
-    cleanTempFiles(jsonReportPath);
+    await cleanTempFiles(jsonReportPath);
     return {
       success: false,
       exitCode: -1,

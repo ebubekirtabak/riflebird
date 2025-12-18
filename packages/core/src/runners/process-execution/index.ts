@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
 
-export interface ProcessExecutionResult {
+
+export type ProcessExecutionResult = {
   stdout: string;
   stderr: string;
   exitCode: number | null;
@@ -48,8 +48,26 @@ export async function executeProcessCommand(
     proc.kill('SIGTERM');
   }, timeout);
 
-  // Wait for process to exit
-  const [exitCode] = (await once(proc, 'exit')) as [number | null, string | null];
+  // Wait for process to exit or error
+  const [exitCode] = await new Promise<[number | null, string | null]>((resolve, reject) => {
+    const cleanup = () => {
+      proc.off('exit', onExit);
+      proc.off('error', onError);
+    };
+
+    const onExit = (code: number | null, signal: string | null) => {
+      cleanup();
+      resolve([code, signal]);
+    };
+
+    const onError = (err: Error) => {
+      cleanup();
+      reject(err);
+    };
+
+    proc.once('exit', onExit);
+    proc.once('error', onError);
+  });
   clearTimeout(timeoutHandle);
 
   return {

@@ -101,4 +101,13 @@ describe('executeProcessCommand', () => {
     expect(result.exitCode).toBe(1);
     expect(result.timedOut).toBe(false);
   });
+  it('should handle spawn error (invalid command)', async () => {
+    const promise = executeProcessCommand('invalid-command-that-does-not-exist', [], '/tmp', 1000);
+
+    // Simulate spawn error
+    mockChildProcess.emit('error', new Error('spawn invalid-command-that-does-not-exist ENOENT'));
+
+    // We expect the promise to reject or handle the error.
+    await expect(promise).rejects.toThrow('spawn invalid-command-that-does-not-exist ENOENT');
+  });
 });
