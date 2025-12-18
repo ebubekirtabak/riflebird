@@ -39,10 +39,11 @@
 - Security pipeline (CodeQL, Dependabot, Secret scanning)
 - AI coding rules for multiple IDEs
 - Documentation (README, CONTRIBUTING, SECURITY, Fire Command docs)
+- **RF-26**: Implement auto-healing for unit tests (smart selector recovery, self-healing)
 
 ### ⚠️ **In Progress**
 - **RF-17**: Add test file patterns (configurable naming, framework-specific patterns)
-- **RF-26**: Implement auto-healing for unit tests (smart selector recovery, self-healing)
+
 - **RF-14**: Storybook integration (auto-generate stories, visual regression testing)
 - Unit test quality improvements (selector robustness, assertion coverage, edge cases)
 - Pre-release testing & validation (real-world projects, edge cases, performance)
