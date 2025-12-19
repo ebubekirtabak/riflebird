@@ -1,12 +1,11 @@
 import { spawn } from 'node:child_process';
 
-
 export type ProcessExecutionResult = {
   stdout: string;
   stderr: string;
   exitCode: number | null;
   timedOut: boolean;
-}
+};
 
 /**
  * Execute a test process with timeout handling
