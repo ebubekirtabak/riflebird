@@ -144,6 +144,41 @@ describe('ai-client', () => {
         messages,
       });
     });
+
+    it('should create client for "other" provider with custom URL', async () => {
+      const mockCreate = vi.fn().mockResolvedValue({
+        choices: [{ message: { content: 'test response' } }],
+      });
+
+      const mockOpenAI = vi.fn().mockImplementation(() => ({
+        chat: {
+          completions: {
+            create: mockCreate,
+          },
+        },
+      }));
+
+      vi.doMock('openai', () => ({
+        default: mockOpenAI,
+      }));
+
+      const config: RiflebirdConfig['ai'] = {
+        provider: 'other',
+        apiKey: 'test-api-key',
+        model: 'custom-model',
+        url: 'https://custom-provider.com/v1',
+        temperature: 0.7,
+      };
+
+      const result = await createAIClient(config);
+
+      expect(result.client).toBeDefined();
+      expect(result.openaiInstance).toBeDefined();
+      expect(mockOpenAI).toHaveBeenCalledWith({
+        apiKey: 'test-api-key',
+        baseURL: 'https://custom-provider.com/v1',
+      });
+    });
   });
 
   describe('createLocalClient', () => {
@@ -291,6 +326,7 @@ describe('ai-client', () => {
         provider: 'local',
         model: 'llama2',
         temperature: 0.8,
+        url: 'http://127.0.0.1:11434',
       };
 
       const result = await createAIClient(config);
