@@ -1,19 +1,24 @@
-import { RiflebirdConfig } from '@config/schema';
+import { RiflebirdConfig, OpenAIConfig, OtherConfig, LocalConfig } from '@config/schema';
+import type { z } from 'zod';
 import type { AIClient, AIClientResult } from '@models/ai-client';
 import {
   OllamaChatCompletionResponse,
   OpenAIChatCompletionResponse,
-  ChatMessage
+  ChatMessage,
 } from '@models/chat';
 import { createCopilotCliClient } from './copilot-cli-client';
 export type { AIClient, AIClientResult } from '@models/ai-client';
 export type { ChatCompletionOptions } from '@models/chat';
 
-export async function createAIClient(
-  ai: RiflebirdConfig['ai']
-): Promise<AIClientResult> {
+type OpenAIProviderConfig = z.infer<typeof OpenAIConfig>;
+type OtherProviderConfig = z.infer<typeof OtherConfig>;
+type LocalProviderConfig = z.infer<typeof LocalConfig>;
+
+export async function createAIClient(ai: RiflebirdConfig['ai']): Promise<AIClientResult> {
   switch (ai.provider) {
     case 'openai':
+      return await createOpenAIClient(ai);
+    case 'other':
       return await createOpenAIClient(ai);
 
     case 'local':
@@ -25,30 +30,42 @@ export async function createAIClient(
     case 'anthropic':
       throw new Error('Anthropic provider support is not implemented yet');
 
-    default:
-      throw new Error(`Unknown AI provider: ${ai.provider}`);
+    default: {
+      const _exhaustive: never = ai;
+      throw new Error(`Unknown AI provider: ${JSON.stringify(_exhaustive)}`);
+    }
   }
 }
 
 async function createOpenAIClient(
-  ai: RiflebirdConfig['ai']
+  ai: OpenAIProviderConfig | OtherProviderConfig
 ): Promise<AIClientResult> {
   const OpenAIModule = await import('openai');
   const OpenAIClass = OpenAIModule.default;
-  const openaiInstance = new OpenAIClass({ apiKey: ai.apiKey });
+
+  const apiKey = ai.apiKey;
+  const baseURL = ai.provider === 'other' ? ai.url : undefined;
+
+  const openaiInstance = new OpenAIClass({ apiKey, ...(baseURL && { baseURL }) });
 
   const client: AIClient = {
     createChatCompletion: async (opts): Promise<OpenAIChatCompletionResponse> => {
+      // Remove format parameter if present as it causes 400 with some providers
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { format, ...restOpts } = opts;
+
       return await openaiInstance.chat.completions.create({
-        ...opts,
+        ...restOpts,
       });
     },
   };
 
   return { client, openaiInstance };
-};
+}
 
-function mapOllamaToOpenAI(ollamaResult: OllamaChatCompletionResponse): OpenAIChatCompletionResponse {
+function mapOllamaToOpenAI(
+  ollamaResult: OllamaChatCompletionResponse
+): OpenAIChatCompletionResponse {
   const { content, role } = ollamaResult.message;
   const { done_reason, model, created_at, prompt_eval_count, eval_count } = ollamaResult;
 
@@ -62,11 +79,13 @@ function mapOllamaToOpenAI(ollamaResult: OllamaChatCompletionResponse): OpenAICh
     object: 'chat.completion',
     created: Math.floor(new Date(created_at).getTime() / 1000),
     model,
-    choices: [{
-      index: 0,
-      message,
-      finish_reason: done_reason,
-    }],
+    choices: [
+      {
+        index: 0,
+        message,
+        finish_reason: done_reason,
+      },
+    ],
     usage: {
       prompt_tokens: prompt_eval_count,
       completion_tokens: eval_count,
@@ -94,9 +113,7 @@ function isLocalURL(urlString: string): boolean {
   }
 }
 
-async function createLocalClient(
-  ai: RiflebirdConfig['ai']
-): Promise<AIClientResult> {
+async function createLocalClient(ai: LocalProviderConfig): Promise<AIClientResult> {
   const baseUrl = ai.url ?? process.env.LOCAL_API_URL ?? 'http://127.0.0.1:11434';
 
   // Validate that the URL is actually a local/trusted endpoint to prevent SSRF attacks
@@ -133,11 +150,10 @@ async function createLocalClient(
         throw new Error(`Local AI provider error: ${response.status} ${text}`);
       }
 
-      const ollamaResult = await response.json() as OllamaChatCompletionResponse;
+      const ollamaResult = (await response.json()) as OllamaChatCompletionResponse;
       return mapOllamaToOpenAI(ollamaResult);
     },
   };
 
   return { client };
 }
-

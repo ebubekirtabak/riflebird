@@ -32,27 +32,12 @@ describe('ai-config-validator', () => {
         expect(result.errors).toHaveLength(0);
       });
 
-      it('should pass validation with API key in environment variable', () => {
-        process.env.OPENAI_API_KEY = 'sk-env123456789';
-
-        const ai: RiflebirdConfig['ai'] = {
-          provider: 'openai',
-          model: 'gpt-4o-mini',
-          temperature: 0.2,
-        };
-
-        const result = validateAIConfig(ai);
-
-        expect(result.valid).toBe(true);
-        expect(result.errors).toHaveLength(0);
-      });
-
       it('should fail validation without API key', () => {
-        const ai: RiflebirdConfig['ai'] = {
+        const ai = {
           provider: 'openai',
           model: 'gpt-4o-mini',
           temperature: 0.2,
-        };
+        } as unknown as RiflebirdConfig['ai'];
 
         const result = validateAIConfig(ai);
 
@@ -75,7 +60,7 @@ describe('ai-config-validator', () => {
         expect(result.valid).toBe(false);
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0].field).toBe('apiKey');
-        expect(result.errors[0].message).toContain('cannot be empty');
+        expect(result.errors[0].message).toContain('required');
       });
 
       it('should fail validation with invalid API key format', () => {
@@ -126,27 +111,12 @@ describe('ai-config-validator', () => {
         expect(result.errors).toHaveLength(0);
       });
 
-      it('should pass validation with API key in environment variable', () => {
-        process.env.ANTHROPIC_API_KEY = 'sk-ant-env123';
-
-        const ai: RiflebirdConfig['ai'] = {
-          provider: 'anthropic',
-          model: 'claude-3-sonnet',
-          temperature: 0.2,
-        };
-
-        const result = validateAIConfig(ai);
-
-        expect(result.valid).toBe(true);
-        expect(result.errors).toHaveLength(0);
-      });
-
       it('should fail validation without API key', () => {
-        const ai: RiflebirdConfig['ai'] = {
+        const ai = {
           provider: 'anthropic',
           model: 'claude-3-sonnet',
           temperature: 0.2,
-        };
+        } as unknown as RiflebirdConfig['ai'];
 
         const result = validateAIConfig(ai);
 
@@ -169,7 +139,7 @@ describe('ai-config-validator', () => {
         expect(result.valid).toBe(false);
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0].field).toBe('apiKey');
-        expect(result.errors[0].message).toContain('cannot be empty');
+        expect(result.errors[0].message).toContain('required');
       });
 
       it('should fail validation without model name', () => {
@@ -218,11 +188,11 @@ describe('ai-config-validator', () => {
       });
 
       it('should fail validation without URL', () => {
-        const ai: RiflebirdConfig['ai'] = {
+        const ai = {
           provider: 'local',
           model: 'llama2',
           temperature: 0.2,
-        };
+        } as unknown as RiflebirdConfig['ai'];
 
         const result = validateAIConfig(ai);
 
@@ -280,6 +250,81 @@ describe('ai-config-validator', () => {
       });
     });
 
+    describe('Other provider', () => {
+      it('should pass validation with valid config', () => {
+        const ai: RiflebirdConfig['ai'] = {
+          provider: 'other',
+          apiKey: 'sk-custom-key',
+          url: 'https://api.custom-ai.com/v1',
+          model: 'custom-model',
+          temperature: 0.2,
+        };
+
+        const result = validateAIConfig(ai);
+
+        expect(result.valid).toBe(true);
+        expect(result.errors).toHaveLength(0);
+      });
+
+      it('should fail validation without API key', () => {
+        const ai = {
+          provider: 'other',
+          url: 'https://api.custom-ai.com/v1',
+          model: 'custom-model',
+          temperature: 0.2,
+        } as unknown as RiflebirdConfig['ai'];
+
+        const result = validateAIConfig(ai);
+
+        expect(result.valid).toBe(false);
+        expect(result.errors.some((e) => e.field === 'apiKey')).toBe(true);
+      });
+
+      it('should fail validation without URL', () => {
+        const ai = {
+          provider: 'other',
+          apiKey: 'sk-custom-key',
+          model: 'custom-model',
+          temperature: 0.2,
+        } as unknown as RiflebirdConfig['ai'];
+
+        const result = validateAIConfig(ai);
+
+        expect(result.valid).toBe(false);
+        expect(result.errors.some((e) => e.field === 'url')).toBe(true);
+      });
+
+      it('should fail validation with invalid URL', () => {
+        const ai = {
+          provider: 'other',
+          apiKey: 'sk-custom-key',
+          url: 'not-a-url',
+          model: 'custom-model',
+          temperature: 0.2,
+        } as unknown as RiflebirdConfig['ai'];
+
+        const result = validateAIConfig(ai);
+
+        expect(result.valid).toBe(false);
+        expect(result.errors.some((e) => e.field === 'url')).toBe(true);
+      });
+
+      it('should fail validation without model', () => {
+        const ai = {
+          provider: 'other',
+          apiKey: 'sk-custom-key',
+          url: 'https://api.custom-ai.com/v1',
+          model: '',
+          temperature: 0.2,
+        } as unknown as RiflebirdConfig['ai'];
+
+        const result = validateAIConfig(ai);
+
+        expect(result.valid).toBe(false);
+        expect(result.errors.some((e) => e.field === 'model')).toBe(true);
+      });
+    });
+
     describe('Copilot CLI provider', () => {
       it('should pass validation without API key', () => {
         const ai: RiflebirdConfig['ai'] = {
@@ -307,7 +352,7 @@ describe('ai-config-validator', () => {
         const result = validateAIConfig(ai);
 
         expect(result.valid).toBe(false);
-        expect(result.errors.some(e => e.field === 'temperature')).toBe(true);
+        expect(result.errors.some((e) => e.field === 'temperature')).toBe(true);
       });
 
       it('should fail validation with temperature above 2', () => {
@@ -321,7 +366,7 @@ describe('ai-config-validator', () => {
         const result = validateAIConfig(ai);
 
         expect(result.valid).toBe(false);
-        expect(result.errors.some(e => e.field === 'temperature')).toBe(true);
+        expect(result.errors.some((e) => e.field === 'temperature')).toBe(true);
       });
 
       it('should pass validation with temperature at boundary (0)', () => {
@@ -364,9 +409,9 @@ describe('ai-config-validator', () => {
 
         expect(result.valid).toBe(false);
         expect(result.errors.length).toBeGreaterThanOrEqual(3);
-        expect(result.errors.some(e => e.field === 'apiKey')).toBe(true);
-        expect(result.errors.some(e => e.field === 'model')).toBe(true);
-        expect(result.errors.some(e => e.field === 'temperature')).toBe(true);
+        expect(result.errors.some((e) => e.field === 'apiKey')).toBe(true);
+        expect(result.errors.some((e) => e.field === 'model')).toBe(true);
+        expect(result.errors.some((e) => e.field === 'temperature')).toBe(true);
       });
     });
 

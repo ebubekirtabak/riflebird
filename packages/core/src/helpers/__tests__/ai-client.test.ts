@@ -27,9 +27,7 @@ describe('ai-client', () => {
         temperature: 0.2,
       } as unknown as RiflebirdConfig['ai'];
 
-      await expect(createAIClient(config)).rejects.toThrow(
-        'Unknown AI provider: unknown'
-      );
+      await expect(createAIClient(config)).rejects.toThrow(/Unknown AI provider:.*unknown/);
     });
   });
 
@@ -146,6 +144,41 @@ describe('ai-client', () => {
         messages,
       });
     });
+
+    it('should create client for "other" provider with custom URL', async () => {
+      const mockCreate = vi.fn().mockResolvedValue({
+        choices: [{ message: { content: 'test response' } }],
+      });
+
+      const mockOpenAI = vi.fn().mockImplementation(() => ({
+        chat: {
+          completions: {
+            create: mockCreate,
+          },
+        },
+      }));
+
+      vi.doMock('openai', () => ({
+        default: mockOpenAI,
+      }));
+
+      const config: RiflebirdConfig['ai'] = {
+        provider: 'other',
+        apiKey: 'test-api-key',
+        model: 'custom-model',
+        url: 'https://custom-provider.com/v1',
+        temperature: 0.7,
+      };
+
+      const result = await createAIClient(config);
+
+      expect(result.client).toBeDefined();
+      expect(result.openaiInstance).toBeDefined();
+      expect(mockOpenAI).toHaveBeenCalledWith({
+        apiKey: 'test-api-key',
+        baseURL: 'https://custom-provider.com/v1',
+      });
+    });
   });
 
   describe('createLocalClient', () => {
@@ -243,10 +276,7 @@ describe('ai-client', () => {
         messages: [{ role: 'user', content: 'test' }],
       });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:9999/api/chat',
-        expect.anything()
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:9999/api/chat', expect.anything());
 
       // Restore original env
       if (originalEnv) {
@@ -296,6 +326,7 @@ describe('ai-client', () => {
         provider: 'local',
         model: 'llama2',
         temperature: 0.8,
+        url: 'http://127.0.0.1:11434',
       };
 
       const result = await createAIClient(config);
@@ -311,24 +342,21 @@ describe('ai-client', () => {
         messages,
       });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://127.0.0.1:11434/api/chat',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'llama2',
+      expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:11434/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama2',
+          temperature: 0.8,
+          messages,
+          stream: false,
+          options: {
             temperature: 0.8,
-            messages,
-            stream: false,
-            options: {
-              temperature: 0.8,
-            },
-          }),
-        }
-      );
+          },
+        }),
+      });
     });
 
     it('should handle local API error responses', async () => {
@@ -365,7 +393,7 @@ describe('ai-client', () => {
       const mockOllamaResponse = {
         message: {
           role: 'assistant',
-          content: 'Hello from Ollama!'
+          content: 'Hello from Ollama!',
         },
         model: 'llama2',
         done: true,
@@ -405,14 +433,16 @@ describe('ai-client', () => {
       expect(response).toMatchObject({
         model: 'llama2',
         object: 'chat.completion',
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: 'Hello from Ollama!',
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: 'Hello from Ollama!',
+            },
+            finish_reason: 'stop',
           },
-          finish_reason: 'stop',
-        }],
+        ],
         usage: {
           prompt_tokens: 10,
           completion_tokens: 5,
@@ -573,10 +603,7 @@ describe('ai-client', () => {
       });
 
       // Verify fetch was called with default localhost URL
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://127.0.0.1:11434/api/chat',
-        expect.any(Object)
-      );
+      expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:11434/api/chat', expect.any(Object));
     });
   });
 });

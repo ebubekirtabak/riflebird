@@ -8,6 +8,7 @@ describe('config/schema', () => {
       const config = {
         ai: {
           provider: 'openai' as const,
+          apiKey: 'sk-mock-key',
           model: 'gpt-4',
           temperature: 0.2,
         },
@@ -26,6 +27,7 @@ describe('config/schema', () => {
       const config = {
         ai: {
           provider: 'openai' as const,
+          apiKey: 'sk-mock-key',
           model: 'gpt-4',
           temperature: 0.2,
         },
@@ -44,6 +46,7 @@ describe('config/schema', () => {
       const config: RiflebirdConfig = {
         ai: {
           provider: 'openai',
+          apiKey: 'sk-mock-key',
           model: 'gpt-4',
           temperature: 0.2,
         },
@@ -93,6 +96,7 @@ describe('config/schema', () => {
       const config = {
         ai: {
           provider: 'openai' as const,
+          apiKey: 'sk-mock-key',
           model: 'gpt-4',
           temperature: 0.2,
         },
@@ -118,6 +122,7 @@ describe('config/schema', () => {
       const config = {
         ai: {
           provider: 'openai' as const,
+          apiKey: 'sk-mock-key',
           model: 'gpt-4',
           temperature: 0.2,
         },
@@ -149,6 +154,7 @@ describe('config/schema', () => {
         const config = {
           ai: {
             provider: 'openai' as const,
+            apiKey: 'sk-mock-key',
             model: 'gpt-4',
             temperature: 0.2,
           },
@@ -171,6 +177,7 @@ describe('config/schema', () => {
         const config = {
           ai: {
             provider: 'openai' as const,
+            apiKey: 'sk-mock-key',
             model: 'gpt-4',
             temperature: 0.2,
           },
@@ -190,6 +197,7 @@ describe('config/schema', () => {
       const config = {
         ai: {
           provider: 'openai' as const,
+          apiKey: 'sk-mock-key',
           model: 'gpt-4',
           temperature: 0.2,
         },
