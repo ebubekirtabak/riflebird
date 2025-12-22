@@ -30,7 +30,7 @@ Use this when you have sufficient information to fix the test.
 
 **Option 3: Skip Test (REQUIRED for certain files)**
 You MUST use this option if the file matches any of the following criteria:
-1. **Barrel Files**: Files that ONLY contain `export` statements (e.g. `export * from './...'`). These contain NO logic to test.
+1. **Barrel Files**: Files that ONLY contain `export` statements (e.g. `export * from './...'` or `export { ... } from './...'`). These contain NO logic to test.
 2. **Type Definitions**: Files that only contain `interface` or `type` definitions.
 3. **Simple Config**: Files that only export constant configuration objects without logic.
 
