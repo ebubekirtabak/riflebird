@@ -29,6 +29,21 @@ Use this when you have sufficient information to write the test.
 }
 ```
 
+**Option 3: Skip Test (REQUIRED for certain files)**
+You MUST use this option if the file matches any of the following criteria:
+1. **Barrel Files**: Files that ONLY contain `export` statements (e.g. `export * from './...'` or `export { ... } from './...'`). These contain NO logic to test.
+2. **Type Definitions**: Files that only contain `interface` or `type` definitions.
+3. **Simple Config**: Files that only export constant configuration objects without logic.
+
+*Reasoning: Unit tests verify behavior. If a file maps exports or defines types, there is no runtime behavior to verify.*
+
+```json
+{
+  "action": "skip_test",
+  "reason": "Barrel file containing only exports"
+}
+```
+
 **CRITICAL CHECKLIST BEFORE GENERATING:**
 1. Do I know the structure of all imported types/interfaces?
 2. Do I know the signature of mocked functions?

@@ -68,6 +68,12 @@ Use the package manager and dependency information above to:
 - **IMPORTANT Rule**: Tests must be immediately runnable
 - NO explanations or comments in OUTPUT
 - **IMPORTANT Rule**: Output should not contains any explanations or comments
+
+**SKIP RULE (CRITICAL):**
+If the file matched is a "barrel file" (only exports) or purely types/config with NO testable logic:
+You MUST respond with **EXACTLY** this string and NOTHING else:
+`// SKIP_TEST_GENERATION`
+
 - **IMPORTANT**: File Path in '{{FILE_PATH}}' and test file will be in '{{TEST_FILE_PATH}}', please pay attention when writing the imports.
 
 Generate the full test now based on the component provided code:

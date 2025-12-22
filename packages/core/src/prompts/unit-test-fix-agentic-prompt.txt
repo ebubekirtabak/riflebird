@@ -28,6 +28,21 @@ Use this when you have sufficient information to fix the test.
 }
 ```
 
+**Option 3: Skip Test (REQUIRED for certain files)**
+You MUST use this option if the file matches any of the following criteria:
+1. **Barrel Files**: Files that ONLY contain `export` statements (e.g. `export * from './...'`). These contain NO logic to test.
+2. **Type Definitions**: Files that only contain `interface` or `type` definitions.
+3. **Simple Config**: Files that only export constant configuration objects without logic.
+
+*Reasoning: If the test failed effectively because the file logic is untestable (e.g. it's just exports), you should SKIP it rather than forcing a test.*
+
+```json
+{
+  "action": "skip_test",
+  "reason": "Barrel file containing only exports"
+}
+```
+
 ---
 
 **CRITICAL REQUIREMENTS (When fixing test):**
