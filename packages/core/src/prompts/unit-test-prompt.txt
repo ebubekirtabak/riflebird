@@ -70,7 +70,7 @@ Use the package manager and dependency information above to:
 - **IMPORTANT Rule**: Output should not contains any explanations or comments
 
 **SKIP RULE (CRITICAL):**
-If the file matched is a "barrel file" (only exports) or purely types/config with NO testable logic:
+If the file is a "barrel file" (only exports) or purely types/config with NO testable logic:
 You MUST respond with **EXACTLY** this string and NOTHING else:
 `// SKIP_TEST_GENERATION`
 
