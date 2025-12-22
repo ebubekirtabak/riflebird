@@ -27,8 +27,7 @@ export const BaseAIConfig = z.object({
 export const OpenAIConfig = BaseAIConfig.extend({
   provider: z.literal('openai'),
   apiKey: z.string().optional(),
-}).superRefine((data, ctx) => {
-  const apiKey = data.apiKey || process.env.OPENAI_API_KEY;
+}).superRefine(({ apiKey }, ctx) => {
   if (!apiKey || apiKey.trim().length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -49,8 +48,7 @@ export const OpenAIConfig = BaseAIConfig.extend({
 export const AnthropicConfig = BaseAIConfig.extend({
   provider: z.literal('anthropic'),
   apiKey: z.string().optional(),
-}).superRefine((data, ctx) => {
-  const apiKey = data.apiKey || process.env.ANTHROPIC_API_KEY;
+}).superRefine(({ apiKey }, ctx) => {
   if (!apiKey || apiKey.trim().length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

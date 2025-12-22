@@ -32,21 +32,6 @@ describe('ai-config-validator', () => {
         expect(result.errors).toHaveLength(0);
       });
 
-      it('should pass validation with API key in environment variable', () => {
-        process.env.OPENAI_API_KEY = 'sk-env123456789';
-
-        const ai: RiflebirdConfig['ai'] = {
-          provider: 'openai',
-          model: 'gpt-4o-mini',
-          temperature: 0.2,
-        };
-
-        const result = validateAIConfig(ai);
-
-        expect(result.valid).toBe(true);
-        expect(result.errors).toHaveLength(0);
-      });
-
       it('should fail validation without API key', () => {
         const ai = {
           provider: 'openai',
@@ -116,21 +101,6 @@ describe('ai-config-validator', () => {
         const ai: RiflebirdConfig['ai'] = {
           provider: 'anthropic',
           apiKey: 'sk-ant-test123',
-          model: 'claude-3-sonnet',
-          temperature: 0.2,
-        };
-
-        const result = validateAIConfig(ai);
-
-        expect(result.valid).toBe(true);
-        expect(result.errors).toHaveLength(0);
-      });
-
-      it('should pass validation with API key in environment variable', () => {
-        process.env.ANTHROPIC_API_KEY = 'sk-ant-env123';
-
-        const ai: RiflebirdConfig['ai'] = {
-          provider: 'anthropic',
           model: 'claude-3-sonnet',
           temperature: 0.2,
         };
