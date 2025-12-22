@@ -52,7 +52,7 @@ async function createOpenAIClient(
     createChatCompletion: async (opts): Promise<OpenAIChatCompletionResponse> => {
       // Remove format parameter if present as it causes 400 with some providers
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { format, ...restOpts } = opts as { format?: unknown } & typeof opts;
+      const { format, ...restOpts } = opts;
 
       return await openaiInstance.chat.completions.create({
         ...restOpts,
