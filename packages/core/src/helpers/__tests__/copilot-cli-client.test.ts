@@ -21,14 +21,26 @@ vi.mock('child_process', () => {
     spawnSync: vi.fn((cmd: string, args?: unknown) => {
       // Mock successful binary existence checks
       if (cmd === 'which') {
-        return { status: 0, stdout: Buffer.from('/usr/local/bin/copilot'), stderr: Buffer.from('') };
+        return {
+          status: 0,
+          stdout: Buffer.from('/usr/local/bin/copilot'),
+          stderr: Buffer.from(''),
+        };
       }
       // Mock successful command -v check
-      if (typeof cmd === 'string' && cmd.includes('command -v')) {
-        return { status: 0, stdout: Buffer.from('/usr/local/bin/copilot'), stderr: Buffer.from('') };
+      if (typeof cmd === 'string' && cmd.includes('command -v copilot')) {
+        return {
+          status: 0,
+          stdout: Buffer.from('/usr/local/bin/copilot'),
+          stderr: Buffer.from(''),
+        };
+      }
+      // Mock successful gh check
+      if (typeof cmd === 'string' && cmd.includes('command -v gh')) {
+        return { status: 0, stdout: Buffer.from('/usr/local/bin/gh'), stderr: Buffer.from('') };
       }
       // Mock successful auth status
-      if (cmd === 'copilot' && Array.isArray(args) && args[0] === 'auth') {
+      if (cmd === 'gh' && Array.isArray(args) && args[0] === 'auth') {
         return { status: 0, stdout: Buffer.from('authenticated'), stderr: Buffer.from('') };
       }
       // Default: command not found
@@ -87,18 +99,42 @@ describe('createCopilotCliClient', () => {
     mockSpawnSync.mockImplementation((cmd: string, args?: unknown): SpawnSyncReturns<Buffer> => {
       // Mock successful binary existence checks
       if (cmd === 'which') {
-        return { status: 0, stdout: Buffer.from('/usr/local/bin/copilot'), stderr: Buffer.from('') } as SpawnSyncReturns<Buffer>;
+        return {
+          status: 0,
+          stdout: Buffer.from('/usr/local/bin/copilot'),
+          stderr: Buffer.from(''),
+        } as SpawnSyncReturns<Buffer>;
       }
       // Mock successful command -v check
-      if (typeof cmd === 'string' && cmd.includes('command -v')) {
-        return { status: 0, stdout: Buffer.from('/usr/local/bin/copilot'), stderr: Buffer.from('') } as SpawnSyncReturns<Buffer>;
+      if (typeof cmd === 'string' && cmd.includes('command -v copilot')) {
+        return {
+          status: 0,
+          stdout: Buffer.from('/usr/local/bin/copilot'),
+          stderr: Buffer.from(''),
+        } as SpawnSyncReturns<Buffer>;
+      }
+      // Mock successful gh check
+      if (typeof cmd === 'string' && cmd.includes('command -v gh')) {
+        return {
+          status: 0,
+          stdout: Buffer.from('/usr/local/bin/gh'),
+          stderr: Buffer.from(''),
+        } as SpawnSyncReturns<Buffer>;
       }
       // Mock successful auth status
-      if (cmd === 'copilot' && Array.isArray(args) && args[0] === 'auth') {
-        return { status: 0, stdout: Buffer.from('authenticated'), stderr: Buffer.from('') } as SpawnSyncReturns<Buffer>;
+      if (cmd === 'gh' && Array.isArray(args) && args[0] === 'auth') {
+        return {
+          status: 0,
+          stdout: Buffer.from('authenticated'),
+          stderr: Buffer.from(''),
+        } as SpawnSyncReturns<Buffer>;
       }
       // Default: command not found
-      return { status: 1, stdout: Buffer.from(''), stderr: Buffer.from('command not found') } as SpawnSyncReturns<Buffer>;
+      return {
+        status: 1,
+        stdout: Buffer.from(''),
+        stderr: Buffer.from('command not found'),
+      } as SpawnSyncReturns<Buffer>;
     });
 
     // Reset spawn to default success behavior for each test
@@ -157,7 +193,9 @@ describe('createCopilotCliClient', () => {
       expect(client).toBeDefined();
       expect(client.createChatCompletion).toBeDefined();
       expect(spawnSync).toHaveBeenCalledWith('which', ['copilot']);
-      expect(spawnSync).toHaveBeenCalledWith('copilot', ['auth', 'status']);
+      // Should check for gh and auth status
+      expect(spawnSync).toHaveBeenCalledWith('command -v gh', { shell: true });
+      expect(spawnSync).toHaveBeenCalledWith('gh', ['auth', 'status']);
     });
 
     it('should throw error when copilot binary is not found', async () => {
@@ -185,13 +223,33 @@ describe('createCopilotCliClient', () => {
       mockSpawnSync.mockImplementation((cmd: string, args?: unknown): SpawnSyncReturns<Buffer> => {
         // Binary exists
         if (cmd === 'which') {
-          return { status: 0, stdout: Buffer.from('/usr/local/bin/copilot'), stderr: Buffer.from('') } as SpawnSyncReturns<Buffer>;
+          return {
+            status: 0,
+            stdout: Buffer.from('/usr/local/bin/copilot'),
+            stderr: Buffer.from(''),
+          } as SpawnSyncReturns<Buffer>;
         }
-        // Auth check fails
-        if (cmd === 'copilot' && Array.isArray(args) && args[0] === 'auth') {
-          return { status: 1, stdout: Buffer.from(''), stderr: Buffer.from('not authenticated') } as SpawnSyncReturns<Buffer>;
+        // Check for gh existence
+        if (typeof cmd === 'string' && cmd.includes('command -v gh')) {
+          return {
+            status: 0,
+            stdout: Buffer.from('/usr/local/bin/gh'),
+            stderr: Buffer.from(''),
+          } as SpawnSyncReturns<Buffer>;
         }
-        return { status: 1, stdout: Buffer.from(''), stderr: Buffer.from('') } as SpawnSyncReturns<Buffer>;
+        // Auth check fails for gh
+        if (cmd === 'gh' && Array.isArray(args) && args[0] === 'auth') {
+          return {
+            status: 1,
+            stdout: Buffer.from(''),
+            stderr: Buffer.from('not authenticated'),
+          } as SpawnSyncReturns<Buffer>;
+        }
+        return {
+          status: 1,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from(''),
+        } as SpawnSyncReturns<Buffer>;
       });
 
       const ai = {
@@ -200,46 +258,60 @@ describe('createCopilotCliClient', () => {
         copilotCli: { args: [] },
       } as unknown as RiflebirdConfig['ai'];
 
-      await expect(createCopilotCliClient(ai)).rejects.toThrow('not authenticated');
-      await expect(createCopilotCliClient(ai)).rejects.toThrow('copilot auth login');
+      await expect(createCopilotCliClient(ai)).rejects.toThrow(
+        'GitHub CLI (gh) indicates not authenticated'
+      );
+      await expect(createCopilotCliClient(ai)).rejects.toThrow('gh auth login');
     });
 
     it('should handle spawn errors during command checks', async () => {
-       const mockSpawnSync = vi.mocked(spawnSync);
-       mockSpawnSync.mockImplementation(() => {
-         throw new Error('Spawn process failed');
-       });
+      const mockSpawnSync = vi.mocked(spawnSync);
+      mockSpawnSync.mockImplementation(() => {
+        throw new Error('Spawn process failed');
+      });
 
-       const ai = {
-         provider: 'copilot-cli',
-         model: 'gpt-4',
-         copilotCli: { args: [] },
-       } as unknown as RiflebirdConfig['ai'];
+      const ai = {
+        provider: 'copilot-cli',
+        model: 'gpt-4',
+        copilotCli: { args: [] },
+      } as unknown as RiflebirdConfig['ai'];
 
-       await expect(createCopilotCliClient(ai)).rejects.toThrow('Copilot CLI not found');
+      await expect(createCopilotCliClient(ai)).rejects.toThrow('Copilot CLI not found');
     });
 
     it('should handle spawn errors during auth checks', async () => {
-       const mockSpawnSync = vi.mocked(spawnSync);
-       // @ts-expect-error - Mock return type doesn't match exact signature
-       mockSpawnSync.mockImplementation((cmd: string) => {
-         if (cmd === 'which') {
-           return { status: 0, stdout: Buffer.from('/bin/copilot'), stderr: Buffer.from('') } as SpawnSyncReturns<Buffer>;
-         }
-         if (cmd === 'copilot') {
-           throw new Error('Auth command failed');
-         }
-         return { status: 1 } as SpawnSyncReturns<Buffer>;
-       });
+      const mockSpawnSync = vi.mocked(spawnSync);
+      // @ts-expect-error - Mock return type doesn't match exact signature
+      mockSpawnSync.mockImplementation((cmd: string) => {
+        if (cmd === 'which') {
+          return {
+            status: 0,
+            stdout: Buffer.from('/bin/copilot'),
+            stderr: Buffer.from(''),
+          } as SpawnSyncReturns<Buffer>;
+        }
+        if (typeof cmd === 'string' && cmd.includes('command -v gh')) {
+          return {
+            status: 0,
+            stdout: Buffer.from('/usr/local/bin/gh'),
+            stderr: Buffer.from(''),
+          } as SpawnSyncReturns<Buffer>;
+        }
+        if (cmd === 'gh') {
+          throw new Error('Auth command failed');
+        }
+        return { status: 1 } as SpawnSyncReturns<Buffer>;
+      });
 
-       const ai = {
-         provider: 'copilot-cli',
-         model: 'gpt-4',
-         copilotCli: { args: [] },
-       } as unknown as RiflebirdConfig['ai'];
+      const ai = {
+        provider: 'copilot-cli',
+        model: 'gpt-4',
+        copilotCli: { args: [] },
+      } as unknown as RiflebirdConfig['ai'];
 
-       await expect(createCopilotCliClient(ai)).rejects.toThrow('Unable to confirm Copilot CLI authentication');
-       await expect(createCopilotCliClient(ai)).rejects.toThrow('Auth command failed');
+      await expect(createCopilotCliClient(ai)).rejects.toThrow(
+        'Unable to confirm Copilot CLI authentication'
+      );
     });
   });
 
@@ -259,7 +331,11 @@ describe('createCopilotCliClient', () => {
         messages: [{ role: 'user', content: 'test prompt' }],
       });
 
-      expect(spawn).toHaveBeenCalledWith('copilot', ['query', '--model', 'gpt-4'], expect.any(Object));
+      expect(spawn).toHaveBeenCalledWith(
+        'copilot',
+        ['query', '--model', 'gpt-4'],
+        expect.any(Object)
+      );
     });
 
     it('should not inject model when --model already exists in args', async () => {
@@ -276,7 +352,11 @@ describe('createCopilotCliClient', () => {
         messages: [{ role: 'user', content: 'test' }],
       });
 
-      expect(spawn).toHaveBeenCalledWith('copilot', ['query', '--model', 'custom-model'], expect.any(Object));
+      expect(spawn).toHaveBeenCalledWith(
+        'copilot',
+        ['query', '--model', 'custom-model'],
+        expect.any(Object)
+      );
     });
 
     it('should use default model when ai.model is not provided', async () => {
@@ -292,7 +372,11 @@ describe('createCopilotCliClient', () => {
         messages: [{ role: 'user', content: 'test' }],
       });
 
-      expect(spawn).toHaveBeenCalledWith('copilot', ['query', '--model', 'gpt-4o-mini'], expect.any(Object));
+      expect(spawn).toHaveBeenCalledWith(
+        'copilot',
+        ['query', '--model', 'gpt-4o-mini'],
+        expect.any(Object)
+      );
     });
 
     it('should handle --model= format in args', async () => {
@@ -353,40 +437,42 @@ describe('createCopilotCliClient', () => {
       const mockSpawn = vi.mocked(spawn);
       let capturedInput = '';
 
-      mockSpawn.mockImplementationOnce((_cmd: string, _args: readonly string[] = []): ChildProcess => {
-        const stdout = new PassThrough();
-        const stderr = new PassThrough();
-        const stdin = new PassThrough();
+      mockSpawn.mockImplementationOnce(
+        (_cmd: string, _args: readonly string[] = []): ChildProcess => {
+          const stdout = new PassThrough();
+          const stderr = new PassThrough();
+          const stdin = new PassThrough();
 
-        stdin.on('data', (chunk) => {
-          capturedInput += chunk.toString();
-        });
+          stdin.on('data', (chunk) => {
+            capturedInput += chunk.toString();
+          });
 
-        process.nextTick(() => {
-          stdout.write('response');
-          stdout.end();
-        });
+          process.nextTick(() => {
+            stdout.write('response');
+            stdout.end();
+          });
 
-        const mockProcess = {
-          stdout,
-          stderr,
-          stdin,
-          on: vi.fn((event: string, callback: Function) => {
-            if (event === 'exit') {
-              process.nextTick(() => callback(0, null));
-            }
-            return mockProcess;
-          }),
-          once: vi.fn((event: string, callback: Function) => {
-            if (event === 'exit') {
-              process.nextTick(() => callback(0, null));
-            }
-            return mockProcess;
-          }),
-        } as MockChildProcess;
+          const mockProcess = {
+            stdout,
+            stderr,
+            stdin,
+            on: vi.fn((event: string, callback: Function) => {
+              if (event === 'exit') {
+                process.nextTick(() => callback(0, null));
+              }
+              return mockProcess;
+            }),
+            once: vi.fn((event: string, callback: Function) => {
+              if (event === 'exit') {
+                process.nextTick(() => callback(0, null));
+              }
+              return mockProcess;
+            }),
+          } as MockChildProcess;
 
-        return mockProcess as unknown as ChildProcess;
-      });
+          return mockProcess as unknown as ChildProcess;
+        }
+      );
 
       const { client } = await createCopilotCliClient(ai);
 
@@ -412,35 +498,50 @@ describe('createCopilotCliClient', () => {
       const mockSpawn = vi.mocked(spawn);
       let capturedInput = '';
 
-      mockSpawn.mockImplementationOnce((_cmd: string, _args: readonly string[] = []): ChildProcess => {
-        const stdout = new PassThrough();
-        const stderr = new PassThrough();
-        const stdin = new PassThrough();
+      mockSpawn.mockImplementationOnce(
+        (_cmd: string, _args: readonly string[] = []): ChildProcess => {
+          const stdout = new PassThrough();
+          const stderr = new PassThrough();
+          const stdin = new PassThrough();
 
-        stdin.on('data', (chunk) => {
-          capturedInput += chunk.toString();
-        });
+          stdin.on('data', (chunk) => {
+            capturedInput += chunk.toString();
+          });
 
-        process.nextTick(() => {
-          stdout.write('response');
-          stdout.end();
-        });
+          process.nextTick(() => {
+            stdout.write('response');
+            stdout.end();
+          });
 
-        const mockProcess = {
-            stdout, stderr, stdin,
-            on: vi.fn((e, cb) => { if (e === 'exit') process.nextTick(() => cb(0)); return mockProcess; }),
-            once: vi.fn((e, cb) => { if (e === 'exit') process.nextTick(() => cb(0)); return mockProcess; }),
-        } as MockChildProcess;
+          const mockProcess = {
+            stdout,
+            stderr,
+            stdin,
+            on: vi.fn((e, cb) => {
+              if (e === 'exit') process.nextTick(() => cb(0));
+              return mockProcess;
+            }),
+            once: vi.fn((e, cb) => {
+              if (e === 'exit') process.nextTick(() => cb(0));
+              return mockProcess;
+            }),
+          } as MockChildProcess;
 
-        return mockProcess as unknown as ChildProcess;
-      });
+          return mockProcess as unknown as ChildProcess;
+        }
+      );
 
       const { client } = await createCopilotCliClient(ai);
 
       await client.createChatCompletion({
         model: 'gpt-4',
         messages: [
-          { role: 'user', content: [{ type: 'text', text: 'Hello' }] as string | Array<ChatCompletionContentPartText> },
+          {
+            role: 'user',
+            content: [{ type: 'text', text: 'Hello' }] as
+              | string
+              | Array<ChatCompletionContentPartText>,
+          },
         ],
       });
 
