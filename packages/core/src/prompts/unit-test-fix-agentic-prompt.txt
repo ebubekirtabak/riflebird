@@ -39,7 +39,7 @@ You MUST use this option if the file matches any of the following criteria:
 ```json
 {
   "action": "skip_test",
-  "reason": "Barrel file containing only exports"
+  "reason": "Barrel file with only re-exports, no testable logic"
 }
 ```
 
