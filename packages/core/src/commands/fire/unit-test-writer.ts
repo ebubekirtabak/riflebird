@@ -33,6 +33,8 @@ export type PatternResult = {
   failures: Array<{ file: string; error: string }>;
 };
 
+const skipSentinel = '// SKIP_TEST_GENERATION';
+
 export class UnitTestWriter {
   private promptBuilder: PromptTemplateBuilder;
 
@@ -408,8 +410,8 @@ export class UnitTestWriter {
 
       const { content } = choices[0].message;
 
-      // Check for explicit skip instruction
-      if (content?.includes('// SKIP_TEST_GENERATION')) {
+      // Check for explicit skip instruction: only when sentinel is the sole non-whitespace content
+      if (typeof content === 'string' && content.trim() === skipSentinel) {
         return null;
       }
 
