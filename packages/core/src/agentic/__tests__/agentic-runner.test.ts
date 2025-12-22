@@ -208,4 +208,98 @@ describe('AgenticRunner', () => {
     const result = await runner.run('Start');
     expect(result).toBeNull();
   });
+
+  it('should throw error if AI does not return any choices', async () => {
+    (mockAiClient.createChatCompletion as Mock).mockResolvedValue({
+      choices: [],
+    });
+
+    await expect(runner.run('Start')).rejects.toThrow('AI did not return any choices');
+  });
+
+  it('should throw error if AI returns empty content', async () => {
+    (mockAiClient.createChatCompletion as Mock).mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: null,
+          },
+        },
+      ],
+    });
+
+    await expect(runner.run('Start')).rejects.toThrow('AI returned empty or invalid content');
+  });
+  it('should use onSuccess callback if provided', async () => {
+    const onSuccess = vi.fn().mockResolvedValue('intercepted');
+    (mockAiClient.createChatCompletion as Mock).mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              action: 'generate_test',
+              code: 'original',
+            }),
+          },
+        },
+      ],
+    });
+
+    const result = await runner.run('Start', onSuccess);
+    expect(onSuccess).toHaveBeenCalled();
+    expect(result).toBe('intercepted');
+  });
+
+  it('should handle file reading errors gracefully in context', async () => {
+    // Round 1: Request bad file
+    (mockAiClient.createChatCompletion as Mock).mockResolvedValueOnce({
+      choices: [
+        { message: { content: JSON.stringify({ action: 'request_files', files: ['bad.ts'] }) } },
+      ],
+    });
+
+    // Round 2: Success
+    (mockAiClient.createChatCompletion as Mock).mockResolvedValueOnce({
+      choices: [
+        { message: { content: JSON.stringify({ action: 'generate_test', code: 'done' }) } },
+      ],
+    });
+
+    mockFileWalker.readFileFromProject.mockRejectedValue(new Error('Access denied'));
+
+    await runner.run('Start');
+
+    // Verify the error message made it into the context
+    const secondCallArgs = (mockAiClient.createChatCompletion as Mock).mock.calls[1][0];
+    const lastMsg = secondCallArgs.messages[secondCallArgs.messages.length - 1];
+    expect(lastMsg.content).toContain('[Error reading file: Access denied]');
+  });
+
+  it('should handle alternate extension read failures', async () => {
+    // Mock failure for .ts (main) and .tsx (alternate)
+    mockFileWalker.readFileFromProject.mockImplementation(async (path: string) => {
+      throw new Error(`Failed to read ${path}`);
+    });
+
+    // We need to access the private resolveFile or verify the behavior via run
+    // Round 1: Request
+    (mockAiClient.createChatCompletion as Mock).mockResolvedValueOnce({
+      choices: [
+        { message: { content: JSON.stringify({ action: 'request_files', files: ['comp.ts'] }) } },
+      ],
+    });
+    // Round 2: Finish
+    (mockAiClient.createChatCompletion as Mock).mockResolvedValueOnce({
+      choices: [
+        { message: { content: JSON.stringify({ action: 'generate_test', code: 'done' }) } },
+      ],
+    });
+
+    await runner.run('Start');
+
+    // The loop for extensions should have run, caught errors, and finally set the main error
+    const secondCallArgs = (mockAiClient.createChatCompletion as Mock).mock.calls[1][0];
+    const lastMsg = secondCallArgs.messages[secondCallArgs.messages.length - 1];
+    expect(lastMsg.content).toContain('[Error reading file: Failed to read comp.ts]');
+  });
 });
