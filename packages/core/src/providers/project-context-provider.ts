@@ -1,11 +1,18 @@
-import { CommandContext, COMMON_EXCLUDE_DIRS, FileNode, getFileTree } from "@riflebird/core";
-import { ProjectContext, FrameworkInfo, TestFrameworks } from "@models/project-context";
-import { ConfigFile, TestFrameworksConfig } from "@models/project-config-files";
-import { debug, error as errorLog, ProjectFileWalker, FileTreeWalker, FileTreeWalkerContext, detectTestOutputStrategy, detectPackageManagerInfo } from "@utils";
-
+import { CommandContext, COMMON_EXCLUDE_DIRS, FileNode, getFileTree } from '@riflebird/core';
+import { ProjectContext, FrameworkInfo, TestFrameworks } from '@models/project-context';
+import { ConfigFile, TestFrameworksConfig } from '@models/project-config-files';
+import {
+  debug,
+  error as errorLog,
+  ProjectFileWalker,
+  FileTreeWalker,
+  FileTreeWalkerContext,
+  detectTestOutputStrategy,
+  detectPackageManagerInfo,
+} from '@utils';
+import { ProjectCacheManager } from '../cache';
 
 export class ProjectContextProvider {
-
   private context: CommandContext;
   private projectRoot: string;
   private projectFileWalker: ProjectFileWalker;
@@ -13,11 +20,13 @@ export class ProjectContextProvider {
   private fileTreeWalker!: FileTreeWalker;
   private fileTree!: FileNode[];
   private initialized = false;
+  private cacheManager: ProjectCacheManager;
 
   constructor(context: CommandContext, projectRoot: string) {
     this.context = context;
     this.projectRoot = projectRoot;
     this.projectFileWalker = new ProjectFileWalker({ projectRoot });
+    this.cacheManager = new ProjectCacheManager(projectRoot);
   }
 
   async init(): Promise<void> {
@@ -62,6 +71,12 @@ export class ProjectContextProvider {
     await this.init();
 
     try {
+      const cachedContext = await this.cacheManager.load();
+      if (cachedContext) {
+        debug('Using cached project context');
+        return cachedContext;
+      }
+
       const configFiles = await this.fileTreeWalker.findConfigFiles();
       debug(`Found ${configFiles} config files`);
       const { testFrameworks, languageConfig, linting, formatting } = configFiles;
@@ -69,14 +84,16 @@ export class ProjectContextProvider {
 
       // Detect unit test output strategy from config
       const testOutputDir = this.context.config.unitTesting?.testOutputDir;
-      const unitTestOutputStrategy = testOutputDir ? detectTestOutputStrategy(testOutputDir) : undefined;
+      const unitTestOutputStrategy = testOutputDir
+        ? detectTestOutputStrategy(testOutputDir)
+        : undefined;
 
       const packageManagerInfo = await detectPackageManagerInfo(
         this.projectRoot,
         configFiles.packageManager
       );
 
-      return {
+      const context: ProjectContext = {
         configFiles,
         testFrameworks: testFrameworksContext,
         packageManager: {
@@ -84,6 +101,7 @@ export class ProjectContextProvider {
           testCommand: packageManagerInfo.testCommand,
           testScript: packageManagerInfo.testScript,
           packageInfo: packageManagerInfo.packageInfo,
+          packageFilePath: packageManagerInfo.packageFilePath,
         },
         languageConfig: await this.readConfigFile(languageConfig),
         linterConfig: await this.readConfigFile(linting),
@@ -91,6 +109,10 @@ export class ProjectContextProvider {
         projectRoot: this.projectRoot,
         unitTestOutputStrategy,
       };
+
+      await this.cacheManager.save(context);
+
+      return context;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       errorLog('ProjectContextProvider error:', message);
@@ -98,7 +120,10 @@ export class ProjectContextProvider {
     }
   }
 
-  async readTestFramework({ unit }: TestFrameworksConfig, projectRoot: string): Promise<TestFrameworks> {
+  async readTestFramework(
+    { unit }: TestFrameworksConfig,
+    projectRoot: string
+  ): Promise<TestFrameworks> {
     try {
       let unitFramework: FrameworkInfo | null = null;
       const projectFileWalker = new ProjectFileWalker({ projectRoot });
@@ -121,7 +146,6 @@ export class ProjectContextProvider {
       errorLog('readUnitTestFramework error:', message);
       return {};
     }
-
   }
 
   async readConfigFile(configFile: ConfigFile): Promise<FrameworkInfo> {
@@ -138,5 +162,4 @@ export class ProjectContextProvider {
       return {};
     }
   }
-
 }

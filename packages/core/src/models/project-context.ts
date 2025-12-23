@@ -1,4 +1,4 @@
-import { ProjectConfigFiles } from "./project-config-files";
+import { ProjectConfigFiles } from './project-config-files';
 
 export type ProjectContext = {
   configFiles: ProjectConfigFiles;
@@ -30,7 +30,7 @@ export type PackageManager = {
   type: 'npm' | 'yarn' | 'pnpm' | 'bun' | 'unknown';
   version?: string;
   lockFilePath?: string;
-  packageJsonPath?: string;
+  packageFilePath?: string;
   packageJsonContent?: string;
   testCommand?: string;
   testScript?: string;

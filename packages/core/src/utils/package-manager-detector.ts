@@ -2,14 +2,28 @@ import { ProjectFileWalker } from './project-file-walker';
 import type { PackageInfo } from '@models/project-context';
 import { PackageJson, PackageManagerInfo } from '@types';
 
-
 // Common test frameworks to detect
 const TEST_FRAMEWORKS = [
-  'vitest', 'jest', 'mocha', 'jasmine', 'ava', 'tape',
-  'playwright', 'cypress', 'puppeteer', 'webdriverio',
-  '@testing-library/react', '@testing-library/vue', '@testing-library/angular',
-  'karma', 'qunit', 'lab', 'tap'
+  'vitest',
+  'jest',
+  'mocha',
+  'jasmine',
+  'ava',
+  'tape',
+  'playwright',
+  'cypress',
+  'puppeteer',
+  'webdriverio',
+  '@testing-library/react',
+  '@testing-library/vue',
+  '@testing-library/angular',
+  'karma',
+  'qunit',
+  'lab',
+  'tap',
 ] as const;
+
+export const DEFAULT_PACKAGE_MANAGER_FILE = 'package.json';
 
 /**
  * Detect test frameworks from dependencies
@@ -21,10 +35,8 @@ function detectTestFrameworks(pkg: PackageJson): string[] {
     ...pkg.peerDependencies,
   };
 
-  return TEST_FRAMEWORKS.filter(framework =>
-    Object.keys(allDeps).some(dep =>
-      dep === framework || dep.startsWith(`${framework}/`)
-    )
+  return TEST_FRAMEWORKS.filter((framework) =>
+    Object.keys(allDeps).some((dep) => dep === framework || dep.startsWith(`${framework}/`))
   );
 }
 
@@ -62,7 +74,7 @@ export async function detectPackageManagerInfo(
 
   try {
     // Read package.json
-    const pkgContent = await walker.readFileFromProject('package.json', false);
+    const pkgContent = await walker.readFileFromProject(DEFAULT_PACKAGE_MANAGER_FILE, false);
     const pkg = JSON.parse(pkgContent) as PackageJson;
 
     // Extract comprehensive package info
@@ -96,12 +108,18 @@ export async function detectPackageManagerInfo(
       testCommand,
       testScript,
       packageInfo,
+      packageFilePath: DEFAULT_PACKAGE_MANAGER_FILE,
     };
   } catch {
     // If package.json doesn't exist or can't be read, return defaults
-    const fallbackType = detectedType === 'pnpm' ? 'pnpm' :
-                         detectedType === 'yarn' ? 'yarn' :
-                         detectedType === 'bun' ? 'bun' : 'npm';
+    const fallbackType =
+      detectedType === 'pnpm'
+        ? 'pnpm'
+        : detectedType === 'yarn'
+          ? 'yarn'
+          : detectedType === 'bun'
+            ? 'bun'
+            : 'npm';
     return {
       type: fallbackType,
       testCommand: `${fallbackType} test`,
@@ -138,7 +156,7 @@ function detectTestScript(pkg: PackageJson, frameworks: string[] = []): string |
 
   // 4. Fallback: Find any script that looks like a test script
   // Prefer scripts that start with 'test:'
-  const testScript = Object.keys(pkg.scripts).find(script => script.startsWith('test:'));
+  const testScript = Object.keys(pkg.scripts).find((script) => script.startsWith('test:'));
   if (testScript) return testScript;
 
   return undefined;
