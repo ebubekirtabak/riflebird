@@ -1,11 +1,10 @@
-#!/usr/bin/env node
-
 import { Command } from 'commander';
 import { aimCommand } from './commands/aim.js';
 import { fireCommand } from './commands/fire.js';
 import { initCommand } from './commands/init.js';
 import { targetCommand } from './commands/target.js';
 import { reloadCommand } from './commands/reload.js';
+import { cleanCommand } from './commands/clean.js';
 import { interactiveMode } from './interactivite.js';
 
 const program = new Command();
@@ -16,10 +15,7 @@ program
   .version('1.0.0');
 
 // Initialize config
-program
-  .command('init')
-  .description('Initialize Riflebird configuration')
-  .action(initCommand);
+program.command('init').description('Initialize Riflebird configuration').action(initCommand);
 
 // Generate test from description
 program
@@ -40,7 +36,10 @@ program
   .option('--unit', 'Include unit tests')
   .option('--visual', 'Include visual regression tests')
   .option('--performance', 'Include performance tests')
-  .option('-s, --scope <scope>', 'Filter by scope: component, layout, page, service, util, hook, store')
+  .option(
+    '-s, --scope <scope>',
+    'Filter by scope: component, layout, page, service, util, hook, store'
+  )
   .action(fireCommand);
 
 // Find element selector
@@ -57,10 +56,10 @@ program
   .option('--dry-run', 'Show fixes without applying')
   .action(reloadCommand);
 
+// Clean cache
+program.command('clean').description('Clean Riflebird cache').action(cleanCommand);
+
 // expose interactive mode as a top-level command
-program
-  .command('interactive')
-  .description('Run interactive CLI')
-  .action(interactiveMode);
+program.command('interactive').description('Run interactive CLI').action(interactiveMode);
 
 program.parse();
