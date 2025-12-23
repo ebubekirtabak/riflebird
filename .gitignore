@@ -12,3 +12,5 @@ riflebird.config.ts
 coverage
 *.lcov
 .nyc_output
+.riflebird
+
