@@ -63,4 +63,9 @@ File: {{FILE_PATH}}
 - NO explanations or comments in the output
 - **IMPORTANT**: Pay attention to import paths - from {{FILE_PATH}} to {{TEST_FILE_PATH}}
 
+**SKIP RULE (CRITICAL):**
+If the test failure reveals that the source file is actually untestable (e.g. barrel file, pure types), and CANNOT be fixed to have a meaningful test:
+You MUST respond with **EXACTLY** this string and NOTHING else:
+`// SKIP_TEST_GENERATION`
+
 Generate the corrected test code now:

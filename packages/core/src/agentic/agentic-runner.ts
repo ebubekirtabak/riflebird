@@ -6,10 +6,15 @@ import {
   ProjectFileWalker,
   stripMarkdownCodeBlocks,
   cleanCodeContent,
-  getRelatedExtensions
+  getRelatedExtensions,
 } from '@utils';
-import { AgenticFileRequest, AgenticGenerateResponse, AgenticOptions, AgenticResponse } from './types';
-
+import {
+  AgenticFileRequest,
+  AgenticGenerateResponse,
+  AgenticOptions,
+  AgenticResponse,
+  isSkipAction,
+} from './types';
 
 export function isFileRequest(response: AgenticResponse): response is AgenticFileRequest {
   return response.action === 'request_files';
@@ -25,11 +30,9 @@ export class AgenticRunner {
   async run(
     initialPrompt: string,
     onSuccess?: (response: AgenticGenerateResponse) => Promise<string | null>
-  ): Promise<string> {
+  ): Promise<string | null> {
     const { maxIterations = 5 } = this.options;
-    const messages: ChatCompletionMessageParam[] = [
-      { role: 'system', content: initialPrompt }
-    ];
+    const messages: ChatCompletionMessageParam[] = [{ role: 'system', content: initialPrompt }];
 
     for (let i = 0; i < maxIterations; i++) {
       const step = await this.performTurn(messages, onSuccess);
@@ -51,9 +54,10 @@ export class AgenticRunner {
         const { content, resolvedPath, errorMsg } = await this.resolveFile(filePath);
 
         if (content !== null) {
-          const header = resolvedPath !== filePath
-            ? `\n--- FILE: ${filePath} (Resolved to ${resolvedPath}) ---\n`
-            : `\n--- FILE: ${filePath} ---\n`;
+          const header =
+            resolvedPath !== filePath
+              ? `\n--- FILE: ${filePath} (Resolved to ${resolvedPath}) ---\n`
+              : `\n--- FILE: ${filePath} ---\n`;
           fileContext += `${header}${content}\n`;
         } else {
           fileContext += `\n--- FILE: ${filePath} ---\n[Error reading file: ${errorMsg}]\n`;
@@ -72,7 +76,10 @@ export class AgenticRunner {
   private async performTurn(
     messages: ChatCompletionMessageParam[],
     onSuccess?: (response: AgenticGenerateResponse) => Promise<string | null>
-  ): Promise<{ complete: true; result: string } | { complete: false; content: string; files: string[] }> {
+  ): Promise<
+    | { complete: true; result: string | null }
+    | { complete: false; content: string; files: string[] }
+  > {
     const { model, temperature, provider } = this.options.config.ai;
     const response = await this.options.aiClient.createChatCompletion({
       model,
@@ -101,6 +108,11 @@ export class AgenticRunner {
 
     // If prompt logic or customized checking determines this is a final result
     if (!isFileRequest(parsedResponse)) {
+      if (isSkipAction(parsedResponse)) {
+        info(`Agent skipped test generation: ${parsedResponse.reason}`);
+        return { complete: true, result: null };
+      }
+
       if (onSuccess) {
         const result = await onSuccess(parsedResponse);
         if (result) return { complete: true, result };
@@ -136,7 +148,9 @@ export class AgenticRunner {
           content = await this.fileWalker.readFileFromProject(tryPath);
           resolvedPath = tryPath;
           break;
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       if (!content) {

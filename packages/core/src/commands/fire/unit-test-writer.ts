@@ -19,7 +19,7 @@ import {
   parseFailingTestsFromJson,
   runTest,
   getFailingTestsDetail,
-  UnitTestErrorContext
+  UnitTestErrorContext,
 } from '@runners/test-runner';
 import { AgenticRunner } from '@agentic/agentic-runner';
 
@@ -33,6 +33,8 @@ export type PatternResult = {
   failures: Array<{ file: string; error: string }>;
 };
 
+const skipSentinel = '// SKIP_TEST_GENERATION';
+
 export class UnitTestWriter {
   private promptBuilder: PromptTemplateBuilder;
 
@@ -44,7 +46,11 @@ export class UnitTestWriter {
     // Combine user-defined and default exclusion patterns
     const userExcludes = this.options.config.unitTesting?.testMatch || [];
     return [
-      ...new Set([...userExcludes, ...DEFAULT_UNIT_TEST_PATTERNS, ...DEFAULT_FILE_EXCLUDE_PATTERNS]),
+      ...new Set([
+        ...userExcludes,
+        ...DEFAULT_UNIT_TEST_PATTERNS,
+        ...DEFAULT_FILE_EXCLUDE_PATTERNS,
+      ]),
     ];
   }
 
@@ -69,8 +75,9 @@ export class UnitTestWriter {
     const exclusionPatterns = this.getExclusionPatternsForUnitTesting();
 
     // Normalize patterns: remove leading ./ and convert to array
-    const patternArray = (Array.isArray(patterns) ? patterns : [patterns])
-      .map(p => p.replace(/^\.\//, ''));
+    const patternArray = (Array.isArray(patterns) ? patterns : [patterns]).map((p) =>
+      p.replace(/^\.\//, '')
+    );
 
     info(`Searching for files with pattern(s): ${patternArray.join(', ')}`);
 
@@ -80,7 +87,7 @@ export class UnitTestWriter {
     info(`Found ${matchedFiles.length} files matching pattern(s)`);
 
     // Filter out excluded files (test files, storybook files, etc.)
-    const filesToProcess = matchedFiles.filter(file => {
+    const filesToProcess = matchedFiles.filter((file) => {
       for (const excludePattern of exclusionPatterns) {
         if (matchesPattern(file.name, file.path, [excludePattern], false)) {
           return false;
@@ -103,11 +110,7 @@ export class UnitTestWriter {
       }
 
       try {
-        await this.writeTestFile(
-          projectContext,
-          file.path,
-          testFramework,
-        );
+        await this.writeTestFile(projectContext, file.path, testFramework);
         results.push(`Unit test: ${file.path}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -123,7 +126,7 @@ export class UnitTestWriter {
   async writeTestFile(
     projectContext: ProjectContext,
     testPath: string,
-    testFramework?: FrameworkInfo,
+    testFramework?: FrameworkInfo
   ): Promise<void> {
     const healingConfig = this.options.config.healing;
     const isHealingEnabled = healingConfig?.enabled !== false && healingConfig?.mode === 'auto';
@@ -138,7 +141,7 @@ export class UnitTestWriter {
     const testFilePath = generateTestFilePathWithConfig(testPath, {
       testOutputDir: this.options.config.unitTesting?.testOutputDir,
       projectRoot: projectRoot,
-      strategy: unitTestOutputStrategy
+      strategy: unitTestOutputStrategy,
     });
 
     let lastTestCode: string | undefined;
@@ -159,7 +162,14 @@ export class UnitTestWriter {
           lastTestResult
         );
 
-        info(`Generated test file path: ${testFilePath}${attempt > 1 ? ` (fix attempt ${attempt}/${maxRetries})` : ''}`);
+        if (unitTestCode === null) {
+          info(`Skipped test generation for ${testPath}`);
+          return;
+        }
+
+        info(
+          `Generated test file path: ${testFilePath}${attempt > 1 ? ` (fix attempt ${attempt}/${maxRetries})` : ''}`
+        );
         await fileWalker.writeFileToProject(testFilePath, unitTestCode);
         lastTestCode = unitTestCode;
 
@@ -221,7 +231,7 @@ export class UnitTestWriter {
     attempt: number,
     lastTestCode?: string,
     lastTestResult?: Awaited<ReturnType<typeof runTest>>
-  ): Promise<string> {
+  ): Promise<string | null> {
     if (attempt === 1) {
       // First attempt: generate new test
       return this.generateTest(
@@ -232,7 +242,7 @@ export class UnitTestWriter {
           testFilePath: params.testFilePath,
           testContent: '',
         },
-        testFramework,
+        testFramework
       );
     }
 
@@ -252,7 +262,7 @@ export class UnitTestWriter {
           testContent: lastTestCode,
         },
         testFramework,
-         errorContext
+        errorContext
       );
     }
 
@@ -279,30 +289,39 @@ export class UnitTestWriter {
       info('⚠ No test command configured, skipping test verification');
       return {
         passed: true,
-        result: { success: true, stdout: '', stderr: '', jsonReport: null, exitCode: 0, duration: 0 }
+        result: {
+          success: true,
+          stdout: '',
+          stderr: '',
+          jsonReport: null,
+          exitCode: 0,
+          duration: 0,
+        },
       };
     }
 
     info(`Running test to verify: ${testFilePath}`);
     const { projectRoot } = projectContext;
 
-    const testResult = await runTest(
-      projectContext.packageManager.testCommand,
-      {
-        cwd: projectRoot,
-        testFilePath: testFilePath,
-        timeout: 30000,
-        framework: projectContext.testFrameworks?.unit?.name as 'vitest' | 'jest' | 'mocha' | 'ava' | undefined,
-      }
-    );
+    const testResult = await runTest(projectContext.packageManager.testCommand, {
+      cwd: projectRoot,
+      testFilePath: testFilePath,
+      timeout: 30000,
+      framework: projectContext.testFrameworks?.unit?.name as
+        | 'vitest'
+        | 'jest'
+        | 'mocha'
+        | 'ava'
+        | undefined,
+    });
 
     // Check if OUR specific test file passed (not the overall command)
     let ourTestFilePassed = false;
 
     if (testResult.jsonReport) {
       // If we have JSON report, check if our specific test file has any failures
-      const ourTestFileResult = testResult.jsonReport.testResults.find(
-        (result) => result.name.includes(testFilePath)
+      const ourTestFileResult = testResult.jsonReport.testResults.find((result) =>
+        result.name.includes(testFilePath)
       );
 
       if (ourTestFileResult) {
@@ -333,8 +352,8 @@ export class UnitTestWriter {
   async generateTest(
     projectContext: ProjectContext,
     targetFile: TestFile,
-    testFramework?: FrameworkInfo,
-  ): Promise<string> {
+    testFramework?: FrameworkInfo
+  ): Promise<string | null> {
     const { languageConfig, linterConfig, formatterConfig, packageManager } = projectContext;
     const isCopilot = this.options.config.ai.provider === 'copilot-cli';
 
@@ -376,7 +395,7 @@ export class UnitTestWriter {
   /**
    * Simple one-shot generation (for Copilot or fallback)
    */
-  private async simpleGeneration(prompt: string): Promise<string> {
+  private async simpleGeneration(prompt: string): Promise<string | null> {
     try {
       const response = await this.options.aiClient.createChatCompletion({
         model: this.options.config.ai.model,
@@ -390,6 +409,12 @@ export class UnitTestWriter {
       }
 
       const { content } = choices[0].message;
+
+      // Check for explicit skip instruction: only when sentinel is the sole non-whitespace content
+      if (typeof content === 'string' && content.trim() === skipSentinel) {
+        return null;
+      }
+
       return cleanCodeContent(content as string);
     } catch (error) {
       checkAndThrowFatalError(error);
@@ -410,7 +435,7 @@ export class UnitTestWriter {
     targetFile: TestFile,
     testFramework?: FrameworkInfo,
     errorContext?: UnitTestErrorContext
-  ): Promise<string> {
+  ): Promise<string | null> {
     const { languageConfig, linterConfig, formatterConfig, packageManager } = projectContext;
     const failingTestsDetail = getFailingTestsDetail(errorContext);
     const isCopilot = this.options.config.ai.provider === 'copilot-cli';

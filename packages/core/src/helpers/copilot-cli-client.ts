@@ -4,7 +4,6 @@ import { OpenAIChatCompletionResponse, ChatMessage } from '@models/chat';
 import { spawn, spawnSync } from 'child_process';
 import { once } from 'events';
 
-
 const COPILOT_CLI_CMD = 'copilot';
 const COPILOT_CLI_DEFAULT_MODEL = 'gpt-4o-mini';
 
@@ -25,53 +24,70 @@ function ensureCommandExists(cmd: string) {
   }
 
   const installUrl = 'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli';
-  throw new Error([
-    `Copilot CLI not found: please install the Copilot CLI to use the 'copilot-cli' provider.`,
-    `Install instructions: ${installUrl}`,
-    `If you have a custom path, set the environment variable 'COPILOT_CLI_CMD' to the executable path.`,
-  ].join('\n'));
+  throw new Error(
+    [
+      `Copilot CLI not found: please install the Copilot CLI to use the 'copilot-cli' provider.`,
+      `Install instructions: ${installUrl}`,
+      `If you have a custom path, set the environment variable 'COPILOT_CLI_CMD' to the executable path.`,
+    ].join('\n')
+  );
 }
 
-function ensureLoggedIn(cmd: string) {
-  const loginUrl = 'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli#authenticate-with-github';
+function ensureLoggedIn() {
+  const loginUrl =
+    'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli#authenticate-with-github';
+
+  // Check if `gh` is available
   try {
-    const res = spawnSync(cmd, ['auth', 'status']);
-    // If the CLI supports `auth status` it should exit 0 when authenticated.
-    if (res.status === 0) return true;
+    const ghCheck = spawnSync('command -v gh', { shell: true });
+    if (ghCheck.status === 0) {
+      // Use `gh auth status` path
+      const res = spawnSync('gh', ['auth', 'status']);
+      if (res.status === 0) return true;
 
-    const out = String(res.stdout || '').toLowerCase();
-    const err = String(res.stderr || '').toLowerCase();
-    throw new Error([
-      `Copilot CLI is not authenticated. Please run 'copilot auth login' to authenticate.`,
-      `More info: ${loginUrl}`,
-      `stderr: ${err.trim()}`,
-      `stdout: ${out.trim()}`,
-    ].join('\n'));
+      // If `gh` is present but auth status failed
+      const out = String(res.stdout || '').toLowerCase();
+      const err = String(res.stderr || '').toLowerCase();
+      throw new Error(
+        [
+          `GitHub CLI (gh) indicates not authenticated. Please run 'gh auth login' or 'copilot auth login'.`,
+          `More info: ${loginUrl}`,
+          `stderr: ${err.trim()}`,
+          `stdout: ${out.trim()}`,
+        ].join('\n')
+      );
+    }
   } catch (e) {
-    // If spawnSync throws or the command isn't supported, surface a helpful message
-    throw new Error([
-      `Unable to confirm Copilot CLI authentication. Run 'copilot auth login' and try again.`,
-      `More info: ${loginUrl}`,
-      `Error: ${String(e)}`,
-    ].join('\n'));
+    if (e instanceof Error && e.message.includes('GitHub CLI')) throw e;
   }
+
+  throw new Error(
+    [
+      `Unable to confirm Copilot CLI authentication. Please ensure 'gh' (GitHub CLI) is installed and authenticated.`,
+      `Run 'gh auth login' to authenticate.`,
+      `More info: ${loginUrl}`,
+    ].join('\n')
+  );
 }
 
-export async function createCopilotCliClient(
-  ai: RiflebirdConfig['ai']
-): Promise<AIClientResult> {
+export async function createCopilotCliClient(ai: RiflebirdConfig['ai']): Promise<AIClientResult> {
   ensureCommandExists(COPILOT_CLI_CMD);
-  ensureLoggedIn(COPILOT_CLI_CMD);
-  const hasModelArg = ai.copilotCli?.args?.some((a: string) => a === '--model' || a.startsWith('--model='));
+  ensureLoggedIn();
+  const hasModelArg = ai.copilotCli?.args?.some(
+    (a: string) => a === '--model' || a.startsWith('--model=')
+  );
   const spawnArgs = hasModelArg
-    ? ai.copilotCli?.args ?? []
+    ? (ai.copilotCli?.args ?? [])
     : [...(ai.copilotCli?.args ?? []), '--model', String(ai.model ?? COPILOT_CLI_DEFAULT_MODEL)];
 
   const client: AIClient = {
     createChatCompletion: async (opts): Promise<OpenAIChatCompletionResponse> => {
       // Build a simple plaintext prompt from chat messages
       const promptText = opts.messages
-        .map((m) => `${m.role.toString()}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
+        .map(
+          (m) =>
+            `${m.role.toString()}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`
+        )
         .join('\n\n');
 
       const proc = spawn(COPILOT_CLI_CMD, spawnArgs, { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -87,7 +103,7 @@ export async function createCopilotCliClient(
       proc.stdin.write(promptText);
       proc.stdin.end();
 
-      const [code] = await once(proc, 'exit') as unknown as [number | null, string | null];
+      const [code] = (await once(proc, 'exit')) as unknown as [number | null, string | null];
 
       if (code !== 0) {
         throw new Error(`Copilot CLI failed (exit ${code}): ${stderr.trim()}`);
