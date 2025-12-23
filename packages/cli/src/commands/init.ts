@@ -97,6 +97,9 @@ export async function initCommand() {
   // Write to file
   await fs.writeFile('riflebird.config.ts', config);
 
+  // Update .gitignore
+  await updateGitIgnore();
+
   console.log(chalk.green('\n✓ riflebird.config.ts created!\n'));
   console.log(chalk.cyan('Next steps:'));
   console.log(chalk.white('  1. Set API key: export OPENAI_API_KEY=your_key_here'));
@@ -129,12 +132,12 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     timeout: 30000,`
         : answers.framework === 'cypress'
-        ? `baseUrl: 'http://localhost:3000',
+          ? `baseUrl: 'http://localhost:3000',
     viewportWidth: 1280,
     viewportHeight: 720,
     video: false,
     screenshotOnRunFailure: true,`
-        : `headless: false,
+          : `headless: false,
     baseUrl: 'http://localhost:3000',`
     }
     },
@@ -170,8 +173,8 @@ export default defineConfig({
     aiSummary: true,
   },
 ${
-    answers.unitTesting
-      ? `
+  answers.unitTesting
+    ? `
   unitTesting: {
     enabled: true,
     framework: '${answers.unitTestFramework || 'vitest'}',
@@ -199,8 +202,29 @@ ${
     clearMocks: true,
     timeout: 5000,
   },`
-      : ''
-  }
+    : ''
+}
 });
 `;
+}
+
+export async function updateGitIgnore(): Promise<void> {
+  try {
+    const gitignorePath = '.gitignore';
+    const ignoreEntry = '\n# Riflebird cache\n.riflebird/\n';
+
+    try {
+      const content = await fs.readFile(gitignorePath, 'utf-8');
+      if (!content.includes('.riflebird/')) {
+        await fs.appendFile(gitignorePath, ignoreEntry);
+        console.log(chalk.green('✓ Added .riflebird/ to .gitignore'));
+      }
+    } catch {
+      // .gitignore doesn't exist, create it
+      await fs.writeFile(gitignorePath, ignoreEntry);
+      console.log(chalk.green('✓ Created .gitignore with .riflebird/'));
+    }
+  } catch (error) {
+    console.warn(chalk.yellow('⚠ Failed to update .gitignore:', error));
+  }
 }

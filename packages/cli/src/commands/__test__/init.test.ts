@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { InitAnswers } from '../init';
-import { initCommand } from '../init';
+import { initCommand, updateGitIgnore } from '../init';
 import fs from 'fs/promises';
 import inquirer from 'inquirer';
 
@@ -190,10 +190,73 @@ describe('cli/commands/init', () => {
       await initCommand();
 
       const questions = mockPrompt.mock.calls[0][0] as Array<{ name: string; default: unknown }>;
-      const healingQuestion = questions.find(q => q.name === 'healing');
+      const healingQuestion = questions.find((q) => q.name === 'healing');
 
       expect(healingQuestion).toBeDefined();
       expect(healingQuestion?.default).toBe(true);
+    });
+  });
+
+  describe('updateGitIgnore', () => {
+    it('should create .gitignore if it does not exist', async () => {
+      const mockReadFile = vi.mocked(fs.readFile);
+      const mockWriteFile = vi.mocked(fs.writeFile);
+
+      mockReadFile.mockRejectedValue(new Error('ENOENT'));
+      mockWriteFile.mockResolvedValue(undefined);
+
+      await updateGitIgnore();
+
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        '.gitignore',
+        expect.stringContaining('.riflebird/')
+      );
+    });
+
+    it('should append to .gitignore if it exists but is missing the entry', async () => {
+      const mockReadFile = vi.mocked(fs.readFile);
+      const mockAppendFile = vi.mocked(fs.appendFile);
+
+      mockReadFile.mockResolvedValue('node_modules/\n');
+      mockAppendFile.mockResolvedValue(undefined);
+
+      await updateGitIgnore();
+
+      expect(mockAppendFile).toHaveBeenCalledWith(
+        '.gitignore',
+        expect.stringContaining('.riflebird/')
+      );
+    });
+
+    it('should not modify .gitignore if entry already exists', async () => {
+      const mockReadFile = vi.mocked(fs.readFile);
+      const mockAppendFile = vi.mocked(fs.appendFile);
+      const mockWriteFile = vi.mocked(fs.writeFile);
+
+      mockReadFile.mockResolvedValue('node_modules/\n\n# Riflebird cache\n.riflebird/\n');
+
+      await updateGitIgnore();
+
+      expect(mockAppendFile).not.toHaveBeenCalled();
+      expect(mockWriteFile).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors gracefully', async () => {
+      const mockReadFile = vi.mocked(fs.readFile);
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const mockWriteFile = vi.mocked(fs.writeFile);
+
+      mockReadFile.mockRejectedValue(new Error('Access denied'));
+      mockWriteFile.mockRejectedValue(new Error('Access denied'));
+
+      // Should not throw
+      await updateGitIgnore();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('⚠ Failed to update .gitignore:')
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Access denied'));
     });
   });
 });
