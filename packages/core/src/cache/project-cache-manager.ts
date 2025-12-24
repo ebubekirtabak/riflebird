@@ -42,12 +42,13 @@ export class ProjectCacheManager {
         throw error;
       }
 
-      const { isValid, wasUpdated } = await this.reconcileCache(cache);
+      const { isValid, wasUpdated, reconciledCache } = await this.reconcileCache(cache);
 
       if (isValid) {
-        if (wasUpdated) {
+        if (wasUpdated && reconciledCache) {
           debug('Cache was stale but repairable, updating...');
-          await this.save(cache);
+          await this.save(reconciledCache);
+          return reconciledCache;
         }
         return cache;
       }
@@ -78,15 +79,18 @@ export class ProjectCacheManager {
 
   private async reconcileCache(
     cache: ProjectContext
-  ): Promise<{ isValid: boolean; wasUpdated: boolean }> {
+  ): Promise<{ isValid: boolean; wasUpdated: boolean; reconciledCache?: ProjectContext }> {
     try {
+      // Deep copy to avoid mutation
+      const reconciledCache = JSON.parse(JSON.stringify(cache)) as ProjectContext;
       let wasUpdated = false;
+
       const frameworksToCheck: (FrameworkInfo | undefined)[] = [
-        cache.languageConfig,
-        cache.linterConfig,
-        cache.formatterConfig,
-        cache.testFrameworks?.unit,
-        cache.testFrameworks?.e2e,
+        reconciledCache.languageConfig,
+        reconciledCache.linterConfig,
+        reconciledCache.formatterConfig,
+        reconciledCache.testFrameworks?.unit,
+        reconciledCache.testFrameworks?.e2e,
       ].filter(Boolean);
 
       for (const framework of frameworksToCheck) {
@@ -121,7 +125,7 @@ export class ProjectCacheManager {
       }
 
       // Check package file content if it was tracked
-      const packageFile = cache.packageManager?.packageFilePath;
+      const packageFile = reconciledCache.packageManager?.packageFilePath;
       if (packageFile) {
         const packageFilePath = path.join(this.projectRoot, packageFile);
         let fileHandle: fs.FileHandle | undefined;
@@ -129,23 +133,23 @@ export class ProjectCacheManager {
         try {
           fileHandle = await fs.open(packageFilePath, 'r');
           const stats = await fileHandle.stat();
-          const cachedMtime = cache.packageManager?.packageFileLastModified;
+          const cachedMtime = reconciledCache.packageManager?.packageFileLastModified;
 
           if (!cachedMtime || stats.mtimeMs !== cachedMtime) {
             const content = await fileHandle.readFile({ encoding: 'utf-8' });
-            const previousContent = cache.packageManager?.packageFileContent;
+            const previousContent = reconciledCache.packageManager?.packageFileContent;
 
             if (content.trim() !== (previousContent || '').trim()) {
               debug(`Package file changed, updating cache: ${packageFile}`);
-              if (cache.packageManager) {
-                cache.packageManager.packageFileContent = content;
+              if (reconciledCache.packageManager) {
+                reconciledCache.packageManager.packageFileContent = content;
               }
             } else {
               debug(`Package file touched (mtime changed), updating timestamp: ${packageFile}`);
             }
 
-            if (cache.packageManager) {
-              cache.packageManager.packageFileLastModified = stats.mtimeMs;
+            if (reconciledCache.packageManager) {
+              reconciledCache.packageManager.packageFileLastModified = stats.mtimeMs;
             }
             wasUpdated = true;
           }
@@ -157,7 +161,7 @@ export class ProjectCacheManager {
         }
       }
 
-      return { isValid: true, wasUpdated };
+      return { isValid: true, wasUpdated, reconciledCache };
     } catch (error) {
       debug('Cache validation error:', error);
       return { isValid: false, wasUpdated: false };
