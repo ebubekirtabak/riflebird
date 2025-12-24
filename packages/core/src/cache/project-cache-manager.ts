@@ -18,14 +18,9 @@ export class ProjectCacheManager {
   async hasCache(): Promise<boolean> {
     try {
       const cachePath = path.join(this.cacheDir, CACHE_FILE);
-      const cacheExists = await fs
-        .access(cachePath)
-        .then(() => true)
-        .catch(() => false);
-
-      return cacheExists;
-    } catch (error) {
-      debug('Error checking cache:', error);
+      await fs.access(cachePath);
+      return true;
+    } catch {
       return false;
     }
   }
