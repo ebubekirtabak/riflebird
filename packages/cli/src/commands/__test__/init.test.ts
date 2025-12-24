@@ -94,6 +94,17 @@ describe('cli/commands/init', () => {
   });
 
   describe('initCommand', () => {
+    beforeEach(() => {
+      const mockOpen = vi.mocked(fs.open);
+      const mockFileHandle = {
+        readFile: vi.fn().mockResolvedValue(''),
+        write: vi.fn().mockResolvedValue(undefined),
+        close: vi.fn().mockResolvedValue(undefined),
+      };
+      // @ts-expect-error - partial mock
+      mockOpen.mockResolvedValue(mockFileHandle);
+    });
+
     it('should create riflebird.config.ts file with user selections', async () => {
       const mockPrompt = vi.mocked(inquirer.prompt);
       const mockWriteFile = vi.mocked(fs.writeFile);
@@ -199,61 +210,75 @@ describe('cli/commands/init', () => {
 
   describe('updateGitIgnore', () => {
     it('should create .gitignore if it does not exist', async () => {
-      const mockAccess = vi.mocked(fs.access);
-      const mockReadFile = vi.mocked(fs.readFile);
-      const mockWriteFile = vi.mocked(fs.writeFile);
+      const mockOpen = vi.mocked(fs.open);
+      const mockFileHandle = {
+        readFile: vi.fn(),
+        write: vi.fn(),
+        close: vi.fn(),
+      };
 
-      const enoentError = new Error('ENOENT');
-      Object.assign(enoentError, { code: 'ENOENT' });
-
-      mockAccess.mockRejectedValue(enoentError);
-      mockReadFile.mockRejectedValue(enoentError);
-      mockWriteFile.mockResolvedValue(undefined);
+      // @ts-expect-error - partial mock
+      mockOpen.mockResolvedValue(mockFileHandle);
+      mockFileHandle.readFile.mockResolvedValue(''); // Empty file (simulating creation)
+      mockFileHandle.write.mockResolvedValue(undefined);
+      mockFileHandle.close.mockResolvedValue(undefined);
 
       await updateGitIgnore();
 
-      expect(mockWriteFile).toHaveBeenCalledWith(
-        '.gitignore',
-        expect.stringContaining('.riflebird/')
-      );
+      expect(mockOpen).toHaveBeenCalledWith('.gitignore', 'a+');
+      expect(mockFileHandle.readFile).toHaveBeenCalledWith('utf-8');
+      expect(mockFileHandle.write).toHaveBeenCalledWith(expect.stringContaining('.riflebird/'));
+      expect(mockFileHandle.close).toHaveBeenCalled();
     });
 
     it('should append to .gitignore if it exists but is missing the entry', async () => {
-      const mockReadFile = vi.mocked(fs.readFile);
-      const mockAppendFile = vi.mocked(fs.appendFile);
+      const mockOpen = vi.mocked(fs.open);
+      const mockFileHandle = {
+        readFile: vi.fn(),
+        write: vi.fn(),
+        close: vi.fn(),
+      };
 
-      mockReadFile.mockResolvedValue('node_modules/\n');
-      mockAppendFile.mockResolvedValue(undefined);
+      // @ts-expect-error - partial mock
+      mockOpen.mockResolvedValue(mockFileHandle);
+      mockFileHandle.readFile.mockResolvedValue('node_modules/\n');
+      mockFileHandle.write.mockResolvedValue(undefined);
+      mockFileHandle.close.mockResolvedValue(undefined);
 
       await updateGitIgnore();
 
-      expect(mockAppendFile).toHaveBeenCalledWith(
-        '.gitignore',
-        expect.stringContaining('.riflebird/')
-      );
+      expect(mockOpen).toHaveBeenCalledWith('.gitignore', 'a+');
+      expect(mockFileHandle.write).toHaveBeenCalledWith(expect.stringContaining('.riflebird/'));
+      expect(mockFileHandle.close).toHaveBeenCalled();
     });
 
     it('should not modify .gitignore if entry already exists', async () => {
-      const mockReadFile = vi.mocked(fs.readFile);
-      const mockAppendFile = vi.mocked(fs.appendFile);
-      const mockWriteFile = vi.mocked(fs.writeFile);
+      const mockOpen = vi.mocked(fs.open);
+      const mockFileHandle = {
+        readFile: vi.fn(),
+        write: vi.fn(),
+        close: vi.fn(),
+      };
 
-      mockReadFile.mockResolvedValue('node_modules/\n\n# Riflebird cache\n.riflebird/\n');
+      // @ts-expect-error - partial mock
+      mockOpen.mockResolvedValue(mockFileHandle);
+      mockFileHandle.readFile.mockResolvedValue(
+        'node_modules/\n\n# Riflebird cache\n.riflebird/\n'
+      );
+      mockFileHandle.close.mockResolvedValue(undefined);
 
       await updateGitIgnore();
 
-      expect(mockAppendFile).not.toHaveBeenCalled();
-      expect(mockWriteFile).not.toHaveBeenCalled();
+      expect(mockOpen).toHaveBeenCalledWith('.gitignore', 'a+');
+      expect(mockFileHandle.write).not.toHaveBeenCalled();
+      expect(mockFileHandle.close).toHaveBeenCalled();
     });
 
-    it('should handle errors gracefully', async () => {
-      const mockReadFile = vi.mocked(fs.readFile);
+    it('should handle errors gracefully and ensure file is closed', async () => {
+      const mockOpen = vi.mocked(fs.open);
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const mockWriteFile = vi.mocked(fs.writeFile);
-
-      mockReadFile.mockRejectedValue(new Error('Access denied'));
-      mockWriteFile.mockRejectedValue(new Error('Access denied'));
+      mockOpen.mockRejectedValue(new Error('Access denied'));
 
       // Should not throw
       await updateGitIgnore();
@@ -261,6 +286,25 @@ describe('cli/commands/init', () => {
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringMatching(/⚠ Failed to update .gitignore:.*Access denied/)
       );
+    });
+
+    it('should close file handle even if read fails', async () => {
+      const mockOpen = vi.mocked(fs.open);
+      const mockFileHandle = {
+        readFile: vi.fn(),
+        write: vi.fn(),
+        close: vi.fn(),
+      };
+
+      // @ts-expect-error - partial mock
+      mockOpen.mockResolvedValue(mockFileHandle);
+      mockFileHandle.readFile.mockRejectedValue(new Error('Read failed'));
+      mockFileHandle.close.mockResolvedValue(undefined);
+
+      await updateGitIgnore();
+
+      expect(mockOpen).toHaveBeenCalled();
+      expect(mockFileHandle.close).toHaveBeenCalled();
     });
   });
 });
