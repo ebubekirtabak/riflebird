@@ -34,6 +34,36 @@ vi.mock('@utils', async (importOriginal) => {
 });
 vi.mock('fs/promises');
 
+// Factory for type-safe ProjectContext
+const createMockConfigFile = (
+  overrides: Partial<import('@models/project-config-files').ConfigFile> = {}
+): import('@models/project-config-files').ConfigFile => ({
+  type: 'mock-type',
+  configFile: 'mock.config',
+  configFilePath: 'mock.config',
+  ...overrides,
+});
+
+const createMockProjectContext = (overrides: Partial<ProjectContext> = {}): ProjectContext => ({
+  projectRoot: '/mock/root',
+  configFiles: {
+    framework: createMockConfigFile({ type: 'react' }),
+    language: 'typescript',
+    packageManager: 'npm',
+    libs: { core: [], testing: [], styling: [] },
+    testFrameworks: {},
+    linting: createMockConfigFile({ type: 'eslint' }),
+    formatting: createMockConfigFile({ type: 'prettier' }),
+    languageConfig: createMockConfigFile({ type: 'typescript' }),
+    importantConfigFiles: {},
+  },
+  languageConfig: {},
+  linterConfig: {},
+  formatterConfig: {},
+  packageManager: { type: 'npm' },
+  ...overrides,
+});
+
 describe('ProjectContextProvider Caching Strategy', () => {
   let provider: ProjectContextProvider;
   let mockContext: CommandContext;
@@ -47,13 +77,36 @@ describe('ProjectContextProvider Caching Strategy', () => {
       load: vi.fn(),
       save: vi.fn(),
     };
-    (ProjectCacheManager as unknown as Mock).mockImplementation(() => mockCacheManagerInstance);
+    vi.mocked(ProjectCacheManager).mockImplementation(
+      () => mockCacheManagerInstance as unknown as ProjectCacheManager
+    );
+
+    // Create type-safe mocks
+    const mockAIClient: AIClient = {
+      createChatCompletion: vi.fn(),
+    };
+
+    const mockAdapter: TestFrameworkAdapter = {
+      name: 'mock-adapter',
+      init: vi.fn(),
+      goto: vi.fn(),
+      click: vi.fn(),
+      fill: vi.fn(),
+      select: vi.fn(),
+      expectVisible: vi.fn(),
+      expectText: vi.fn(),
+      expectURL: vi.fn(),
+      screenshot: vi.fn(),
+      findElement: vi.fn(),
+      close: vi.fn(),
+      generateTestCode: vi.fn(),
+    };
 
     // Mock Context
     mockContext = {
-      aiClient: { createChatCompletion: vi.fn() } as unknown as AIClient,
+      aiClient: mockAIClient,
       config: { unitTesting: { enabled: true } } as RiflebirdConfig,
-      adapter: {} as unknown as TestFrameworkAdapter,
+      adapter: mockAdapter,
     } as CommandContext;
 
     provider = new ProjectContextProvider(mockContext, '/mock/root');
@@ -62,10 +115,12 @@ describe('ProjectContextProvider Caching Strategy', () => {
   });
 
   it('should USE cached context if available (HIT)', async () => {
-    const cachedCtx = {
+    const cachedCtx = createMockProjectContext({
       projectRoot: '/mock/root',
-      cameFromCache: true,
-    } as unknown as ProjectContext;
+    });
+    // @ts-expect-error - simulating cache property for test
+    cachedCtx.cameFromCache = true;
+
     mockCacheManagerInstance.load.mockResolvedValue(cachedCtx);
 
     const result = await provider.getContext();
