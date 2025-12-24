@@ -70,6 +70,7 @@ describe('ProjectCacheManager', () => {
         type: 'npm',
         testCommand: 'npm test',
         packageFilePath: 'package.json',
+        packageJsonContent: '{}',
       },
     };
   });
@@ -137,6 +138,7 @@ describe('ProjectCacheManager', () => {
 
         // Return simple content for other files (like custom package files if read)
         if (pathStr.endsWith('custom.json')) return Promise.resolve('{}');
+        if (pathStr.endsWith('package.json')) return Promise.resolve('{}');
 
         return Promise.reject(new Error(`File not found: ${filePath}`));
       });
@@ -168,6 +170,7 @@ describe('ProjectCacheManager', () => {
           return Promise.resolve(mockContext.linterConfig.configContent!);
         if (pathStr.endsWith('.prettierrc'))
           return Promise.resolve(mockContext.formatterConfig.configContent!);
+        if (pathStr.endsWith('package.json')) return Promise.resolve('{}');
         return Promise.reject(new Error(`File not found: ${filePath}`));
       });
 
@@ -208,15 +211,11 @@ describe('ProjectCacheManager', () => {
           return Promise.resolve(mockContext.linterConfig.configContent!);
         if (pathStr.endsWith('.prettierrc'))
           return Promise.resolve(mockContext.formatterConfig.configContent!);
-        return Promise.resolve('some content');
-      });
 
-      // Mock package.json access failing
-      mockedFs.access.mockImplementation((filePath) => {
-        const pathStr = filePath.toString();
-        if (pathStr === mockCachePath) return Promise.resolve(undefined);
+        // Mock package.json read failing
         if (pathStr.endsWith('package.json')) return Promise.reject(new Error('ENOENT'));
-        return Promise.resolve(undefined);
+
+        return Promise.resolve('some content');
       });
 
       const result = await cacheManager.load();
@@ -226,7 +225,11 @@ describe('ProjectCacheManager', () => {
     it('should VALIDATE dynamic package file if present in cache', async () => {
       const customPkgContext = {
         ...mockContext,
-        packageManager: { ...mockContext.packageManager!, packageFilePath: 'custom.json' },
+        packageManager: {
+          ...mockContext.packageManager!,
+          packageFilePath: 'custom.json',
+          packageJsonContent: '{}',
+        },
       };
 
       mockedFs.readFile.mockImplementation((filePath) => {
@@ -239,14 +242,8 @@ describe('ProjectCacheManager', () => {
           return Promise.resolve(mockContext.linterConfig.configContent!);
         if (filePath.toString().endsWith('.prettierrc'))
           return Promise.resolve(mockContext.formatterConfig.configContent!);
+        if (filePath.toString().endsWith('custom.json')) return Promise.resolve('{}');
         return Promise.resolve('{}');
-      });
-
-      // Mock checking both config files (read) and package file (access)
-      mockedFs.access.mockImplementation((filePath) => {
-        if (filePath.toString() === mockCachePath) return Promise.resolve(undefined);
-        if (filePath.toString().endsWith('custom.json')) return Promise.resolve(undefined);
-        return Promise.resolve(undefined);
       });
 
       const result = await cacheManager.load();
@@ -269,18 +266,39 @@ describe('ProjectCacheManager', () => {
           return Promise.resolve(mockContext.linterConfig.configContent!);
         if (filePath.toString().endsWith('.prettierrc'))
           return Promise.resolve(mockContext.formatterConfig.configContent!);
-        return Promise.resolve('{}');
-      });
 
-      mockedFs.access.mockImplementation((filePath) => {
-        if (filePath.toString() === mockCachePath) return Promise.resolve(undefined);
+        // Mock missing.json read failing
         if (filePath.toString().endsWith('missing.json'))
           return Promise.reject(new Error('ENOENT'));
-        return Promise.resolve(undefined);
+
+        return Promise.resolve('{}');
       });
 
       const result = await cacheManager.load();
       expect(result).toBeNull();
+    });
+
+    it('should UPDATE cache if package.json content changed on disk', async () => {
+      const newPackageJson = '{ "name": "updated-package", "version": "1.0.1" }';
+
+      mockedFs.readFile.mockImplementation((filePath) => {
+        const pathStr = filePath.toString();
+        if (pathStr === mockCachePath) return Promise.resolve(JSON.stringify(mockContext));
+        if (pathStr.endsWith('package.json')) return Promise.resolve(newPackageJson); // CHANGED
+        if (pathStr.endsWith('tsconfig.json'))
+          return Promise.resolve(mockContext.languageConfig.configContent!);
+        if (pathStr.endsWith('.eslintrc.json'))
+          return Promise.resolve(mockContext.linterConfig.configContent!);
+        if (pathStr.endsWith('.prettierrc'))
+          return Promise.resolve(mockContext.formatterConfig.configContent!);
+        return Promise.reject(new Error(`File not found: ${filePath}`));
+      });
+
+      const result = await cacheManager.load();
+
+      expect(result).not.toBeNull();
+      expect(result?.packageManager?.packageJsonContent).toBe(newPackageJson); // Should have new content
+      expect(mockedFs.writeFile).toHaveBeenCalled(); // Should trigger save
     });
   });
 });

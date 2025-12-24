@@ -105,14 +105,24 @@ export class ProjectCacheManager {
         }
       }
 
-      // Check package file existence if it was tracked
+      // Check package file content if it was tracked
       const packageFile = cache.packageManager?.packageFilePath;
       if (packageFile) {
         const packageFilePath = path.join(this.projectRoot, packageFile);
         try {
-          await fs.access(packageFilePath);
+          const content = await fs.readFile(packageFilePath, 'utf-8');
+          const previousContent = cache.packageManager?.packageJsonContent;
+
+          // Update cache if content changed
+          if (content.trim() !== (previousContent || '').trim()) {
+            debug(`Package file changed, updating cache: ${packageFile}`);
+            if (cache.packageManager) {
+              cache.packageManager.packageJsonContent = content;
+            }
+            wasUpdated = true;
+          }
         } catch {
-          debug(`Cache invalid: Package file missing ${packageFile}`);
+          debug(`Cache invalid: Package file missing or unreadable ${packageFile}`);
           return { isValid: false, wasUpdated: false };
         }
       }
