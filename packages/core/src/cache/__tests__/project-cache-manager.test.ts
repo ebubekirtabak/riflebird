@@ -127,6 +127,20 @@ describe('ProjectCacheManager', () => {
         mtimeMs: 1000,
       } as unknown as Stats);
 
+      // Implement open to return a handle that delegates to existing stat/readFile mocks
+      mockedFs.open.mockImplementation(async (filePath) => {
+        // Check if file exists by calling stat (which might throw ENOENT based on other mocks)
+        await mockedFs.stat(filePath);
+
+        return {
+          stat: async () => mockedFs.stat(filePath),
+          readFile: async (options: unknown) =>
+            mockedFs.readFile(filePath, options as Parameters<typeof mockedFs.readFile>[1]),
+          close: vi.fn().mockResolvedValue(undefined),
+          fd: 1,
+        } as unknown as fs.FileHandle;
+      });
+
       mockedFs.readFile.mockImplementation((filePath) => {
         const pathStr = filePath.toString();
 

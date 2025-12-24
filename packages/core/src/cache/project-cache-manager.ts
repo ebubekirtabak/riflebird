@@ -129,12 +129,15 @@ export class ProjectCacheManager {
       const packageFile = cache.packageManager?.packageFilePath;
       if (packageFile) {
         const packageFilePath = path.join(this.projectRoot, packageFile);
+        let fileHandle: fs.FileHandle | undefined;
+
         try {
-          const stats = await fs.stat(packageFilePath);
+          fileHandle = await fs.open(packageFilePath, 'r');
+          const stats = await fileHandle.stat();
           const cachedMtime = cache.packageManager?.packageJsonLastModified;
 
           if (!cachedMtime || stats.mtimeMs !== cachedMtime) {
-            const content = await fs.readFile(packageFilePath, 'utf-8');
+            const content = await fileHandle.readFile({ encoding: 'utf-8' });
             const previousContent = cache.packageManager?.packageJsonContent;
 
             if (content.trim() !== (previousContent || '').trim()) {
@@ -154,6 +157,8 @@ export class ProjectCacheManager {
         } catch {
           debug(`Cache invalid: Package file missing or unreadable ${packageFile}`);
           return { isValid: false, wasUpdated: false };
+        } finally {
+          await fileHandle?.close();
         }
       }
 
