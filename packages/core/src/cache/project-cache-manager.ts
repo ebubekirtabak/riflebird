@@ -101,22 +101,29 @@ export class ProjectCacheManager {
         const filePath = path.join(this.projectRoot, framework.configFilePath);
 
         try {
-          const stats = await fs.stat(filePath);
-          // Check if file was modified based on mtime
-          if (!framework.lastModified || stats.mtimeMs !== framework.lastModified) {
-            const content = await fs.readFile(filePath, 'utf-8');
+          // Use file descriptor to avoid TOCTOU race condition
+          const fileHandle = await fs.open(filePath, 'r');
 
-            if (content.trim() !== (framework.configContent || '').trim()) {
-              debug(`Config file changed, updating cache: ${framework.configFilePath}`);
-              framework.configContent = content;
-            } else {
-              debug(
-                `Config file touched (mtime changed), updating timestamp: ${framework.configFilePath}`
-              );
+          try {
+            const stats = await fileHandle.stat();
+            // Check if file was modified based on mtime
+            if (!framework.lastModified || stats.mtimeMs !== framework.lastModified) {
+              const content = await fileHandle.readFile({ encoding: 'utf-8' });
+
+              if (content.trim() !== (framework.configContent || '').trim()) {
+                debug(`Config file changed, updating cache: ${framework.configFilePath}`);
+                framework.configContent = content;
+              } else {
+                debug(
+                  `Config file touched (mtime changed), updating timestamp: ${framework.configFilePath}`
+                );
+              }
+
+              framework.lastModified = stats.mtimeMs;
+              wasUpdated = true;
             }
-
-            framework.lastModified = stats.mtimeMs;
-            wasUpdated = true;
+          } finally {
+            await fileHandle.close();
           }
         } catch {
           debug(`Cache invalid: Config file missing ${framework.configFilePath}`);

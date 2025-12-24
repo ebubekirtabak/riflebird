@@ -258,10 +258,9 @@ describe('ProjectCacheManager', () => {
       expect(result?.languageConfig.lastModified).toBe(2000); // Should be updated
 
       // Should read cache AND tsconfig (because mtime changed)
-      expect(mockedFs.readFile).toHaveBeenCalledWith(
-        expect.stringContaining('tsconfig.json'),
-        'utf-8'
-      );
+      expect(mockedFs.readFile).toHaveBeenCalledWith(expect.stringContaining('tsconfig.json'), {
+        encoding: 'utf-8',
+      });
 
       expect(mockedFs.writeFile).toHaveBeenCalled(); // Should trigger save
     });
