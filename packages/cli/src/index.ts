@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { Command } from 'commander';
 import { aimCommand } from './commands/aim.js';
 import { fireCommand } from './commands/fire.js';
