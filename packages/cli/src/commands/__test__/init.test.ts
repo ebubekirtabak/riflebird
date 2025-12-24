@@ -254,9 +254,8 @@ describe('cli/commands/init', () => {
       await updateGitIgnore();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('⚠ Failed to update .gitignore:')
+        expect.stringMatching(/⚠ Failed to update .gitignore:.*Access denied/)
       );
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Access denied'));
     });
   });
 });
