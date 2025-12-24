@@ -1,6 +1,6 @@
 import { ProjectCacheManager, CACHE_FILE, CACHE_FOLDER } from '../project-cache-manager';
 import { ProjectContext } from '@models/project-context';
-import { ProjectConfigFiles } from '@models/project-config-files';
+import { ProjectConfigFiles, ConfigFile } from '@models/project-config-files';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { describe, it, expect, beforeEach, vi, type Mocked } from 'vitest';
@@ -14,6 +14,30 @@ vi.mock('@utils', () => ({
   debug: vi.fn(),
   error: vi.fn(),
 }));
+
+const createMockProjectConfigFiles = (): ProjectConfigFiles => {
+  const mockConfigFile: ConfigFile = {
+    type: 'test',
+    configFile: 'test.json',
+    configFilePath: 'test.json',
+  };
+
+  return {
+    framework: mockConfigFile,
+    language: 'typescript',
+    packageManager: 'npm',
+    libs: {
+      core: [],
+      testing: [],
+      styling: [],
+    },
+    testFrameworks: {},
+    linting: mockConfigFile,
+    formatting: mockConfigFile,
+    languageConfig: mockConfigFile,
+    importantConfigFiles: {},
+  };
+};
 
 describe('ProjectCacheManager', () => {
   const mockProjectRoot = '/test/project';
@@ -29,7 +53,7 @@ describe('ProjectCacheManager', () => {
     // Default valid context
     mockContext = {
       projectRoot: mockProjectRoot,
-      configFiles: {} as unknown as ProjectConfigFiles,
+      configFiles: createMockProjectConfigFiles(),
       languageConfig: {
         configFilePath: 'tsconfig.json',
         configContent: '{ "compilerOptions": {} }',
