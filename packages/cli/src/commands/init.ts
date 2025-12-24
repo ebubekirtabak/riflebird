@@ -97,6 +97,9 @@ export async function initCommand() {
   // Write to file
   await fs.writeFile('riflebird.config.ts', config);
 
+  // Update .gitignore
+  await updateGitIgnore();
+
   console.log(chalk.green('\n✓ riflebird.config.ts created!\n'));
   console.log(chalk.cyan('Next steps:'));
   console.log(chalk.white('  1. Set API key: export OPENAI_API_KEY=your_key_here'));
@@ -129,12 +132,12 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     timeout: 30000,`
         : answers.framework === 'cypress'
-        ? `baseUrl: 'http://localhost:3000',
+          ? `baseUrl: 'http://localhost:3000',
     viewportWidth: 1280,
     viewportHeight: 720,
     video: false,
     screenshotOnRunFailure: true,`
-        : `headless: false,
+          : `headless: false,
     baseUrl: 'http://localhost:3000',`
     }
     },
@@ -170,8 +173,8 @@ export default defineConfig({
     aiSummary: true,
   },
 ${
-    answers.unitTesting
-      ? `
+  answers.unitTesting
+    ? `
   unitTesting: {
     enabled: true,
     framework: '${answers.unitTestFramework || 'vitest'}',
@@ -199,8 +202,34 @@ ${
     clearMocks: true,
     timeout: 5000,
   },`
-      : ''
-  }
+    : ''
+}
 });
 `;
+}
+
+export async function updateGitIgnore(): Promise<void> {
+  const gitignorePath = '.gitignore';
+  const ignoreEntry = '\n# Riflebird cache\n.riflebird/\n';
+  let fileHandle;
+
+  try {
+    // Open file for reading and appending. 'a+' creates the file if it doesn't exist.
+    fileHandle = await fs.open(gitignorePath, 'a+');
+
+    const content = await fileHandle.readFile('utf-8');
+    if (!content.includes('.riflebird/')) {
+      await fileHandle.write(ignoreEntry);
+      console.log(chalk.green('✓ Added .riflebird/ to .gitignore'));
+    } else {
+      console.log(chalk.green('✓ .riflebird/ already in .gitignore'));
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(chalk.yellow(`⚠ Failed to update .gitignore: ${message}`));
+  } finally {
+    if (fileHandle) {
+      await fileHandle.close();
+    }
+  }
 }

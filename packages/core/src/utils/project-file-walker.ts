@@ -1,15 +1,14 @@
-import path from "path";
-import fs from "fs/promises";
+import path from 'path';
+import fs from 'fs/promises';
+import { Stats } from 'fs';
 import { SecretScanner, sanitizationLogger } from '@security';
-import { wrapFileContent } from "./markdown-util";
-
+import { wrapFileContent } from './markdown-util';
 
 export type ProjectFileWalkerContext = {
   projectRoot: string;
 };
 
 export class ProjectFileWalker {
-
   constructor(private context: ProjectFileWalkerContext) {
     this.context = context;
   }
@@ -59,4 +58,12 @@ export class ProjectFileWalker {
     }
   }
 
+  async getFileStats(filePath: string): Promise<Stats> {
+    try {
+      const fullPath = await this.resolveAndValidatePath(filePath);
+      return await fs.stat(fullPath);
+    } catch (error) {
+      throw new Error(`Failed to get stats for file ${filePath}: ${(error as Error).message}`);
+    }
+  }
 }
