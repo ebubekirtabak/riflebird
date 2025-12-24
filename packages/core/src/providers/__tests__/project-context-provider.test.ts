@@ -25,18 +25,24 @@ describe('ProjectContextProvider', () => {
     projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'riflebird-test-project-'));
 
     // Create fixture files
-    await fs.writeFile(path.join(projectRoot, 'package.json'), JSON.stringify({
-      name: 'test-project',
-      version: '1.0.0',
-      scripts: {
-        test: 'vitest'
-      },
-      devDependencies: {
-        vitest: '^1.0.0',
-        typescript: '^5.0.0'
-      }
-    }));
-    await fs.writeFile(path.join(projectRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: {} }));
+    await fs.writeFile(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({
+        name: 'test-project',
+        version: '1.0.0',
+        scripts: {
+          test: 'vitest',
+        },
+        devDependencies: {
+          vitest: '^1.0.0',
+          typescript: '^5.0.0',
+        },
+      })
+    );
+    await fs.writeFile(
+      path.join(projectRoot, 'tsconfig.json'),
+      JSON.stringify({ compilerOptions: {} })
+    );
     await fs.writeFile(path.join(projectRoot, 'vitest.config.ts'), 'export default {}');
     await fs.writeFile(path.join(projectRoot, 'eslint.config.mjs'), 'export default []');
     await fs.writeFile(path.join(projectRoot, '.prettierrc'), '{}');
@@ -90,7 +96,7 @@ describe('ProjectContextProvider', () => {
       const fileTree = await provider.getFileTree();
       expect(fileTree.length).toBeGreaterThan(0);
 
-      const fileNames = fileTree.map(node => node.name);
+      const fileNames = fileTree.map((node) => node.name);
       expect(fileNames).toContain('package.json');
       expect(fileNames).toContain('src');
     });
@@ -139,17 +145,17 @@ describe('ProjectContextProvider', () => {
           configFilePath: '.prettierrc',
           fileLang: 'json',
         },
-        packageManager: 'npm'
+        packageManager: 'npm',
       };
 
       mockAiClient.createChatCompletion.mockResolvedValue({
         choices: [
           {
-             message: {
-               content: JSON.stringify(mockConfigResponse)
-             }
-          }
-        ]
+            message: {
+              content: JSON.stringify(mockConfigResponse),
+            },
+          },
+        ],
       });
     });
 
@@ -194,9 +200,10 @@ describe('ProjectContextProvider', () => {
 
       expect(result.unit).toBeDefined();
       expect(result.unit?.configContent).toContain('export default {}');
+      expect(result.unit?.lastModified).toEqual(expect.any(Number));
     });
 
-     it('should return empty object when unit testing is disabled', async () => {
+    it('should return empty object when unit testing is disabled', async () => {
       mockContext.config.unitTesting!.enabled = false;
       provider = new ProjectContextProvider(mockContext, projectRoot);
 
@@ -228,6 +235,7 @@ describe('ProjectContextProvider', () => {
       const result = await provider.readConfigFile(configFile);
 
       expect(result.configContent).toContain('compilerOptions');
+      expect(result.lastModified).toEqual(expect.any(Number));
     });
 
     it('should handle missing config file gracefully', async () => {

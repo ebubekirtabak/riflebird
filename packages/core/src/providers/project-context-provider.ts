@@ -132,9 +132,11 @@ export class ProjectContextProvider {
       if (requestedUnitTest) {
         console.log(`Unit test framework detected: ${unit.name} at ${unit.configFilePath}`);
         const content = await projectFileWalker.readFileFromProject(unit.configFilePath);
+        const stats = await projectFileWalker.getFileStats(unit.configFilePath);
         unitFramework = {
           ...unit,
           configContent: content,
+          lastModified: stats.mtimeMs,
         };
       }
 
@@ -151,10 +153,12 @@ export class ProjectContextProvider {
   async readConfigFile(configFile: ConfigFile): Promise<FrameworkInfo> {
     try {
       const content = await this.projectFileWalker.readFileFromProject(configFile.configFilePath);
+      const stats = await this.projectFileWalker.getFileStats(configFile.configFilePath);
 
       return {
         ...configFile,
         configContent: content,
+        lastModified: stats.mtimeMs,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
