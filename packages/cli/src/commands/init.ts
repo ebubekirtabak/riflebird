@@ -209,22 +209,38 @@ ${
 }
 
 export async function updateGitIgnore(): Promise<void> {
-  try {
-    const gitignorePath = '.gitignore';
-    const ignoreEntry = '\n# Riflebird cache\n.riflebird/\n';
+  const gitignorePath = '.gitignore';
+  const ignoreEntry = '\n# Riflebird cache\n.riflebird/\n';
 
-    try {
-      const content = await fs.readFile(gitignorePath, 'utf-8');
-      if (!content.includes('.riflebird/')) {
-        await fs.appendFile(gitignorePath, ignoreEntry);
-        console.log(chalk.green('✓ Added .riflebird/ to .gitignore'));
-      }
-    } catch {
-      // .gitignore doesn't exist, create it
-      await fs.writeFile(gitignorePath, ignoreEntry);
-      console.log(chalk.green('✓ Created .gitignore with .riflebird/'));
+  try {
+    // Check if .gitignore exists
+    await fs.access(gitignorePath);
+
+    // .gitignore exists, read and update if needed
+    const content = await fs.readFile(gitignorePath, 'utf-8');
+    if (!content.includes('.riflebird/')) {
+      await fs.appendFile(gitignorePath, ignoreEntry);
+      console.log(chalk.green('✓ Added .riflebird/ to .gitignore'));
     }
   } catch (error) {
-    console.warn(chalk.yellow('⚠ Failed to update .gitignore:', error));
+    const isEnoent =
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'ENOENT';
+
+    if (isEnoent) {
+      // .gitignore doesn't exist, create it
+      try {
+        await fs.writeFile(gitignorePath, ignoreEntry);
+        console.log(chalk.green('✓ Created .gitignore with .riflebird/'));
+      } catch (writeError) {
+        const message = writeError instanceof Error ? writeError.message : String(writeError);
+        console.warn(chalk.yellow(`⚠ Failed to create .gitignore with .riflebird/: ${message}`));
+      }
+    } else {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(chalk.yellow(`⚠ Failed to update .gitignore: ${message}`));
+    }
   }
 }
