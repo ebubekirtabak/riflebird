@@ -221,6 +221,8 @@ export async function updateGitIgnore(): Promise<void> {
     if (!content.includes('.riflebird/')) {
       await fileHandle.write(ignoreEntry);
       console.log(chalk.green('✓ Added .riflebird/ to .gitignore'));
+    } else {
+      console.log(chalk.green('✓ .riflebird/ already in .gitignore'));
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
