@@ -85,18 +85,28 @@ export class ProjectCacheManager {
       ].filter(Boolean);
 
       for (const framework of frameworksToCheck) {
-        if (!framework?.configFilePath || !framework?.configContent) {
+        if (!framework?.configFilePath) {
           continue;
         }
 
         const filePath = path.join(this.projectRoot, framework.configFilePath);
 
         try {
-          const content = await fs.readFile(filePath, 'utf-8');
-          // Update cache if content changed
-          if (content.trim() !== framework.configContent.trim()) {
-            debug(`Config file changed, updating cache: ${framework.configFilePath}`);
-            framework.configContent = content;
+          const stats = await fs.stat(filePath);
+          // Check if file was modified based on mtime
+          if (!framework.lastModified || stats.mtimeMs !== framework.lastModified) {
+            const content = await fs.readFile(filePath, 'utf-8');
+
+            if (content.trim() !== (framework.configContent || '').trim()) {
+              debug(`Config file changed, updating cache: ${framework.configFilePath}`);
+              framework.configContent = content;
+            } else {
+              debug(
+                `Config file touched (mtime changed), updating timestamp: ${framework.configFilePath}`
+              );
+            }
+
+            framework.lastModified = stats.mtimeMs;
             wasUpdated = true;
           }
         } catch {
@@ -110,14 +120,24 @@ export class ProjectCacheManager {
       if (packageFile) {
         const packageFilePath = path.join(this.projectRoot, packageFile);
         try {
-          const content = await fs.readFile(packageFilePath, 'utf-8');
-          const previousContent = cache.packageManager?.packageJsonContent;
+          const stats = await fs.stat(packageFilePath);
+          const cachedMtime = cache.packageManager?.packageJsonLastModified;
 
-          // Update cache if content changed
-          if (content.trim() !== (previousContent || '').trim()) {
-            debug(`Package file changed, updating cache: ${packageFile}`);
+          if (!cachedMtime || stats.mtimeMs !== cachedMtime) {
+            const content = await fs.readFile(packageFilePath, 'utf-8');
+            const previousContent = cache.packageManager?.packageJsonContent;
+
+            if (content.trim() !== (previousContent || '').trim()) {
+              debug(`Package file changed, updating cache: ${packageFile}`);
+              if (cache.packageManager) {
+                cache.packageManager.packageJsonContent = content;
+              }
+            } else {
+              debug(`Package file touched (mtime changed), updating timestamp: ${packageFile}`);
+            }
+
             if (cache.packageManager) {
-              cache.packageManager.packageJsonContent = content;
+              cache.packageManager.packageJsonLastModified = stats.mtimeMs;
             }
             wasUpdated = true;
           }

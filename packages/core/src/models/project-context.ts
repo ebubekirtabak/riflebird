@@ -24,6 +24,7 @@ export type FrameworkInfo = {
   fileLang?: string;
   configFilePath?: string;
   configContent?: string;
+  lastModified?: number;
 };
 
 export type PackageManager = {
@@ -32,6 +33,7 @@ export type PackageManager = {
   lockFilePath?: string;
   packageFilePath?: string;
   packageJsonContent?: string;
+  packageJsonLastModified?: number;
   testCommand?: string;
   testScript?: string;
   packageInfo?: PackageInfo;
