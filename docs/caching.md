@@ -13,21 +13,17 @@ The cache is stored in `.riflebird/cache.json` within your project root. It cont
   - Formatter (e.g., `.prettierrc`)
   - Test Frameworks (e.g., `jest.config.js`, `vitest.config.ts`)
 - **Package Manager**: Details about the detected package manager (npm, yarn, pnpm, bun) and parsed `package.json` content.
-- **Timestamps**: Modification timestamps (`mtime`) for configuration files to enable fast validation.
+
 
 ## Cache Validation Strategy
 
-Riflebird employs a two-layer validation strategy to ensure the cache is always up-to-date while minimizing I/O operations:
+Riflebird employs a validation strategy to ensure the cache is always up-to-date while minimizing unnecessary work:
 
 1.  **File Existence**: The system checks if the cached configuration files still exist on disk.
-2.  **Timestamp Check (Fast Path)**: The system checks the modification timestamp (`mtime`) of each configuration file.
-    - If the `mtime` matches the cached value, the file is considered unchanged, and the cached content is used. This allows for `O(n)` performance where `n` is the number of config files, using fast `stat` calls instead of reading file contents.
-3.  **Content Comparison (Slow Path & Repair)**:
-    - If the `mtime` differs (or is missing), the file content is read from disk.
-    - The content is compared with the cached content.
-      - If the content has changed, the cache is updated with the new content and new timestamp.
-      - If the content is effectively the same (e.g., file was "touched" but content didn't change), the cache is updated with the new timestamp to prevent future reads.
-
+2.  **Content Comparison (Repair Path)**:
+    - If a file is present, its content is read from disk and compared with the cached content.
+      - If the content has changed, the cache is updated with the new content.
+      - If the content is effectively the same (e.g., the file was "touched" but content didn't change), the cache entry is kept as-is to avoid redundant work on subsequent runs.
 ## Automatic Invalidation
 
 The cache is automatically invalidated or updated in the following scenarios:
