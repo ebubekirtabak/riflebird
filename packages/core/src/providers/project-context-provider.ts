@@ -102,7 +102,7 @@ export class ProjectContextProvider {
           testScript: packageManagerInfo.testScript,
           packageInfo: packageManagerInfo.packageInfo,
           packageFilePath: packageManagerInfo.packageFilePath,
-          packageJsonLastModified: packageManagerInfo.packageJsonLastModified,
+          packageFileLastModified: packageManagerInfo.packageFileLastModified,
         },
         languageConfig: await this.readConfigFile(languageConfig),
         linterConfig: await this.readConfigFile(linting),

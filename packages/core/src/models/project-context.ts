@@ -32,8 +32,8 @@ export type PackageManager = {
   version?: string;
   lockFilePath?: string;
   packageFilePath?: string;
-  packageJsonContent?: string;
-  packageJsonLastModified?: number;
+  packageFileContent?: string;
+  packageFileLastModified?: number;
   testCommand?: string;
   testScript?: string;
   packageInfo?: PackageInfo;

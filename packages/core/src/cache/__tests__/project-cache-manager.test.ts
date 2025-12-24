@@ -71,7 +71,8 @@ describe('ProjectCacheManager', () => {
         type: 'npm',
         testCommand: 'npm test',
         packageFilePath: 'package.json',
-        packageJsonContent: '{}',
+        packageFileContent: '{}',
+        packageFileLastModified: 1000,
       },
     };
   });
@@ -151,7 +152,7 @@ describe('ProjectCacheManager', () => {
             languageConfig: { ...mockContext.languageConfig, lastModified: 1000 },
             linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
             formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
-            packageManager: { ...mockContext.packageManager, packageJsonLastModified: 1000 },
+            packageManager: { ...mockContext.packageManager, packageFileLastModified: 1000 },
           };
           return Promise.resolve(JSON.stringify(contextWithMtime));
         }
@@ -200,7 +201,7 @@ describe('ProjectCacheManager', () => {
         languageConfig: { ...mockContext.languageConfig, lastModified: 1000 },
         linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
         formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
-        packageManager: { ...mockContext.packageManager, packageJsonLastModified: 1000 },
+        packageManager: { ...mockContext.packageManager, packageFileLastModified: 1000 },
       };
 
       expect(result).toEqual(expectedContext);
@@ -236,7 +237,7 @@ describe('ProjectCacheManager', () => {
             languageConfig: { ...mockContext.languageConfig, lastModified: 1000 }, // Old mtime
             linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
             formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
-            packageManager: { ...mockContext.packageManager, packageJsonLastModified: 1000 },
+            packageManager: { ...mockContext.packageManager, packageFileLastModified: 1000 },
           };
           return Promise.resolve(JSON.stringify(contextWithMtime));
         }
@@ -283,7 +284,7 @@ describe('ProjectCacheManager', () => {
             languageConfig: { ...mockContext.languageConfig, lastModified: 1000 }, // Old mtime
             linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
             formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
-            packageManager: { ...mockContext.packageManager, packageJsonLastModified: 1000 },
+            packageManager: { ...mockContext.packageManager, packageFileLastModified: 1000 },
           };
           return Promise.resolve(JSON.stringify(contextWithMtime));
         }
@@ -338,7 +339,7 @@ describe('ProjectCacheManager', () => {
         packageManager: {
           ...mockContext.packageManager!,
           packageFilePath: 'package.json',
-          packageJsonLastModified: 1000,
+          packageFileLastModified: 1000,
         },
       };
 
@@ -365,8 +366,8 @@ describe('ProjectCacheManager', () => {
         packageManager: {
           ...mockContext.packageManager!,
           packageFilePath: 'custom.json',
-          packageJsonContent: '{}',
-          packageJsonLastModified: 1000,
+          packageFileContent: '{}',
+          packageFileLastModified: 1000,
         },
         languageConfig: { ...mockContext.languageConfig, lastModified: 1000 },
         linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
@@ -408,7 +409,7 @@ describe('ProjectCacheManager', () => {
             formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
             packageManager: {
               ...mockContext.packageManager,
-              packageJsonLastModified: 1000,
+              packageFileLastModified: 1000,
               packageFilePath: 'package.json',
             },
           };
@@ -421,8 +422,9 @@ describe('ProjectCacheManager', () => {
       const result = await cacheManager.load();
 
       expect(result).not.toBeNull();
-      expect(result?.packageManager?.packageJsonContent).toBe(newPackageJson);
-      expect(result?.packageManager?.packageJsonLastModified).toBe(2000);
+      expect(result?.packageManager?.packageFileContent).toBe(newPackageJson);
+      expect(result?.packageManager?.packageFilePath).toBe('package.json');
+      expect(result?.packageManager?.packageFileLastModified).toBe(2000);
       expect(mockedFs.writeFile).toHaveBeenCalled(); // Should trigger save
     });
   });

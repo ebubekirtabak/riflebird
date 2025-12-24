@@ -129,23 +129,23 @@ export class ProjectCacheManager {
         try {
           fileHandle = await fs.open(packageFilePath, 'r');
           const stats = await fileHandle.stat();
-          const cachedMtime = cache.packageManager?.packageJsonLastModified;
+          const cachedMtime = cache.packageManager?.packageFileLastModified;
 
           if (!cachedMtime || stats.mtimeMs !== cachedMtime) {
             const content = await fileHandle.readFile({ encoding: 'utf-8' });
-            const previousContent = cache.packageManager?.packageJsonContent;
+            const previousContent = cache.packageManager?.packageFileContent;
 
             if (content.trim() !== (previousContent || '').trim()) {
               debug(`Package file changed, updating cache: ${packageFile}`);
               if (cache.packageManager) {
-                cache.packageManager.packageJsonContent = content;
+                cache.packageManager.packageFileContent = content;
               }
             } else {
               debug(`Package file touched (mtime changed), updating timestamp: ${packageFile}`);
             }
 
             if (cache.packageManager) {
-              cache.packageManager.packageJsonLastModified = stats.mtimeMs;
+              cache.packageManager.packageFileLastModified = stats.mtimeMs;
             }
             wasUpdated = true;
           }
