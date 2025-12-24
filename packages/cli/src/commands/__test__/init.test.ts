@@ -199,10 +199,15 @@ describe('cli/commands/init', () => {
 
   describe('updateGitIgnore', () => {
     it('should create .gitignore if it does not exist', async () => {
+      const mockAccess = vi.mocked(fs.access);
       const mockReadFile = vi.mocked(fs.readFile);
       const mockWriteFile = vi.mocked(fs.writeFile);
 
-      mockReadFile.mockRejectedValue(new Error('ENOENT'));
+      const enoentError = new Error('ENOENT');
+      Object.assign(enoentError, { code: 'ENOENT' });
+
+      mockAccess.mockRejectedValue(enoentError);
+      mockReadFile.mockRejectedValue(enoentError);
       mockWriteFile.mockResolvedValue(undefined);
 
       await updateGitIgnore();
