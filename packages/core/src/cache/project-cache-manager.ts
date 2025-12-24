@@ -35,7 +35,17 @@ export class ProjectCacheManager {
       const cachePath = path.join(this.cacheDir, CACHE_FILE);
 
       const content = await fs.readFile(cachePath, 'utf-8');
-      const cache = JSON.parse(content) as ProjectContext;
+
+      let cache: ProjectContext;
+      try {
+        cache = JSON.parse(content) as ProjectContext;
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          debug('Cache file corrupted, invalidating...');
+          return null;
+        }
+        throw error;
+      }
 
       const { isValid, wasUpdated } = await this.reconcileCache(cache);
 

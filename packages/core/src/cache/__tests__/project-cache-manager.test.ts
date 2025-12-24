@@ -167,6 +167,17 @@ describe('ProjectCacheManager', () => {
       expect(result).toBeNull();
     });
 
+    it('should return null and log invalidation message if cache file is corrupted', async () => {
+      mockedFs.readFile.mockResolvedValue('{ invalid json }');
+
+      const result = await cacheManager.load();
+
+      expect(result).toBeNull();
+      // Use expect.stringContaining to match the message since there might be other debug calls
+      const debugMock = (await import('@utils')).debug;
+      expect(debugMock).toHaveBeenCalledWith('Cache file corrupted, invalidating...');
+    });
+
     it('should return context calling stat but NOT reading files if mtime matches', async () => {
       const result = await cacheManager.load();
 
