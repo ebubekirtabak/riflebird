@@ -6,6 +6,13 @@ export async function cleanCommand() {
   const cacheDir = path.join(process.cwd(), '.riflebird');
 
   try {
+    try {
+      await fs.access(cacheDir);
+    } catch {
+      console.log(chalk.green('✓ Cache is already clean'));
+      return;
+    }
+
     await fs.rm(cacheDir, { recursive: true, force: true });
     console.log(chalk.green('✓ Riflebird cache cleaned successfully'));
   } catch (error) {

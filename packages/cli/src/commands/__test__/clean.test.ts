@@ -7,6 +7,7 @@ import path from 'path';
 vi.mock('fs/promises', () => ({
   default: {
     rm: vi.fn(),
+    access: vi.fn(),
   },
 }));
 
@@ -26,13 +27,17 @@ describe('cleanCommand', () => {
     vi.restoreAllMocks();
   });
 
-  it('should remove the .riflebird directory and log success', async () => {
+  it('should remove the .riflebird directory and log success if it exists', async () => {
     const cwd = '/test/cwd';
     vi.spyOn(process, 'cwd').mockReturnValue(cwd);
     const expectedPath = path.join(cwd, '.riflebird');
 
+    // Mock access to succeed (directory exists)
+    vi.mocked(fs.access).mockResolvedValue(undefined);
+
     await cleanCommand();
 
+    expect(fs.access).toHaveBeenCalledWith(expectedPath);
     expect(fs.rm).toHaveBeenCalledWith(expectedPath, { recursive: true, force: true });
     expect(consoleLogSpy).toHaveBeenCalledWith(
       expect.stringContaining('Riflebird cache cleaned successfully')
@@ -40,7 +45,28 @@ describe('cleanCommand', () => {
     expect(consoleWarnSpy).not.toHaveBeenCalled();
   });
 
-  it('should handle errors and log a warning', async () => {
+  it('should log a message if the cache directory does not exist', async () => {
+    const cwd = '/test/cwd';
+    vi.spyOn(process, 'cwd').mockReturnValue(cwd);
+    const expectedPath = path.join(cwd, '.riflebird');
+
+    // Mock access to fail (directory does not exist)
+    const error = new Error('ENOENT');
+    Object.assign(error, { code: 'ENOENT' });
+    vi.mocked(fs.access).mockRejectedValue(error);
+
+    await cleanCommand();
+
+    expect(fs.access).toHaveBeenCalledWith(expectedPath);
+    expect(fs.rm).not.toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Cache is already clean'));
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('should handle errors during removal and log a warning', async () => {
+    // Mock access to succeed
+    vi.mocked(fs.access).mockResolvedValue(undefined);
+
     const error = new Error('Permission denied');
     vi.mocked(fs.rm).mockRejectedValueOnce(error);
 
