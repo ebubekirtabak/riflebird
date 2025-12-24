@@ -122,7 +122,7 @@ describe('ProjectCacheManager', () => {
     });
 
     it('should return null if cache file does not exist', async () => {
-      mockedFs.access.mockRejectedValue(new Error('ENOENT'));
+      mockedFs.readFile.mockRejectedValue({ code: 'ENOENT' });
       const result = await cacheManager.load();
       expect(result).toBeNull();
     });

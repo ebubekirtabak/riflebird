@@ -34,11 +34,6 @@ export class ProjectCacheManager {
     try {
       const cachePath = path.join(this.cacheDir, CACHE_FILE);
 
-      if (!(await this.hasCache())) {
-        debug('Cache file not found');
-        return null;
-      }
-
       const content = await fs.readFile(cachePath, 'utf-8');
       const cache = JSON.parse(content) as ProjectContext;
 
@@ -53,7 +48,12 @@ export class ProjectCacheManager {
       }
 
       return null;
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error as { code?: string };
+      if (err.code === 'ENOENT') {
+        debug('Cache file not found');
+        return null;
+      }
       debug('Error loading cache:', error);
       return null;
     }
