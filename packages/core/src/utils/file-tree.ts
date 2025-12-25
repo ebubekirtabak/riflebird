@@ -177,7 +177,7 @@ export function findFilesByPatternInFileTree(
 /**
  * Convert glob pattern to regex
  * Supports: *, **, ?, [abc], {a,b}
- * More robust version that handles `**/` and `**/*` patterns correctly
+ * More robust version that handles `**/ ` and `; /**` patterns correctly
  */
 export function globToRegex(pattern: string): RegExp {
   let regex = pattern;
