@@ -177,7 +177,7 @@ export function findFilesByPatternInFileTree(
 /**
  * Convert glob pattern to regex
  * Supports: *, **, ?, [abc], {a,b}
- * More robust version that handles `**/` and `/**` patterns correctly
+ * More robust version that handles `**/ ` and `; /**` patterns correctly
  */
 export function globToRegex(pattern: string): RegExp {
   let regex = pattern;
@@ -191,6 +191,8 @@ export function globToRegex(pattern: string): RegExp {
 
   // Now escape special regex characters except glob wildcards
   regex = regex
+    .replace(/\\/g, '\\\\') // Escape backslash first
+    .replace(/\|/g, '\\|') // Escape pipe
     .replace(/\./g, '\\.') // Escape dots
     .replace(/\+/g, '\\+') // Escape plus
     .replace(/\^/g, '\\^') // Escape caret
@@ -198,7 +200,9 @@ export function globToRegex(pattern: string): RegExp {
     .replace(/\(/g, '\\(') // Escape parentheses
     .replace(/\)/g, '\\)') // Escape parentheses
     .replace(/\[/g, '\\[') // Escape brackets
-    .replace(/\]/g, '\\]'); // Escape brackets
+    .replace(/\]/g, '\\]') // Escape brackets
+    .replace(/\{/g, '\\{') // Escape braces
+    .replace(/\}/g, '\\}'); // Escape braces
 
   // Restore brace expansion as regex groups
   regex = regex.replace(/@@BRACE_START@@/g, '(');
