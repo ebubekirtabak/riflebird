@@ -7,11 +7,7 @@ export async function getFileTree(
   rootPath: string,
   options: FileTreeOptions = {}
 ): Promise<FileNode[]> {
-  const {
-    includeExtensions,
-    excludeDirs = [...COMMON_EXCLUDE_DIRS],
-    maxDepth = 10,
-  } = options;
+  const { includeExtensions, excludeDirs = [...COMMON_EXCLUDE_DIRS], maxDepth = 10 } = options;
 
   return await buildFileTree(rootPath, '', excludeDirs, includeExtensions, 0, maxDepth);
 }
@@ -154,7 +150,7 @@ export function findFilesByPatternInFileTree(
   const matchedFilesMap = new Map<string, FileNode>();
 
   // Convert all patterns to regex once
-  const regexPatterns = patternArray.map(pattern => globToRegex(pattern));
+  const regexPatterns = patternArray.map((pattern) => globToRegex(pattern));
 
   function searchTree(nodes: FileNode[]): void {
     for (const node of nodes) {
@@ -187,20 +183,21 @@ export function globToRegex(pattern: string): RegExp {
   let regex = pattern;
 
   // Handle brace expansion {a,b} -> (a|b) FIRST before escaping braces
-  regex = regex.replace(/\{([^}]+)\}/g, (_match: string, contents: string) => {
+  // Uses [^{}] to avoid matching nested braces which causes ReDoS
+  regex = regex.replace(/\{([^{}]+)\}/g, (_match: string, contents: string) => {
     const options = contents.split(',').map((s: string) => s.trim());
     return `@@BRACE_START@@${options.join('@@BRACE_OR@@')}@@BRACE_END@@`;
   });
 
   // Now escape special regex characters except glob wildcards
   regex = regex
-    .replace(/\./g, '\\.')  // Escape dots
-    .replace(/\+/g, '\\+')  // Escape plus
-    .replace(/\^/g, '\\^')  // Escape caret
-    .replace(/\$/g, '\\$')  // Escape dollar
-    .replace(/\(/g, '\\(')  // Escape parentheses
+    .replace(/\./g, '\\.') // Escape dots
+    .replace(/\+/g, '\\+') // Escape plus
+    .replace(/\^/g, '\\^') // Escape caret
+    .replace(/\$/g, '\\$') // Escape dollar
+    .replace(/\(/g, '\\(') // Escape parentheses
     .replace(/\)/g, '\\)') // Escape parentheses
-    .replace(/\[/g, '\\[')  // Escape brackets
+    .replace(/\[/g, '\\[') // Escape brackets
     .replace(/\]/g, '\\]'); // Escape brackets
 
   // Restore brace expansion as regex groups
@@ -222,9 +219,9 @@ export function globToRegex(pattern: string): RegExp {
   regex = regex.replace(/\*/g, '[^/]*');
 
   // Restore ** patterns
-  regex = regex.replace(/@@DOUBLESTAR_SLASH@@/g, '(.*/)?');  // **/ matches zero or more dirs
-  regex = regex.replace(/@@SLASH_DOUBLESTAR@@/g, '/.*');      // /** matches slash and everything after
-  regex = regex.replace(/@@DOUBLESTAR@@/g, '.*');             // ** alone matches everything
+  regex = regex.replace(/@@DOUBLESTAR_SLASH@@/g, '(.*/)?'); // **/ matches zero or more dirs
+  regex = regex.replace(/@@SLASH_DOUBLESTAR@@/g, '/.*'); // /** matches slash and everything after
+  regex = regex.replace(/@@DOUBLESTAR@@/g, '.*'); // ** alone matches everything
 
   // Anchor the pattern
   regex = `^${regex}$`;
