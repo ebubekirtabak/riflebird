@@ -9,9 +9,7 @@ export type ProjectFileWalkerContext = {
 };
 
 export class ProjectFileWalker {
-  constructor(private context: ProjectFileWalkerContext) {
-    this.context = context;
-  }
+  constructor(private context: ProjectFileWalkerContext) {}
 
   async resolveAndValidatePath(filePath: string): Promise<string> {
     const fullPath = path.resolve(this.context.projectRoot, filePath);
