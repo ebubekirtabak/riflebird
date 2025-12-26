@@ -294,19 +294,24 @@ describe('getCompiledPattern', () => {
       // + is a regex special char (one or more), but should be literal here
       const compiledPlus = getCompiledPattern('file+name.ts', false);
       expect(compiledPlus.regex.test('file+name.ts')).toBe(true);
-      expect(compiledPlus.regex.test('filename.ts')).toBe(false); // Currently fails (matches)
-      expect(compiledPlus.regex.test('fileeeename.ts')).toBe(false); // Currently fails (matches)
+      expect(compiledPlus.regex.test('filename.ts')).toBe(false);
+      expect(compiledPlus.regex.test('fileeeename.ts')).toBe(false);
 
       // () are regex capturing groups, but should be literal here
       const compiledParens = getCompiledPattern('(val).ts', false);
       expect(compiledParens.regex.test('(val).ts')).toBe(true);
-      expect(compiledParens.regex.test('val.ts')).toBe(false); // Currently fails (matches)
+      expect(compiledParens.regex.test('val.ts')).toBe(false);
 
-      // [] are regex character classes, but should be literal here (unless supported as glob)
-      // Assuming strict glob support only for *, **, ?, {}
+      // [] are regex character classes, and ARE supported in globs
       const compiledBrackets = getCompiledPattern('[abc].ts', false);
-      expect(compiledBrackets.regex.test('[abc].ts')).toBe(true);
-      expect(compiledBrackets.regex.test('a.ts')).toBe(false); // Currently fails (matches)
+      expect(compiledBrackets.regex.test('a.ts')).toBe(true);
+      expect(compiledBrackets.regex.test('b.ts')).toBe(true);
+      expect(compiledBrackets.regex.test('[abc].ts')).toBe(false);
+
+      // Escaped brackets should be literal
+      const compiledEscapedBrackets = getCompiledPattern('\\[abc\\].ts', false);
+      expect(compiledEscapedBrackets.regex.test('[abc].ts')).toBe(true);
+      expect(compiledEscapedBrackets.regex.test('a.ts')).toBe(false);
     });
 
     it('should treat backslashes as literals', () => {
