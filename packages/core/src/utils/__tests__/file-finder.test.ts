@@ -1,23 +1,30 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
-import { findFilesByPattern, findFilesByType, findFilesByTypes, findFilesByStringPattern } from '../file-finder';
+import tmp from 'tmp';
+import {
+  findFilesByPattern,
+  findFilesByType,
+  findFilesByTypes,
+  findFilesByStringPattern,
+} from '../file-finder';
 import { FILE_PATTERNS, FilePattern, FileType } from '../file/file-patterns';
 import { getFileStats } from '../file/file-stats';
 
 describe('file-finder', () => {
   let testDir: string;
+  let removeCallback: () => void;
 
-  beforeEach(async () => {
-    // Create a temporary test directory
-    testDir = path.join(os.tmpdir(), `riflebird-test-${Date.now()}`);
-    await fs.mkdir(testDir, { recursive: true });
+  beforeEach(() => {
+    // Create a secure temporary test directory
+    const tmpObj = tmp.dirSync({ unsafeCleanup: true });
+    testDir = tmpObj.name;
+    removeCallback = tmpObj.removeCallback;
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     // Clean up test directory
-    await fs.rm(testDir, { recursive: true, force: true });
+    removeCallback();
   });
 
   async function createTestFile(relativePath: string): Promise<void> {
@@ -193,10 +200,7 @@ describe('file-finder', () => {
       const files = await findFilesByPattern(testDir, pattern);
 
       expect(files).toHaveLength(2);
-      expect(files.map((f) => f.name).sort()).toEqual([
-        'Button.view.tsx',
-        'Input.view.jsx',
-      ]);
+      expect(files.map((f) => f.name).sort()).toEqual(['Button.view.tsx', 'Input.view.jsx']);
     });
 
     it('should support wildcard patterns', async () => {
@@ -212,10 +216,7 @@ describe('file-finder', () => {
       const files = await findFilesByPattern(testDir, pattern);
 
       expect(files).toHaveLength(2);
-      expect(files.map((f) => f.name).sort()).toEqual([
-        'createUser.ts',
-        'deletePost.ts',
-      ]);
+      expect(files.map((f) => f.name).sort()).toEqual(['createUser.ts', 'deletePost.ts']);
     });
 
     it('should work without extensions filter', async () => {
@@ -233,7 +234,9 @@ describe('file-finder', () => {
     });
 
     it('should match files with specific directory path patterns', async () => {
-      await createTestFile('src/components/UserSettings/CertificateSection/Certificate.component.tsx');
+      await createTestFile(
+        'src/components/UserSettings/CertificateSection/Certificate.component.tsx'
+      );
       await createTestFile('src/components/UserSettings/CertificateSection/Upload.component.tsx');
       await createTestFile('src/components/UserSettings/ProfileSection/Profile.component.tsx');
       await createTestFile('src/components/Dashboard/Widget.component.tsx');
@@ -253,8 +256,12 @@ describe('file-finder', () => {
     });
 
     it('should match files with ** wildcard for nested directories', async () => {
-      await createTestFile('src/components/UserSettings/CertificateSection/Certificate.component.tsx');
-      await createTestFile('src/components/UserSettings/CertificateSection/nested/Upload.component.tsx');
+      await createTestFile(
+        'src/components/UserSettings/CertificateSection/Certificate.component.tsx'
+      );
+      await createTestFile(
+        'src/components/UserSettings/CertificateSection/nested/Upload.component.tsx'
+      );
       await createTestFile('src/components/Dashboard/Widget.component.tsx');
 
       const pattern: FilePattern = {
@@ -293,12 +300,7 @@ describe('file-finder', () => {
       await createTestFile('src/user.model.ts');
       await createTestFile('src/useAuth.ts');
 
-      const results = await findFilesByTypes(testDir, [
-        'component',
-        'test',
-        'model',
-        'hook',
-      ]);
+      const results = await findFilesByTypes(testDir, ['component', 'test', 'model', 'hook']);
 
       expect(Object.keys(results)).toEqual(['component', 'test', 'model', 'hook']);
       expect(results.component).toHaveLength(1);
@@ -367,10 +369,7 @@ describe('file-finder', () => {
       const files = await findFilesByStringPattern(testDir, 'src/utils/*.ts');
 
       expect(files).toHaveLength(2);
-      expect(files.map((f) => f.name).sort()).toEqual([
-        'formatter.ts',
-        'helper.ts',
-      ]);
+      expect(files.map((f) => f.name).sort()).toEqual(['formatter.ts', 'helper.ts']);
     });
 
     it('should support wildcard patterns in string format', async () => {
@@ -381,10 +380,7 @@ describe('file-finder', () => {
       const files = await findFilesByStringPattern(testDir, '*User*.ts');
 
       expect(files).toHaveLength(2);
-      expect(files.map((f) => f.name).sort()).toEqual([
-        'createUser.ts',
-        'deleteUser.ts',
-      ]);
+      expect(files.map((f) => f.name).sort()).toEqual(['createUser.ts', 'deleteUser.ts']);
     });
 
     it('should respect caseSensitive option', async () => {
@@ -425,7 +421,7 @@ describe('file-finder', () => {
 
       // Both files should match - one at depth and one at root
       expect(files.length).toBeGreaterThanOrEqual(1);
-      expect(files.some(f => f.name === 'deep.ts' || f.name === 'shallow.ts')).toBe(true);
+      expect(files.some((f) => f.name === 'deep.ts' || f.name === 'shallow.ts')).toBe(true);
     });
 
     it('should respect excludePatterns option', async () => {
@@ -437,7 +433,7 @@ describe('file-finder', () => {
       });
 
       // Should exclude test files
-      expect(files.every(f => !f.name.includes('.test.ts'))).toBe(true);
+      expect(files.every((f) => !f.name.includes('.test.ts'))).toBe(true);
     });
   });
 
@@ -484,12 +480,8 @@ describe('file-finder', () => {
 
       for (const type of expectedTypes) {
         expect(FILE_PATTERNS).toHaveProperty(type);
-        expect(FILE_PATTERNS[type as keyof typeof FILE_PATTERNS]).toHaveProperty(
-          'patterns'
-        );
-        expect(FILE_PATTERNS[type as keyof typeof FILE_PATTERNS]).toHaveProperty(
-          'description'
-        );
+        expect(FILE_PATTERNS[type as keyof typeof FILE_PATTERNS]).toHaveProperty('patterns');
+        expect(FILE_PATTERNS[type as keyof typeof FILE_PATTERNS]).toHaveProperty('description');
       }
     });
   });
