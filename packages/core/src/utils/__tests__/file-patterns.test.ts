@@ -322,4 +322,65 @@ describe('getCompiledPattern', () => {
       expect(compiled.regex.test('folder\\file.ts')).toBe(true);
     });
   });
+
+  describe('coverage edge cases', () => {
+    it('should handle unclosed brackets as literals', () => {
+      // Lines 216-222
+      const compiled = getCompiledPattern('src/[d-ir.ts', false);
+      // Should look for literal `[` followed by `d-ir.ts`
+      expect(compiled.regex.test('src/[d-ir.ts')).toBe(true);
+      expect(compiled.regex.test('src/dir.ts')).toBe(false);
+    });
+
+    it('should handle unclosed braces as literals', () => {
+      // Lines 332-337
+      const compiled = getCompiledPattern('file.{ts', false);
+      expect(compiled.regex.test('file.{ts')).toBe(true);
+      expect(compiled.regex.test('file.ts')).toBe(false);
+    });
+
+    it('should handle escaped characters inside braces', () => {
+      // Lines 233-237 (skip escaped brace), 317-319 (escaped comma)
+
+      // Case 1: Escaped closing brace inside
+      // Pattern: `{a\}b,c}` -> options: `a}b` and `c`
+      const compiledEscapedBrace = getCompiledPattern('{a\\}b,c}.ts', false);
+      expect(compiledEscapedBrace.regex.test('a}b.ts')).toBe(true);
+      expect(compiledEscapedBrace.regex.test('c.ts')).toBe(true);
+
+      // Case 2: Escaped comma inside
+      // Pattern: `{a\,b,c}` -> options `a,b` and `c`
+      const compiledEscapedComma = getCompiledPattern('{a\\,b,c}.ts', false);
+      expect(compiledEscapedComma.regex.test('a,b.ts')).toBe(true);
+      expect(compiledEscapedComma.regex.test('c.ts')).toBe(true);
+      expect(compiledEscapedComma.regex.test('a.ts')).toBe(false);
+    });
+
+    it('should handle globs within braces (processGlobString coverage)', () => {
+      // Lines 367-413 (processGlobString)
+
+      // * inside braces
+      const compiledStar = getCompiledPattern('file.{*.ts,*.js}', false);
+      expect(compiledStar.regex.test('file.test.ts')).toBe(true);
+      expect(compiledStar.regex.test('file.app.js')).toBe(true);
+
+      // ? inside braces
+      const compiledQuestion = getCompiledPattern('file.{test?,spec?}.ts', false);
+      expect(compiledQuestion.regex.test('file.test1.ts')).toBe(true);
+      expect(compiledQuestion.regex.test('file.specA.ts')).toBe(true);
+      expect(compiledQuestion.regex.test('file.test.ts')).toBe(false); // ? requires char
+
+      // [] inside braces
+      const compiledBrackets = getCompiledPattern('file.{[a-z],[0-9]}.ts', false);
+      expect(compiledBrackets.regex.test('file.a.ts')).toBe(true);
+      expect(compiledBrackets.regex.test('file.1.ts')).toBe(true);
+      expect(compiledBrackets.regex.test('file.A.ts')).toBe(false); // case sensitive default in pattern? no, input false
+
+      // Escaped char inside braces options
+      // Pattern: `{a\*b,c}.ts` -> literal `*`
+      const compiledEscapedOpt = getCompiledPattern('{a\\*b,c}.ts', false);
+      expect(compiledEscapedOpt.regex.test('a*b.ts')).toBe(true);
+      expect(compiledEscapedOpt.regex.test('axb.ts')).toBe(false);
+    });
+  });
 });
