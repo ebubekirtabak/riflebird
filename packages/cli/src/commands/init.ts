@@ -45,6 +45,7 @@ export async function initCommand() {
         { name: 'OpenAI (GPT-4)', value: 'openai' },
         { name: 'Anthropic (Claude)', value: 'anthropic' },
         { name: 'Local (Ollama)', value: 'local' },
+        { name: 'Gemini CLI', value: 'gemini-cli' },
       ],
     },
     {

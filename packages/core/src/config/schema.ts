@@ -5,7 +5,14 @@ import {
   DEFAULT_UNIT_TEST_PATTERNS,
 } from './constants';
 
-export const AIProviderSchema = z.enum(['openai', 'anthropic', 'local', 'copilot-cli', 'other']);
+export const AIProviderSchema = z.enum([
+  'openai',
+  'anthropic',
+  'gemini-cli',
+  'local',
+  'copilot-cli',
+  'other',
+]);
 
 export const FrameworkSchema = z.enum(['playwright', 'cypress', 'puppeteer', 'webdriverio']);
 
@@ -57,6 +64,11 @@ export const AnthropicConfig = BaseAIConfig.extend({
       path: ['apiKey'],
     });
   }
+});
+
+// Gemini CLI Config
+export const GeminiCliConfig = BaseAIConfig.extend({
+  provider: z.literal('gemini-cli'),
 });
 
 // Local Config
@@ -124,6 +136,7 @@ export const AIConfigSchema = z.union([
   LocalConfig,
   OtherConfig,
   CopilotCliConfig,
+  GeminiCliConfig,
 ]);
 
 export const RiflebirdConfigSchema = z.object({
