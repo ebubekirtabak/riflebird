@@ -44,7 +44,7 @@ describe('createProgressHandler', () => {
 
     handler(2, 10, 'component.tsx', 5000);
 
-    expect(mockSpinner.text).toBe('🔥 Generating tests... (2/10) [5.0s] component.tsx');
+    expect(mockSpinner.text).toBe('🔥 Generating tests... (2/10) [5.0s] component.tsx \n');
   });
 
   it('should format elapsed time in milliseconds for values < 1000ms', () => {
@@ -97,7 +97,7 @@ describe('createProgressHandler', () => {
     handler(1, 5, 'file.ts', 0);
 
     // Initial update
-    expect(mockSpinner.text).toBe('🔥 Generating tests... (1/5) [0ms] file.ts');
+    expect(mockSpinner.text).toBe('🔥 Generating tests... (1/5) [0ms] file.ts \n');
 
     // Advance time by 500ms and trigger timer
     vi.advanceTimersByTime(100);

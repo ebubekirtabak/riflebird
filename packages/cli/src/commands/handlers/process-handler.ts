@@ -1,4 +1,4 @@
-import ora from "ora";
+import ora from 'ora';
 
 export type ProgressState = {
   current: number;
@@ -23,11 +23,11 @@ export function createProgressHandler(
       timerRef.current = setInterval(() => {
         const elapsed = Date.now() - state.startTime;
         const timeStr = elapsed < 1000 ? `${elapsed}ms` : `${(elapsed / 1000).toFixed(1)}s`;
-        spinner.text = `🔥 Generating tests... (${state.current}/${state.total}) [${timeStr}] ${state.file}`;
+        spinner.text = `🔥 Generating tests... (${state.current}/${state.total}) [${timeStr}] ${state.file} \n`;
       }, 100); // Update every 100ms
     }
 
     const timeStr = elapsedMs < 1000 ? `${elapsedMs}ms` : `${(elapsedMs / 1000).toFixed(1)}s`;
-    spinner.text = `🔥 Generating tests... (${current}/${total}) [${timeStr}] ${file}`;
+    spinner.text = `🔥 Generating tests... (${current}/${total}) [${timeStr}] ${file} \n`;
   };
 }
