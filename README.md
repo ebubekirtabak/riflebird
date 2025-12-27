@@ -30,19 +30,17 @@
   and CI-friendly outputs to integrate easily into your pipelines.
 </p>
 
-
 ## Project Status
 
 For a detailed roadmap including planned features, timelines, and success metrics, see [ROADMAP.md](./ROADMAP.md).
 
 **Current Status Summary**:
+
 - ✅ **Unit Testing**: Beta (90% success rate) - Core functionality working, auto healing implemented
 - ⚠️ **E2E Testing**: In Progress - Adapters exist, full implementation in progress
 - ⚠️ **Visual Testing**: In Progress - AI-powered regression detection in development
 - ❌ **Performance Testing**: Planned for v2.0 - Architecture design phase
 - ❌ **Accessibility Testing**: Planned for v2.0 - Axe/pa11y integration planned
-
-
 
 ## Installation
 
@@ -56,38 +54,41 @@ pnpm add -g riflebird
 
 Benchmark results from internal testing. Success rate = percentage of generated tests that compile and pass with correct assertions.
 
-| Model | Provider | Test Type | Success Rate | Notes |
-|---|---|---:|---:|---|
-| claude-sonnet-4.5 (Copilot CLI) | Anthropic | Unit | 99% | Excellent for complex test cases |
-| Kimi-k2:1t | Moonshot AI | Unit | 99% | Excellent for complex test cases |
-| Devstral 2 | Frontier AI | Unit | 99% | Excellent for complex test cases |
-| gpt-5-mini (Copilot CLI) | OpenAI | Unit | 90% | Handles complex components well |
-| qwen3-coder:480b-cloud | Alibaba | Unit | 50% | Best for simple components |
-| Gemini 3 Pro | Google | Unit / E2E | N/A | Testing in progress |
-| GPT-4 | OpenAI | Unit / E2E | N/A | Testing in progress |
-| GPT-4o | OpenAI | Unit | N/A | Testing in progress |
+| Model                           | Provider    |  Test Type | Success Rate | Notes                            |
+| ------------------------------- | ----------- | ---------: | -----------: | -------------------------------- |
+| claude-sonnet-4.5 (Copilot CLI) | Anthropic   |       Unit |          99% | Excellent for complex test cases |
+| Kimi-k2:1t                      | Moonshot AI |       Unit |          99% | Excellent for complex test cases |
+| Devstral 2                      | Frontier AI |       Unit |          99% | Excellent for complex test cases |
+| gpt-5-mini (Copilot CLI)        | OpenAI      |       Unit |          90% | Handles complex components well  |
+| qwen3-coder:480b-cloud          | Alibaba     |       Unit |          50% | Best for simple components       |
+| Gemini 3 Pro                    | Google      | Unit / E2E |          N/A | Testing in progress              |
+| GPT-4                           | OpenAI      | Unit / E2E |          N/A | Testing in progress              |
+| GPT-4o                          | OpenAI      |       Unit |          N/A | Testing in progress              |
 
-*Results based on internal validation; performance may vary by use case.*
-
+_Results based on internal validation; performance may vary by use case._
 
 ## Quick Start
 
 1. Initialize Riflebird in your project:
+
 ```bash
 riflebird init
 ```
 
 2. Generate tests for all files:
+
 ```bash
 riflebird fire --all
 ```
 
 3. Generate a test for a single file:
+
 ```bash
 riflebird fire ./src/components/cards/PeopleCard/PeopleCard.component.tsx
 ```
 
 4. Use scope filtering to target specific file types:
+
 ```bash
 riflebird fire --all --scope component --unit
 ```
@@ -128,6 +129,20 @@ export default defineConfig({
 ```
 
 The CLI provider will feed the chat messages to the command's stdin and interpret stdout as the assistant response. This is useful for local/offline workflows where an external CLI provides AI completions.
+
+### Gemini CLI Provider
+
+You can use the Gemini CLI as an AI provider by setting the AI provider to `gemini-cli`.
+Ensure you have the `gemini` command executable in your path and authenticated.
+
+```ts
+export default defineConfig({
+  ai: {
+    provider: 'gemini-cli',
+    model: 'gemini-1.5-pro',
+  },
+});
+```
 
 ## Security
 
@@ -191,6 +206,7 @@ Riflebird includes a built-in security layer that automatically detects and reda
 ```
 
 **Protected secret types:**
+
 - API Keys (OpenAI, Anthropic, generic)
 - AWS Access Keys & Secret Keys
 - GitHub Tokens
@@ -201,12 +217,14 @@ Riflebird includes a built-in security layer that automatically detects and reda
 - Passwords & Environment Variables
 
 **Why this matters:**
+
 - 🔴 Developers accidentally commit secrets (it happens to everyone!)
 - 🔴 Test files sometimes contain real credentials during development
 - 🔴 Config files may have production passwords temporarily
 - 🛡️ **Riflebird protects you automatically** - no configuration needed
 
 **Key features:**
+
 - ✅ Secrets never leave your machine in plaintext
 - ✅ Automatic detection with smart false-positive filtering
 - ✅ Safe logging (only counts, never actual values)
@@ -236,6 +254,7 @@ pnpm test -- --run --coverage
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details on:
+
 - Development setup
 - Testing standards (TDD approach)
 - Code quality requirements
