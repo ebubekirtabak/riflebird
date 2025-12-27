@@ -68,7 +68,7 @@ describe('ensureCommandExists', () => {
     } as unknown as SpawnSyncReturns<string>);
 
     expect(() => ensureCommandExists('unknown-cmd')).toThrow(
-      'Command not found: please install the unknown-cmd to use the unknown-cmd provider.'
+      'Command not found: please install unknown-cmd to use the unknown-cmd provider.'
     );
   });
 });
