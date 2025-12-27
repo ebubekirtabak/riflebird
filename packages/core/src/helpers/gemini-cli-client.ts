@@ -1,7 +1,7 @@
 import { RiflebirdConfig } from '@config/schema';
 import type { AIClient, AIClientResult } from '@models/ai-client';
 import { OpenAIChatCompletionResponse } from '@models/chat';
-import { ensureCommandExists } from '@/utils/process/command.util';
+import { ensureCommandExists } from '@utils/process/command.util';
 import { executeProcessCommand } from '@runners/process-execution';
 import { GeminiCliOutput } from './types/gemini-cli';
 
