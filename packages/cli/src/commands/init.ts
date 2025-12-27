@@ -46,6 +46,7 @@ export async function initCommand() {
         { name: 'Anthropic (Claude)', value: 'anthropic' },
         { name: 'Local (Ollama)', value: 'local' },
         { name: 'Gemini CLI', value: 'gemini-cli' },
+        { name: 'CoPilot CLI', value: 'copilot-cli' },
       ],
     },
     {
