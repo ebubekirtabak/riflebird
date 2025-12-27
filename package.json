@@ -1,6 +1,6 @@
 {
   "name": "riflebird",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "AI-powered test generation and execution framework for unit, integration, E2E, visual, and performance testing",
   "main": "index.js",
   "repository": {
@@ -33,6 +33,8 @@
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint -- --fix",
     "publish": "pnpm changeset publish",
+    "ci:publish": "pnpm build && pnpm changeset publish",
+    "ci:version": "pnpm changeset version",
     "prepare": "husky",
     "security:audit": "pnpm audit --audit-level=high",
     "security:check": "pnpm dlx license-checker --production"
