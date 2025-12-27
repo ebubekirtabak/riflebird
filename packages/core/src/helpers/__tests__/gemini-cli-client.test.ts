@@ -236,6 +236,44 @@ describe('gemini-cli-client', () => {
         300000 // timeout
       );
     });
+
+    it('should fallback to raw output if JSON parsing fails with non-Gemini error', async () => {
+      // Mock login check
+      vi.mocked(ensureCommandExists).mockImplementation(() => true);
+      // Mock login session check success
+      vi.mocked(executeProcessCommand).mockResolvedValueOnce({
+        stdout: 'Available sessions',
+        stderr: '',
+        exitCode: 0,
+        timedOut: false,
+      });
+
+      const { client } = await createGeminiClient(mockConfig);
+
+      const rawOutput = 'This is not JSON\nMaybe just some text';
+      // Mock chat completion execution with invalid JSON
+      vi.mocked(executeProcessCommand).mockResolvedValueOnce({
+        stdout: rawOutput,
+        stderr: '',
+        exitCode: 0,
+        timedOut: false,
+      });
+
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const response = await client.createChatCompletion({
+        messages: [{ role: 'user', content: 'Hello' }],
+        model: 'gemini-pro',
+        temperature: 0.7,
+      });
+
+      expect(response.choices[0].message.content).toBe(rawOutput);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to parse Gemini CLI JSON output:',
+        expect.any(SyntaxError)
+      );
+      consoleSpy.mockRestore();
+    });
   });
 
   describe('ensureGeminiLoggedIn', () => {
