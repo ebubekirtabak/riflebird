@@ -53,7 +53,8 @@ export async function initCommand() {
       type: 'password',
       name: 'apiKey',
       message: 'Enter your AI API key (or set as environment variable):',
-      when: (answers: InitAnswers) => answers.aiProvider !== 'local',
+      when: (answers: InitAnswers) =>
+        !['local', 'copilot-cli', 'gemini-cli'].includes(answers.aiProvider),
     },
     {
       type: 'input',
