@@ -16,5 +16,5 @@ export function ensureCommandExists(cmd: string) {
     void _err;
   }
 
-  throw new Error(`Command not found: please install the ${cmd} to use the ${cmd} provider.`);
+  throw new Error(`Command not found: please install ${cmd} to use the ${cmd} provider.`);
 }
