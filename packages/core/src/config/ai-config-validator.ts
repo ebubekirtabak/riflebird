@@ -2,6 +2,7 @@ import {
   type RiflebirdConfig,
   OpenAIConfig,
   AnthropicConfig,
+  GeminiCliConfig,
   LocalConfig,
   OtherConfig,
   CopilotCliConfig,
@@ -26,6 +27,9 @@ export function validateAIConfig(ai: RiflebirdConfig['ai']): AIConfigValidationR
       break;
     case 'anthropic':
       schema = AnthropicConfig;
+      break;
+    case 'gemini-cli':
+      schema = GeminiCliConfig;
       break;
     case 'local':
       schema = LocalConfig;

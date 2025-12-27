@@ -45,13 +45,16 @@ export async function initCommand() {
         { name: 'OpenAI (GPT-4)', value: 'openai' },
         { name: 'Anthropic (Claude)', value: 'anthropic' },
         { name: 'Local (Ollama)', value: 'local' },
+        { name: 'Gemini CLI', value: 'gemini-cli' },
+        { name: 'CoPilot CLI', value: 'copilot-cli' },
       ],
     },
     {
       type: 'password',
       name: 'apiKey',
       message: 'Enter your AI API key (or set as environment variable):',
-      when: (answers: InitAnswers) => answers.aiProvider !== 'local',
+      when: (answers: InitAnswers) =>
+        !['local', 'copilot-cli', 'gemini-cli'].includes(answers.aiProvider),
     },
     {
       type: 'input',

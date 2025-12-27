@@ -7,6 +7,7 @@ import {
   ChatMessage,
 } from '@models/chat';
 import { createCopilotCliClient } from './copilot-cli-client';
+import { createGeminiClient } from './gemini-cli-client';
 export type { AIClient, AIClientResult } from '@models/ai-client';
 export type { ChatCompletionOptions } from '@models/chat';
 
@@ -26,6 +27,9 @@ export async function createAIClient(ai: RiflebirdConfig['ai']): Promise<AIClien
 
     case 'copilot-cli':
       return await createCopilotCliClient(ai);
+
+    case 'gemini-cli':
+      return await createGeminiClient(ai);
 
     case 'anthropic':
       throw new Error('Anthropic provider support is not implemented yet');

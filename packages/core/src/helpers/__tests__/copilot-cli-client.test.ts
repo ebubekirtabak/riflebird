@@ -213,7 +213,9 @@ describe('createCopilotCliClient', () => {
         copilotCli: { args: [] },
       } as unknown as RiflebirdConfig['ai'];
 
-      await expect(createCopilotCliClient(ai)).rejects.toThrow('Copilot CLI not found');
+      await expect(createCopilotCliClient(ai)).rejects.toThrow(
+        'Copilot CLI not found. Please install the Copilot CLI to use the copilot-cli provider. More info: https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli'
+      );
       await expect(createCopilotCliClient(ai)).rejects.toThrow('install-copilot-cli');
     });
 
@@ -276,7 +278,9 @@ describe('createCopilotCliClient', () => {
         copilotCli: { args: [] },
       } as unknown as RiflebirdConfig['ai'];
 
-      await expect(createCopilotCliClient(ai)).rejects.toThrow('Copilot CLI not found');
+      await expect(createCopilotCliClient(ai)).rejects.toThrow(
+        'Copilot CLI not found. Please install the Copilot CLI to use the copilot-cli provider. More info: https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli'
+      );
     });
 
     it('should handle spawn errors during auth checks', async () => {
