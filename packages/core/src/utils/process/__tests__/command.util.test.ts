@@ -37,7 +37,7 @@ describe('ensureCommandExists', () => {
     expect(result).toBe(true);
     expect(spawnSync).toHaveBeenCalledTimes(2);
     expect(spawnSync).toHaveBeenNthCalledWith(1, 'which', ['git']);
-    expect(spawnSync).toHaveBeenNthCalledWith(2, 'command -v git', { shell: true });
+    expect(spawnSync).toHaveBeenNthCalledWith(2, 'command', ['-v', 'git'], { shell: true });
   });
 
   it('should return true if command is found via "command -v" (fallback) when "which" returns non-zero', () => {
