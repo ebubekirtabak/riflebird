@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createGeminiClient, ensureGeminiLoggedIn } from '../gemini-cli-client';
 import { executeProcessCommand } from '@/runners/process-execution';
 import { ensureCommandExists } from '@/utils/process/command.util';
+import { ChatMessage } from '@/models/chat';
 
 // Mock dependencies
 vi.mock('@/runners/process-execution', () => ({
@@ -181,6 +182,59 @@ describe('gemini-cli-client', () => {
           temperature: 0.7,
         })
       ).rejects.toThrow('Gemini CLI timed out');
+    });
+    it('should handle array content in messages', async () => {
+      // Mock login check
+      vi.mocked(ensureCommandExists).mockImplementation(() => true);
+      // Mock login session check success
+      vi.mocked(executeProcessCommand).mockResolvedValueOnce({
+        stdout: 'Available sessions',
+        stderr: '',
+        exitCode: 0,
+        timedOut: false,
+      });
+
+      const { client } = await createGeminiClient(mockConfig);
+
+      // Mock chat completion execution success
+      vi.mocked(executeProcessCommand).mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          response: 'Response',
+          stats: {
+            session: { duration: 100 },
+            model: { turns: 1 },
+            tools: { calls: 0 },
+            user: { turns: 1 },
+          },
+          error: null,
+        }),
+        stderr: '',
+        exitCode: 0,
+        timedOut: false,
+      });
+
+      const messages: ChatMessage[] = [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Part 1' },
+            { type: 'text', text: 'Part 2' },
+          ],
+        },
+      ];
+
+      await client.createChatCompletion({
+        messages,
+        model: 'gemini-pro',
+      });
+
+      const expectedArgs = ['-p', 'Part 1\nPart 2', '--output-format', 'json'];
+      expect(executeProcessCommand).toHaveBeenLastCalledWith(
+        'gemini',
+        expectedArgs,
+        expect.any(String), // cwd
+        300000 // timeout
+      );
     });
   });
 
