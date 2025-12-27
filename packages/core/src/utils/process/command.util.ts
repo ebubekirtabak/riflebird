@@ -10,7 +10,7 @@ export function ensureCommandExists(cmd: string) {
   }
 
   try {
-    const check = spawnSync(`command -v ${cmd}`, { shell: true });
+    const check = spawnSync('command', ['-v', cmd], { shell: true });
     if (check.status === 0) return true;
   } catch (_err) {
     void _err;
