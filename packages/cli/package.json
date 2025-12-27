@@ -1,6 +1,6 @@
 {
   "name": "riflebird",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "AI-powered E2E testing framework - CLI",
   "type": "module",
   "bin": {
@@ -23,7 +23,6 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-
     "@types/inquirer": "^9.0.7",
     "@types/node": "^20.19.27",
     "@vitest/coverage-v8": "^1.0.4",
