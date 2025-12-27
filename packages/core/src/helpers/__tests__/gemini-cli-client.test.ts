@@ -293,7 +293,7 @@ describe('gemini-cli-client', () => {
       });
 
       await expect(ensureGeminiLoggedIn()).rejects.toThrow(
-        'Failed to check Gemini CLI login status'
+        'Gemini CLI does not seem to be logged in'
       );
     });
   });

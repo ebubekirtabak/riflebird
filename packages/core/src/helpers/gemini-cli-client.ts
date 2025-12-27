@@ -112,24 +112,25 @@ export async function ensureGeminiLoggedIn(): Promise<void> {
   ensureCommandExists(GEMINI_CLI_CMD);
   const args = ['--list-sessions'];
 
+  let result;
   try {
-    const result = await executeProcessCommand(GEMINI_CLI_CMD, args, process.cwd(), 10000);
-    const fullOutput = result.stdout + result.stderr;
-
-    // Heuristic: check for "Available sessions" or "Loaded cached credentials" presence
-    if (
-      result.exitCode === 0 &&
-      (fullOutput.includes('Available sessions') ||
-        fullOutput.includes('Loaded cached credentials.'))
-    ) {
-      return;
-    } else {
-      throw new Error(
-        `Gemini CLI does not seem to be logged in. Output:\n${fullOutput}\nPlease run '${GEMINI_CLI_CMD} auth' or check your setup.`
-      );
-    }
+    result = await executeProcessCommand(GEMINI_CLI_CMD, args, process.cwd(), 10000);
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     throw new Error(`Failed to check Gemini CLI login status: ${errorMessage}`);
+  }
+
+  const fullOutput = result.stdout + result.stderr;
+
+  // Heuristic: check for "Available sessions" or "Loaded cached credentials" presence
+  if (
+    result.exitCode === 0 &&
+    (fullOutput.includes('Available sessions') || fullOutput.includes('Loaded cached credentials.'))
+  ) {
+    return;
+  } else {
+    throw new Error(
+      `Gemini CLI does not seem to be logged in. Output:\n${fullOutput}\nPlease run '${GEMINI_CLI_CMD} auth' or check your setup.`
+    );
   }
 }
