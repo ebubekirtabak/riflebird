@@ -1,37 +1,12 @@
 import { RiflebirdConfig } from '@config/schema';
 import type { AIClient, AIClientResult } from '@models/ai-client';
 import { OpenAIChatCompletionResponse, ChatMessage } from '@models/chat';
+import { ensureCommandExists } from '@utils/process/command.util';
 import { spawn, spawnSync } from 'child_process';
 import { once } from 'events';
 
 const COPILOT_CLI_CMD = 'copilot';
 const COPILOT_CLI_DEFAULT_MODEL = 'gpt-4o-mini';
-
-function ensureCommandExists(cmd: string) {
-  // Try `which` first (macOS/Linux), then fall back to shell `command -v`.
-  try {
-    const which = spawnSync('which', [cmd]);
-    if (which.status === 0) return true;
-  } catch (_err) {
-    void _err;
-  }
-
-  try {
-    const check = spawnSync(`command -v ${cmd}`, { shell: true });
-    if (check.status === 0) return true;
-  } catch (_err) {
-    void _err;
-  }
-
-  const installUrl = 'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli';
-  throw new Error(
-    [
-      `Copilot CLI not found: please install the Copilot CLI to use the 'copilot-cli' provider.`,
-      `Install instructions: ${installUrl}`,
-      `If you have a custom path, set the environment variable 'COPILOT_CLI_CMD' to the executable path.`,
-    ].join('\n')
-  );
-}
 
 function ensureLoggedIn() {
   const loginUrl =
@@ -71,7 +46,20 @@ function ensureLoggedIn() {
 }
 
 export async function createCopilotCliClient(ai: RiflebirdConfig['ai']): Promise<AIClientResult> {
-  ensureCommandExists(COPILOT_CLI_CMD);
+  if (ai.provider !== 'copilot-cli') {
+    throw new Error(`Invalid provider: ${ai.provider}. Expected 'copilot-cli'.`);
+  }
+
+  try {
+    ensureCommandExists(COPILOT_CLI_CMD);
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('Command not found')) {
+      throw new Error(
+        `Copilot CLI not found. Please install the Copilot CLI to use the copilot-cli provider. More info: https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli`
+      );
+    }
+    throw e;
+  }
   ensureLoggedIn();
   const hasModelArg = ai.copilotCli?.args?.some(
     (a: string) => a === '--model' || a.startsWith('--model=')
