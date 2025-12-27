@@ -65,9 +65,18 @@ importers:
       inquirer:
         specifier: ^9.2.12
         version: 9.3.8(@types/node@20.19.27)
+      jiti:
+        specifier: ^2.6.1
+        version: 2.6.1
+      openai:
+        specifier: ^4.20.1
+        version: 4.104.0(zod@3.25.76)
       ora:
         specifier: ^7.0.1
         version: 7.0.1
+      playwright:
+        specifier: ^1.40.1
+        version: 1.56.1
       zod:
         specifier: ^3.25.76
         version: 3.25.76

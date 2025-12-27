@@ -1,6 +1,10 @@
 ---
-'@riflebird/core': minor
 'riflebird': minor
+'@riflebird/core': minor
 ---
 
-change publishing strategy
+### New Publishing Strategy
+
+- Refactored to single-package architecture.
+- Users can now simply run `npm i riflebird` to get all functionality.
+- Internal core package is now bundled.
