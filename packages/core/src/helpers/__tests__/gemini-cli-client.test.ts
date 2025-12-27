@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createGeminiClient, ensureGeminiLoggedIn } from '../gemini-cli-client';
-import { executeProcessCommand } from '@/runners/process-execution';
-import { ensureCommandExists } from '@/utils/process/command.util';
-import { ChatMessage } from '@/models/chat';
+import { executeProcessCommand } from '@runners/process-execution';
+import { ensureCommandExists } from '@utils/process/command.util';
+import { ChatMessage } from '@models/chat';
 
 // Mock dependencies
 vi.mock('@/runners/process-execution', () => ({
