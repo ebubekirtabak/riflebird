@@ -5,7 +5,7 @@ import { ensureCommandExists } from '@utils/process/command.util';
 import { ChatMessage } from '@models/chat';
 
 // Mock dependencies
-vi.mock('@/runners/process-execution', () => ({
+vi.mock('@runners/process-execution', () => ({
   executeProcessCommand: vi.fn(),
 }));
 
