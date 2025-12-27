@@ -40,7 +40,7 @@ export async function createGeminiClient(ai: RiflebirdConfig['ai']): Promise<AIC
 
   const config = ai;
 
-  ensureGeminiLoggedIn();
+  await ensureGeminiLoggedIn();
 
   const client: AIClient = {
     createChatCompletion: async (options) => {
