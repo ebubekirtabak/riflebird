@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [master, feat/*]
   schedule:
-    - cron: '0 0 * * 1'  # Weekly on Monday at midnight UTC
+    - cron: '0 0 * * 1' # Weekly on Monday at midnight UTC
 
 jobs:
   dependency-review:
@@ -35,14 +35,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Full history for secret scanning
+          fetch-depth: 0 # Full history for secret scanning
 
-      - name: TruffleHog Secret Scanning
+      - name: TruffleHog Secret Scanning (PR)
+        if: github.event_name == 'pull_request'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: TruffleHog Secret Scanning (Push/Schedule)
+        if: github.event_name != 'pull_request'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
           extra_args: --debug --only-verified
 
   vulnerability-scan:
