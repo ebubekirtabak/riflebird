@@ -8,7 +8,7 @@ jobs:
       - name: Check branch name
         run: |
           branch_name="${{ github.head_ref }}"
-          regex='^(feat|fix|docs|refactor|test|chore|perf|style|build|hotfix|experiment)/|^release/|^master$|^main$|^dev$'
+          regex='^(feat|fix|docs|refactor|test|chore|perf|style|build|hotfix|experiment|ci|revert)/|^release/|^master$|^main$|^dev$'
 
           if [[ ! $branch_name =~ $regex ]]; then
             echo "❌ Invalid branch name: '$branch_name'. Follow the naming rules!"
