@@ -12,7 +12,7 @@ jobs:
 
           if [[ ! $branch_name =~ $regex ]]; then
             echo "❌ Invalid branch name: '$branch_name'. Follow the naming rules!"
-            echo "Allowed prefixes: feat/, fix/, docs/, refactor/, test/, chore/, perf/, style/, build/, hotfix/, experiment/, release/"
+            echo "Allowed prefixes: feat/, fix/, docs/, refactor/, test/, chore/, perf/, style/, build/, hotfix/, experiment/, ci/, revert/, release/"
             echo "Allowed branches: master, main, dev"
             exit 1
           fi
