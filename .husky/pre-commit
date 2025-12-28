@@ -10,9 +10,9 @@ if [ "$branch" = "master" ] || [ "$branch" = "dev" ] || [ "$branch" = "main" ] |
   exit 0
 fi
 
-if ! echo "$branch" | grep -E '^(feat|fix|docs|refactor|test|chore|perf|style|build|hotfix|experiment)/'; then
+if ! echo "$branch" | grep -E '^(feat|fix|docs|refactor|test|chore|perf|style|build|hotfix|experiment|ci|revert)/'; then
   echo "❌ Invalid branch name: '$branch'. Follow the naming rules!"
-  echo "Allowed prefixes: feat/, fix/, docs/, refactor/, test/, chore/, perf/, style/, build/, hotfix/, experiment/"
+  echo "Allowed prefixes: feat/, fix/, docs/, refactor/, test/, chore/, perf/, style/, build/, hotfix/, experiment/, ci/, revert/"
   exit 1
 fi
 
