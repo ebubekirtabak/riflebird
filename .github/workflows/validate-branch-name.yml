@@ -1,0 +1,18 @@
+name: Validate Branch Name
+on: [pull_request]
+
+jobs:
+  validate-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch name
+        run: |
+          branch_name="${{ github.head_ref }}"
+          regex='^(feat|fix|docs|refactor|test|chore|perf|style|build|hotfix|experiment|ci|revert)/|^release/|^master$|^main$|^dev$'
+
+          if [[ ! $branch_name =~ $regex ]]; then
+            echo "❌ Invalid branch name: '$branch_name'. Follow the naming rules!"
+            echo "Allowed prefixes: feat/, fix/, docs/, refactor/, test/, chore/, perf/, style/, build/, hotfix/, experiment/, ci/, revert/, release/"
+            echo "Allowed branches: master, main, dev"
+            exit 1
+          fi
