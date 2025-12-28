@@ -6,6 +6,10 @@ commit_msg=$(cat "$1")
 # Check if commit message follows conventional commits format
 # Format: type(scope?): subject
 # Types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert
+if echo "$commit_msg" | grep -qE "^Merge "; then
+  exit 0
+fi
+
 if ! echo "$commit_msg" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,}$"; then
   echo "❌ Invalid commit message format!"
   echo ""
@@ -18,6 +22,8 @@ if ! echo "$commit_msg" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|pe
   echo "  feat: add new test generation feature"
   echo "  fix(core): resolve test output directory issue"
   echo "  docs: update README with new examples"
+  echo ""
+  echo "Merge commits starting with 'Merge ' are also allowed."
   echo ""
   exit 1
 fi
