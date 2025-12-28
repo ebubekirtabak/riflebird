@@ -1,0 +1,103 @@
+name: PR Automation
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  decorate-title:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' || github.event.action == 'synchronize'
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const currentTitle = pr.title;
+
+            // Get changed files
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100
+            });
+
+            const fileNames = files.map(f => f.filename);
+
+            let newTitle = currentTitle;
+            let icon = '';
+
+            // Check for tests
+            const hasTests = fileNames.some(f =>
+              f.includes('.test.') ||
+              f.includes('.spec.') ||
+              f.includes('/tests/') ||
+              f.includes('/__tests__/')
+            );
+
+            // Check for docs
+            const isDocsOnly = fileNames.every(f =>
+              f.endsWith('.md') ||
+              f.includes('docs/') ||
+              f.includes('LICENSE')
+            );
+
+            if (hasTests) {
+              icon = '🟢';
+            } else if (isDocsOnly) {
+              icon = '📝';
+            } else {
+              icon = '🟥';
+            }
+
+            // Strip existing icons to allows updates (e.g., 🟥 → 🟢)
+            const cleanTitle = currentTitle.replace(/^(🟢|📝|🟥)\s+/, '');
+
+            if (icon) {
+              newTitle = `${icon} ${cleanTitle}`;
+            }
+
+            // Update title if changed
+            if (newTitle !== currentTitle) {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                title: newTitle
+              });
+              console.log(`Updated title to: ${newTitle}`);
+            } else {
+              console.log('Title already decorated or no decoration needed.');
+            }
+
+  validate-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+            const regex = /^(🟢 |📝 |🟥 )?(feat|fix|docs|refactor|test|chore|perf|style|build|ci|revert)(\([a-z0-9-]+\))?!?: .+$/;
+
+            if (!regex.test(title)) {
+              core.setFailed(`
+                ❌ Invalid PR Title key: "${title}"
+
+                Format should follow Conventional Commits:
+                <type>(<scope>): <description>
+
+                Examples:
+                - feat(RF-123): add new feature
+                - fix: resolve crash
+                - docs: update readme
+
+                Allowed types: feat, fix, docs, refactor, test, chore, perf, style, build, ci, revert
+                (Icons 🟢, 📝 or � at the start are allowed)
+              `);
+            } else {
+              console.log('✅ PR Title is valid.');
+            }
