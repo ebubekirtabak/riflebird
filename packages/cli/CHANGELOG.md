@@ -1,5 +1,11 @@
 # riflebird
 
+## 0.1.2
+
+### Patch Changes
+
+- f35838b: fix installation issues
+
 ## 0.1.1
 
 ### Patch Changes
