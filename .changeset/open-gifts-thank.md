@@ -1,6 +1,6 @@
 ---
-'riflebird': minor
-'@riflebird/core': minor
+'riflebird': patch
+'@riflebird/core': patch
 ---
 
 ### New Publishing Strategy
