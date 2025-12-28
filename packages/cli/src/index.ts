@@ -9,6 +9,8 @@ import { reloadCommand } from './commands/reload.js';
 import { cleanCommand } from './commands/clean.js';
 import { interactiveMode } from './interactivite.js';
 
+export * from '@riflebird/core';
+
 const program = new Command();
 
 program

@@ -1,6 +1,6 @@
 {
   "name": "riflebird",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "AI-powered test generation and execution framework for unit, integration, E2E, visual, and performance testing",
   "main": "index.js",
   "repository": {
