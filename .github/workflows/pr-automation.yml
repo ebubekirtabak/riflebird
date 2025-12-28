@@ -45,7 +45,7 @@ jobs:
               const rawDesc = branchMatch[3];
               const desc = rawDesc.replace(/-/g, ' '); // replace dashes with spaces
 
-              const conventinalTitle = `${type}(${scope}): ${desc}`;
+              const conventionalTitle = `${type}(${scope}): ${desc}`;
 
               // If the current title seems to be just the "humanized" branch name (illegal)
               // or if it fails conventional commits check, we replace it.
@@ -57,7 +57,7 @@ jobs:
 
               if (!conventionalRegex.test(currentTitle)) {
                  console.log(`Detected invalid title: "${currentTitle}". Auto-fixing based on branch "${branchName}".`);
-                 newTitle = conventinalTitle;
+                 newTitle = conventionalTitle;
               }
             }
 
