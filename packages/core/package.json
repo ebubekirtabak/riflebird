@@ -1,6 +1,7 @@
 {
   "name": "@riflebird/core",
   "version": "0.1.0",
+  "private": true,
   "description": "AI-powered all in one test generation and execution framework",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

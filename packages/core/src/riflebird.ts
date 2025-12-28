@@ -43,7 +43,8 @@ export class Riflebird {
 
     this.adapter = this.createAdapter();
 
-    await this.adapter.init(this.config);
+    // TODO: Initialize adapter
+    // await this.adapter.init(this.config);
 
     // Initialize commands with shared context
     const context: CommandContext = {

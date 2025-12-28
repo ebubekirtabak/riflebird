@@ -8,4 +8,9 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   shims: true,
+  noExternal: ['@riflebird/core'],
+  external: [
+    'chromium-bidi/lib/cjs/bidiMapper/BidiMapper',
+    'chromium-bidi/lib/cjs/cdp/CdpConnection',
+  ],
 });
