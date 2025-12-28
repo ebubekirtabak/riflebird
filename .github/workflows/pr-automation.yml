@@ -29,6 +29,38 @@ jobs:
             const fileNames = files.map(f => f.filename);
 
             let newTitle = currentTitle;
+
+            // ---------------------------------------------------------
+            // Attempt to auto-fix title from branch name if it looks like default
+            // Branch format: type/ticket-description (e.g., chore/RF-21-add-stuff)
+            // Target format: type(ticket): description
+            // ---------------------------------------------------------
+            const branchName = pr.head.ref;
+            const branchRegex = /^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)\/([A-Z]+-\d+)-(.*)$/;
+            const branchMatch = branchName.match(branchRegex);
+
+            if (branchMatch) {
+              const type = branchMatch[1];
+              const scope = branchMatch[2];
+              const rawDesc = branchMatch[3];
+              const desc = rawDesc.replace(/-/g, ' '); // replace dashes with spaces
+
+              const conventinalTitle = `${type}(${scope}): ${desc}`;
+
+              // If the current title seems to be just the "humanized" branch name (illegal)
+              // or if it fails conventional commits check, we replace it.
+              // GitHub defaults: "Chore/rf 21 implement..." (Capitalized, slashes may remain or spaces)
+
+              // Simple heuristic: If title doesn't start with a valid type and colon
+              // (Using relaxed regex to match validation logic)
+              const conventionalRegex = /^([^a-zA-Z0-9]+\s+)?(feat|fix|docs|refactor|test|chore|perf|style|build|ci|revert)(\([a-zA-Z0-9-]+\))?!?: .+$/;
+
+              if (!conventionalRegex.test(currentTitle)) {
+                 console.log(`Detected invalid title: "${currentTitle}". Auto-fixing based on branch "${branchName}".`);
+                 newTitle = conventinalTitle;
+              }
+            }
+
             let icon = '';
 
             // Check for tests
@@ -81,7 +113,10 @@ jobs:
         with:
           script: |
             const title = context.payload.pull_request.title;
-            const regex = /^(🟢 |📝 |🟥 )?(feat|fix|docs|refactor|test|chore|perf|style|build|ci|revert)(\([a-z0-9-]+\))?!?: .+$/;
+            // Relaxed Regex:
+            // 1. Allows any non-alphanumeric chars at the start (for icons like 🟥, 🟢, 📝)
+            // 2. Allows UpperCase in scope (e.g., (RF-123))
+            const regex = /^([^a-zA-Z0-9]+\s+)?(feat|fix|docs|refactor|test|chore|perf|style|build|ci|revert)(\([a-zA-Z0-9-]+\))?!?: .+$/;
 
             if (!regex.test(title)) {
               core.setFailed(`
