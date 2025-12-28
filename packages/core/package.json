@@ -23,7 +23,7 @@
   "dependencies": {
     "jiti": "^2.6.1",
     "openai": "^4.20.1",
-    "playwright": "^1.40.1",
+    "playwright": "^1.57.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
