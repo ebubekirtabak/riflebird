@@ -101,3 +101,73 @@ jobs:
             } else {
               console.log('✅ PR Title is valid.');
             }
+
+  add-jira-link:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' || github.event.action == 'edited'
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const branchName = pr.head.ref;
+            const jiraRegex = /([A-Z]+-\d+)/;
+            const match = branchName.match(jiraRegex);
+
+            if (!match) {
+              console.log('No Jira ticket found in branch name.');
+              return;
+            }
+
+            const ticketId = match[1];
+            const body = pr.body || '';
+            const placeholder = '<!-- Link to the Jira ticket (e.g., RF-123) or write "None" -->';
+
+            if (!body.includes(placeholder)) {
+               console.log('Placeholder not found, skipping update.');
+               return;
+            }
+
+            const { JIRA_BASE_URL, JIRA_USER_EMAIL, JIRA_API_TOKEN } = process.env;
+            let linkText = ticketId;
+
+            if (JIRA_BASE_URL && JIRA_USER_EMAIL && JIRA_API_TOKEN) {
+              try {
+                // Fetch ticket details
+                const response = await fetch(`${JIRA_BASE_URL}/rest/api/3/issue/${ticketId}`, {
+                  headers: {
+                    'Authorization': `Basic ${Buffer.from(JIRA_USER_EMAIL + ':' + JIRA_API_TOKEN).toString('base64')}`,
+                    'Accept': 'application/json'
+                  }
+                });
+
+                if (response.ok) {
+                  const data = await response.json();
+                  const summary = data.fields.summary;
+                  const status = data.fields.status.name;
+                  const browsingUrl = `${JIRA_BASE_URL}/browse/${ticketId}`;
+
+                  // Format: [RF-123](url): Summary (Status)
+                  linkText = `[${ticketId}](${browsingUrl}): ${summary} (Status: ${status})`;
+                } else {
+                  console.log(`Failed to fetch from Jira: ${response.status} ${response.statusText}`);
+                }
+              } catch (error) {
+                console.error('Error fetching from Jira:', error);
+              }
+            } else {
+               console.log('Missing Jira secrets. Falling back to simple ticket ID.');
+            }
+
+            const newBody = body.replace(placeholder, linkText);
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              body: newBody
+            });
+            console.log(`Updated PR body with: ${linkText}`);
