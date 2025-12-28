@@ -132,7 +132,7 @@ jobs:
                 - docs: update readme
 
                 Allowed types: feat, fix, docs, refactor, test, chore, perf, style, build, ci, revert
-                (Icons 🟢, 📝 or � at the start are allowed)
+                (Icons 🟥, 🟢, 📝 at the start are allowed)
               `);
             } else {
               console.log('✅ PR Title is valid.');
