@@ -22,17 +22,19 @@ This document outlines the **branch naming rules** and **workflow** for contribu
 
 **Format:** `<type>/<jira-ticket>-<description>`
 
-| Type       | Description                    | Example Branch Name             |
-| ---------- | ------------------------------ | ------------------------------- |
-| `feat`     | New feature or enhancement.    | `feat/RF-123-add-validation`    |
-| `fix`      | Bug fix.                       | `fix/RF-456-crash-on-input`     |
-| `docs`     | Documentation updates.         | `docs/RF-789-update-readme`     |
-| `refactor` | Code refactoring.              | `refactor/RF-101-simplify-code` |
-| `test`     | Adding or updating tests.      | `test/RF-202-add-unit-tests`    |
-| `chore`    | Maintenance tasks.             | `chore/RF-303-update-deps`      |
-| `perf`     | Performance improvements.      | `perf/RF-404-optimize-loops`    |
-| `style`    | Code style changes.            | `style/RF-505-fix-linter`       |
-| `build`    | Build system or CI/CD changes. | `build/RF-606-update-webpack`   |
+| Type       | Description                            | Example Branch Name               |
+| ---------- | -------------------------------------- | --------------------------------- |
+| `feat`     | New feature or enhancement.            | `feat/RF-123-add-validation`      |
+| `fix`      | Bug fix.                               | `fix/RF-456-crash-on-input`       |
+| `docs`     | Documentation updates.                  | `docs/RF-789-update-readme`       |
+| `refactor` | Code refactoring.                      | `refactor/RF-101-simplify-code`   |
+| `test`     | Adding or updating tests.              | `test/RF-202-add-unit-tests`      |
+| `chore`    | Maintenance tasks.                     | `chore/RF-303-update-deps`        |
+| `perf`     | Performance improvements.              | `perf/RF-404-optimize-loops`      |
+| `style`    | Code style changes.                    | `style/RF-505-fix-linter`         |
+| `build`    | Build system or CI/CD changes.         | `build/RF-606-update-webpack`     |
+| `ci`       | CI workflows or pipeline adjustments.  | `ci/RF-707-update-github-actions` |
+| `revert`   | Revert of a previous change/branch.    | `revert/RF-808-revert-bad-fix`    |
 
 #### For Community Contributors (without Jira access)
 
