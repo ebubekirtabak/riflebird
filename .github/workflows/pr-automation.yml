@@ -161,10 +161,11 @@ jobs:
 
             const ticketId = match[1];
             const body = pr.body || '';
-            const placeholder = '<!-- Link to the Jira ticket (e.g., RF-123) or write "None" -->';
 
-            if (!body.includes(placeholder)) {
-               console.log('Placeholder not found, skipping update.');
+            // 1. Safety Check: If ticket ID is already in body (and formatted as a link?), skip.
+            // basic check:
+            if (body.includes(ticketId) && body.includes('](')) {
+               console.log(`Ticket ${ticketId} already seems to be linked. Skipping.`);
                return;
             }
 
@@ -199,11 +200,28 @@ jobs:
                console.log('Missing Jira secrets. Falling back to simple ticket ID.');
             }
 
-            const newBody = body.replace(placeholder, linkText);
-            await github.rest.pulls.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-              body: newBody
-            });
-            console.log(`Updated PR body with: ${linkText}`);
+            // 2. Robust Replacement Logic
+            const placeholderRegex = /<!--\s*Link to the Jira ticket \(e\.g\., RF-123\) or write "None"\s*-->/i;
+            let newBody = body;
+
+            if (placeholderRegex.test(body)) {
+               newBody = body.replace(placeholderRegex, linkText);
+            } else if (body.includes('## Jira Ticket')) {
+               // Fallback: Append after header if placeholder is missing
+               newBody = body.replace('## Jira Ticket', `## Jira Ticket\n\n${linkText}`);
+            } else {
+               // Fallback: Append to end
+               newBody = `${body}\n\n## Jira Ticket\n\n${linkText}`;
+            }
+
+            if (newBody !== body) {
+               await github.rest.pulls.update({
+                 owner: context.repo.owner,
+                 repo: context.repo.repo,
+                 pull_number: pr.number,
+                 body: newBody
+               });
+               console.log(`Updated PR body with: ${linkText}`);
+            } else {
+               console.log('No changes needed for PR body.');
+            }
