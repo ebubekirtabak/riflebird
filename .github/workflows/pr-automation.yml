@@ -86,8 +86,9 @@ jobs:
               icon = '🟥';
             }
 
-            // Strip existing icons to allows updates (e.g., 🟥 → 🟢)
-            const cleanTitle = currentTitle.replace(/^(🟢|📝|🟥)\s+/, '');
+            // Strip existing icons to allow updates (e.g., 🟥 → 🟢)
+            const sourceTitle = newTitle || currentTitle;
+            const cleanTitle = sourceTitle.replace(/^(🟢|📝|🟥)\s+/, '');
 
             if (icon) {
               newTitle = `${icon} ${cleanTitle}`;
