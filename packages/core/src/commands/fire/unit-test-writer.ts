@@ -1,6 +1,6 @@
 import type { TestFile, AIClient, ProjectContext, FrameworkInfo } from '@models';
 import {
-  generateTestFilePathWithConfig,
+  generateFilePathWithConfig,
   info,
   ProjectFileWalker,
   matchesPattern,
@@ -138,10 +138,11 @@ export class UnitTestWriter {
 
     debug(`Test file content:\n${fileContent}`);
 
-    const testFilePath = generateTestFilePathWithConfig(testPath, {
-      testOutputDir: this.options.config.unitTesting?.testOutputDir,
+    const testFilePath = generateFilePathWithConfig(testPath, {
+      outputDir: this.options.config.unitTesting?.testOutputDir,
       projectRoot: projectRoot,
       strategy: unitTestOutputStrategy,
+      suffix: '.test',
     });
 
     let lastTestCode: string | undefined;

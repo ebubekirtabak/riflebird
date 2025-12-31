@@ -7,7 +7,7 @@ import {
   ProjectFileWalker,
   FileTreeWalker,
   FileTreeWalkerContext,
-  detectTestOutputStrategy,
+  detectOutputStrategy,
   detectPackageManagerInfo,
 } from '@utils';
 import { ProjectCacheManager } from '../cache';
@@ -85,7 +85,7 @@ export class ProjectContextProvider {
       // Detect unit test output strategy from config
       const testOutputDir = this.context.config.unitTesting?.testOutputDir;
       const unitTestOutputStrategy = testOutputDir
-        ? detectTestOutputStrategy(testOutputDir)
+        ? detectOutputStrategy(testOutputDir)
         : undefined;
 
       const packageManagerInfo = await detectPackageManagerInfo(
