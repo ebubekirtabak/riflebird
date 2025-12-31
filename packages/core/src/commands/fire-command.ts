@@ -8,7 +8,6 @@ import { DocumentHandler } from './fire/document-handler';
 import { FireInput, FireOutput, TestType, TestScope } from './fire/types';
 import { ALL_TEST_TYPES, SUPPORTED_TEST_SCOPES } from './fire/constants';
 
-// Re-export types for backward compatibility or convenience if needed
 export type { FireInput, FireOutput, TestType, TestScope };
 
 /**
