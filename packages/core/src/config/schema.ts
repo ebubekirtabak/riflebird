@@ -24,6 +24,16 @@ export const CoverageReporterSchema = z.enum(['text', 'html', 'json', 'lcov']);
 
 export const TestEnvironmentSchema = z.enum(['node', 'jsdom', 'happy-dom']);
 
+export const DocumentationFrameworkSchema = z.enum(['storybook']);
+
+export const DocumentationConfigSchema = z.object({
+  enabled: z.boolean().default(true),
+  framework: DocumentationFrameworkSchema.optional(),
+  documentationOutputDir: z.string().optional().default('./stories/'),
+  setupFiles: z.array(z.string()).default([]),
+  documentationMatch: z.array(z.string()).default(['src/**/*.stories.{ts,tsx,js,jsx,vue}']),
+});
+
 // Base AI Config shared by all providers
 export const BaseAIConfig = z.object({
   model: z.string({ required_error: 'Model name is required' }).min(1, 'Model name is required'),
@@ -282,6 +292,8 @@ export const RiflebirdConfigSchema = z.object({
       timeout: z.number().default(5000),
     })
     .optional(),
+
+  documentation: DocumentationConfigSchema.optional(),
 });
 
 export type RiflebirdConfig = z.infer<typeof RiflebirdConfigSchema>;
