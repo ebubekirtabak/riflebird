@@ -3,12 +3,13 @@ import { ProjectFileWalker } from '../project-file-walker';
 import path from 'path';
 import fs from 'fs/promises';
 import { sanitizationLogger } from '@security';
+import { Stats } from 'node:fs';
 
 // Mock fs
 vi.mock('fs/promises');
 
 // Spy on logger
-vi.spyOn(sanitizationLogger, 'logSanitization').mockImplementation(() => { });
+vi.spyOn(sanitizationLogger, 'logSanitization').mockImplementation(() => {});
 
 describe('ProjectFileWalker', () => {
   const mockProjectRoot = '/tmp/mock-project';
@@ -28,8 +29,9 @@ describe('ProjectFileWalker', () => {
 
     it('should throw error for path traversal attempt', async () => {
       const filePath = '../outside.secret';
-      await expect(walker.resolveAndValidatePath(filePath))
-        .rejects.toThrow('Security Error: Access denied');
+      await expect(walker.resolveAndValidatePath(filePath)).rejects.toThrow(
+        'Security Error: Access denied'
+      );
     });
 
     it('should resolve paths that traverse out and back in', async () => {
@@ -53,8 +55,9 @@ describe('ProjectFileWalker', () => {
 
     it('should fail if path is unsafe', async () => {
       const filePath = '../bad.txt';
-      await expect(walker.writeFileToProject(filePath, 'content'))
-        .rejects.toThrow('Security Error');
+      await expect(walker.writeFileToProject(filePath, 'content')).rejects.toThrow(
+        'Security Error'
+      );
       expect(fs.writeFile).not.toHaveBeenCalled();
     });
   });
@@ -73,8 +76,36 @@ describe('ProjectFileWalker', () => {
 
     it('should fail if path is unsafe', async () => {
       const filePath = '../config.json';
-      await expect(walker.readFileFromProject(filePath))
-        .rejects.toThrow('Security Error');
+      await expect(walker.readFileFromProject(filePath)).rejects.toThrow('Security Error');
+    });
+  });
+
+  describe('getFileLastModified', () => {
+    it('should return last modified time for valid file', async () => {
+      const filePath = 'package.json';
+      const fullPath = path.resolve(mockProjectRoot, filePath);
+      const mockStats = { mtimeMs: 123456789 } as unknown as Stats;
+
+      vi.mocked(fs.stat).mockResolvedValue(mockStats);
+
+      const result = await walker.getFileLastModified(filePath);
+
+      expect(fs.stat).toHaveBeenCalledWith(fullPath);
+      expect(result).toBe(123456789);
+    });
+
+    it('should fail if path is unsafe', async () => {
+      const filePath = '../outside.txt';
+      await expect(walker.getFileLastModified(filePath)).rejects.toThrow('Security Error');
+    });
+
+    it('should propagate fs errors', async () => {
+      const filePath = 'missing.txt';
+      vi.mocked(fs.stat).mockRejectedValue(new Error('ENOENT'));
+
+      await expect(walker.getFileLastModified(filePath)).rejects.toThrow(
+        'Failed to get last modified time'
+      );
     });
   });
 });
