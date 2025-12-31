@@ -3,35 +3,13 @@ import { ProjectContextProvider } from '@providers/project-context-provider';
 import { debug, info, findProjectRoot } from '@utils';
 import { resolveTestTypes, getScopePatterns } from './fire/fire-command-helpers';
 import { UnitTestWriter } from './fire/unit-test-writer';
+import { DocumentWriter } from './fire/document-writer';
+import { DocumentHandler } from './fire/document-handler';
+import { FireInput, FireOutput, TestType, TestScope } from './fire/types';
 import { ALL_TEST_TYPES, SUPPORTED_TEST_SCOPES } from './fire/constants';
 
-export type TestType = 'e2e' | 'unit' | 'visual' | 'performance';
-
-/**
- * Scope filter for --all mode
- * - 'component': React/Vue components (*.tsx, *.vue, *.jsx)
- * - 'layout': Layout files
- * - 'page': Page/route files
- * - 'service': Service/API files
- * - 'util': Utility/helper files
- * - 'hook': React hooks
- * - 'store': State management files
- */
-export type TestScope = 'component' | 'layout' | 'page' | 'service' | 'util' | 'hook' | 'store';
-
-export type FireInput = {
-  testPath?: string;
-  all?: boolean;
-  testTypes?: TestType[];
-  scope?: TestScope;
-  onProgress?: (current: number, total: number, file: string, elapsedMs: number) => void;
-};
-
-export type FireOutput = {
-  success: boolean;
-  result?: string;
-  error?: string;
-};
+// Re-export types for backward compatibility or convenience if needed
+export type { FireInput, FireOutput, TestType, TestScope };
 
 /**
  * Fire command - Execute tests and analyze project structure
@@ -45,6 +23,8 @@ export type FireOutput = {
  */
 export class FireCommand extends Command<FireInput, FireOutput> {
   private unitTestWriter: UnitTestWriter;
+  private documentWriter: DocumentWriter;
+  private documentHandler: DocumentHandler;
 
   constructor(context: CommandContext) {
     super(context);
@@ -52,6 +32,11 @@ export class FireCommand extends Command<FireInput, FireOutput> {
       aiClient: context.aiClient,
       config: context.config,
     });
+    this.documentWriter = new DocumentWriter({
+      aiClient: context.aiClient,
+      config: context.config,
+    });
+    this.documentHandler = new DocumentHandler(context, this.documentWriter);
   }
 
   async execute(input: FireInput): Promise<FireOutput> {
@@ -84,7 +69,7 @@ export class FireCommand extends Command<FireInput, FireOutput> {
 
       const results: string[] = [];
 
-      if (activeTestTypes.includes('unit') && testFrameworks?.unit) {
+      if (results.length > 1 && activeTestTypes.includes('unit') && testFrameworks?.unit) {
         debug(`Unit test framework configured: ${testFrameworks.unit.name}`);
         if (all) {
           const scopeInfo = input.scope ? ` for ${input.scope} files` : '';
@@ -106,8 +91,8 @@ export class FireCommand extends Command<FireInput, FireOutput> {
 
           if (failures.length > 0) {
             info(`\n⚠️  ${failures.length} file(s) failed to generate tests:`);
-            failures.forEach(f => info(`  - ${f.file}: ${f.error}`));
-            const failureMsgs = failures.map(f => `  - ${f.file}: ${f.error}`);
+            failures.forEach((f) => info(`  - ${f.file}: ${f.error}`));
+            const failureMsgs = failures.map((f) => `  - ${f.file}: ${f.error}`);
             results.push('\nFailures:', ...failureMsgs);
           }
         } else if (testPath) {
@@ -125,16 +110,12 @@ export class FireCommand extends Command<FireInput, FireOutput> {
 
             if (failures.length > 0) {
               info(`\n⚠️  ${failures.length} file(s) failed to generate tests:`);
-              failures.forEach(f => info(`  - ${f.file}: ${f.error}`));
-              const failureMsgs = failures.map(f => `  - ${f.file}: ${f.error}`);
+              failures.forEach((f) => info(`  - ${f.file}: ${f.error}`));
+              const failureMsgs = failures.map((f) => `  - ${f.file}: ${f.error}`);
               results.push('\nFailures:', ...failureMsgs);
             }
           } else {
-            await this.unitTestWriter.writeTestFile(
-              projectContext,
-              testPath,
-              testFrameworks.unit
-            );
+            await this.unitTestWriter.writeTestFile(projectContext, testPath, testFrameworks.unit);
           }
         }
       }
@@ -143,6 +124,16 @@ export class FireCommand extends Command<FireInput, FireOutput> {
         // @todo: Implement E2E test execution
         info('E2E test execution (coming soon)');
         results.push('E2E test execution (coming soon)');
+      }
+
+      if (activeTestTypes.includes('document')) {
+        const docResults = await this.documentHandler.handle(
+          projectRoot,
+          provider,
+          projectContext,
+          input
+        );
+        results.push(...docResults);
       }
 
       if (activeTestTypes.includes('visual')) {
@@ -185,16 +176,19 @@ export class FireCommand extends Command<FireInput, FireOutput> {
 
     for (const type of testTypes) {
       if (!ALL_TEST_TYPES.includes(type)) {
-        throw new Error(`Invalid test type: ${type}. Valid types are: ${ALL_TEST_TYPES.join(', ')}`);
+        throw new Error(
+          `Invalid test type: ${type}. Valid types are: ${ALL_TEST_TYPES.join(', ')}`
+        );
       }
     }
 
     // Validate scope if provided
     if (scope) {
       if (!SUPPORTED_TEST_SCOPES.includes(scope)) {
-        throw new Error(`Invalid scope: ${scope}. Valid scopes are: ${SUPPORTED_TEST_SCOPES.join(', ')}`);
+        throw new Error(
+          `Invalid scope: ${scope}. Valid scopes are: ${SUPPORTED_TEST_SCOPES.join(', ')}`
+        );
       }
     }
   }
-
 }
