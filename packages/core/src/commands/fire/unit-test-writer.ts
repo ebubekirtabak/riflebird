@@ -1,4 +1,4 @@
-import type { TestFile, AIClient, ProjectContext, FrameworkInfo } from '@models';
+import type { TestFile, AIClient, ProjectContext, FrameworkInfo, FileNode } from '@models';
 import {
   generateFilePathWithConfig,
   info,
@@ -6,8 +6,6 @@ import {
   matchesPattern,
   debug,
   checkAndThrowFatalError,
-  getFileTree,
-  findFilesByPatternInFileTree,
   cleanCodeContent,
 } from '@utils';
 import { ProjectContextProvider } from '@providers/project-context-provider';
@@ -55,36 +53,22 @@ export class UnitTestWriter {
   }
 
   /**
-   * Write tests for one or more patterns efficiently
-   * When multiple patterns are provided, pulls the file tree only once for optimal performance
+   * Write tests for provided matched files
    *
    * @param provider - Project context provider
-   * @param patterns - Single pattern string or array of glob patterns to match files
+   * @param matchedFiles - Array of matched files
    * @param testFramework - Test framework configuration
    * @param onProgress - Progress callback
    * @returns Aggregated results from all patterns
    */
-  async writeTestByPattern(
+  async writeTestByMatchedFiles(
     provider: ProjectContextProvider,
-    patterns: string | string[],
+    matchedFiles: FileNode[],
     testFramework?: FrameworkInfo,
     onProgress?: (current: number, total: number, file: string, elapsedMs: number) => void
   ): Promise<PatternResult> {
     const projectContext = await provider.getContext();
-    const { projectRoot } = projectContext;
     const exclusionPatterns = this.getExclusionPatternsForUnitTesting();
-
-    // Normalize patterns: remove leading ./ and convert to array
-    const patternArray = (Array.isArray(patterns) ? patterns : [patterns]).map((p) =>
-      p.replace(/^\.\//, '')
-    );
-
-    info(`Searching for files with pattern(s): ${patternArray.join(', ')}`);
-
-    const fileTree = await getFileTree(projectRoot);
-
-    const matchedFiles = findFilesByPatternInFileTree(fileTree, patternArray);
-    info(`Found ${matchedFiles.length} files matching pattern(s)`);
 
     // Filter out excluded files (test files, storybook files, etc.)
     const filesToProcess = matchedFiles.filter((file) => {
@@ -95,7 +79,8 @@ export class UnitTestWriter {
       }
       return true;
     });
-    info(`After exclusions: ${filesToProcess.length} files to process`);
+
+    info(`After exclusions: ${filesToProcess.length} files to process for ${testFramework?.name}`);
 
     const results: string[] = [];
     const failures: Array<{ file: string; error: string }> = [];

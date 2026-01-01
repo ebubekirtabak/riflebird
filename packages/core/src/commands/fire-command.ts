@@ -1,7 +1,7 @@
 import { Command, type CommandContext } from './base';
 import { ProjectContextProvider } from '@providers/project-context-provider';
-import { debug, info, findProjectRoot } from '@utils';
-import { resolveTestTypes, getScopePatterns } from './fire/fire-command-helpers';
+import { debug, info, findProjectRoot, findFilesByPatternInFileTree } from '@utils';
+import { getPatternsFromInput, resolveTestTypes } from './fire/fire-command-helpers';
 import { UnitTestWriter } from './fire/unit-test-writer';
 import { DocumentWriter } from './fire/document-writer';
 import { DocumentHandler } from './fire/document-handler';
@@ -58,64 +58,39 @@ export class FireCommand extends Command<FireInput, FireOutput> {
       info(`Test ${pathType} to execute: ${testPath} (types: ${activeTestTypes.join(', ')})`);
     }
 
+    const patterns = getPatternsFromInput(input);
+    const patternArray = (Array.isArray(patterns) ? patterns : [patterns]).map((p) =>
+      p.replace(/^\.\//, '')
+    );
+
+    info(`Searching for files with pattern(s): ${patternArray.join(', ')}`);
+
     try {
       const projectRoot = await findProjectRoot();
       info(`Project root found at: ${projectRoot}`);
       const provider = new ProjectContextProvider(this.context, projectRoot);
       const projectContext = await provider.getContext();
+      const fileTree = await provider.getFileTree();
       const { testFrameworks } = projectContext;
       debug(`Project context:`, testFrameworks);
+      const matchedFiles = findFilesByPatternInFileTree(fileTree, patternArray);
 
       const results: string[] = [];
-
-      if (results.length > 1 && activeTestTypes.includes('unit') && testFrameworks?.unit) {
+      if (activeTestTypes.includes('unit') && testFrameworks?.unit) {
         debug(`Unit test framework configured: ${testFrameworks.unit.name}`);
-        if (all) {
-          const scopeInfo = input.scope ? ` for ${input.scope} files` : '';
-          info(`Scanning project for files to generate unit tests${scopeInfo}...`);
+        const { files, failures } = await this.unitTestWriter.writeTestByMatchedFiles(
+          provider,
+          matchedFiles,
+          testFrameworks.unit,
+          input.onProgress
+        );
+        results.push(...files);
 
-          const patterns = input.scope
-            ? getScopePatterns(input.scope)
-            : ['src/**/*.{ts,tsx,js,jsx,vue}'];
-
-          info(`Using patterns: ${patterns.join(', ')}`);
-
-          const { files, failures } = await this.unitTestWriter.writeTestByPattern(
-            provider,
-            patterns,
-            testFrameworks.unit,
-            input.onProgress
-          );
-          results.push(...files);
-
-          if (failures.length > 0) {
-            info(`\n⚠️  ${failures.length} file(s) failed to generate tests:`);
-            failures.forEach((f) => info(`  - ${f.file}: ${f.error}`));
-            const failureMsgs = failures.map((f) => `  - ${f.file}: ${f.error}`);
-            results.push('\nFailures:', ...failureMsgs);
-          }
-        } else if (testPath) {
-          const isPattern = testPath.includes('*') || testPath.includes('?');
-
-          if (isPattern) {
-            info(`Pattern detected: ${testPath}`);
-            const { files, failures } = await this.unitTestWriter.writeTestByPattern(
-              provider,
-              testPath,
-              testFrameworks.unit,
-              input.onProgress
-            );
-            results.push(...files);
-
-            if (failures.length > 0) {
-              info(`\n⚠️  ${failures.length} file(s) failed to generate tests:`);
-              failures.forEach((f) => info(`  - ${f.file}: ${f.error}`));
-              const failureMsgs = failures.map((f) => `  - ${f.file}: ${f.error}`);
-              results.push('\nFailures:', ...failureMsgs);
-            }
-          } else {
-            await this.unitTestWriter.writeTestFile(projectContext, testPath, testFrameworks.unit);
-          }
+        if (failures.length > 0) {
+          info(`\n⚠️  ${failures.length} file(s) failed to generate tests:`);
+          failures.forEach((f) => info(`  - ${f.file}: ${f.error}`));
+          const failureMsgs = failures.map((f) => `  - ${f.file}: ${f.error}`);
+          results.push('\nFailures:', ...failureMsgs);
         }
       }
 
@@ -126,13 +101,9 @@ export class FireCommand extends Command<FireInput, FireOutput> {
       }
 
       if (activeTestTypes.includes('document')) {
-        const docResults = await this.documentHandler.handle(
-          projectRoot,
-          provider,
-          projectContext,
-          input
-        );
-        results.push(...docResults);
+        // @todo: Implement document generation
+        info('Document generation (coming soon)');
+        results.push('Document generation (coming soon)');
       }
 
       if (activeTestTypes.includes('visual')) {
