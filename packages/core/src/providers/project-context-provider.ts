@@ -9,6 +9,7 @@ import {
   FileTreeWalkerContext,
   detectOutputStrategy,
   detectPackageManagerInfo,
+  info,
 } from '@utils';
 import { ProjectCacheManager } from '../cache';
 
@@ -122,16 +123,19 @@ export class ProjectContextProvider {
   }
 
   async readTestFramework(
-    { unit }: TestFrameworksConfig,
+    { unit, documentation }: TestFrameworksConfig,
     projectRoot: string
   ): Promise<TestFrameworks> {
     try {
       let unitFramework: FrameworkInfo | null = null;
+      let documentationFramework: FrameworkInfo | null = null;
       const projectFileWalker = new ProjectFileWalker({ projectRoot });
       const { config } = this.context;
-      const requestedUnitTest = config.unitTesting?.enabled && unit && unit.configFilePath;
+      const { unitTesting } = config;
+      const requestedUnitTest = unitTesting?.enabled && unit && unit.configFilePath;
+      const requestedDocumentation = documentation && config.documentation?.enabled;
       if (requestedUnitTest) {
-        console.log(`Unit test framework detected: ${unit.name} at ${unit.configFilePath}`);
+        info(`Unit test framework detected: ${unit.name} at ${unit.configFilePath}`);
         const content = await projectFileWalker.readFileFromProject(unit.configFilePath);
         const stats = await projectFileWalker.getFileStats(unit.configFilePath);
         unitFramework = {
@@ -141,8 +145,22 @@ export class ProjectContextProvider {
         };
       }
 
+      if (requestedDocumentation) {
+        info(
+          `Documentation framework detected: ${documentation.name} at ${documentation.configFilePath}`
+        );
+        const content = await projectFileWalker.readFileFromProject(documentation.configFilePath);
+        const stats = await projectFileWalker.getFileStats(documentation.configFilePath);
+        documentationFramework = {
+          ...documentation,
+          configContent: content,
+          lastModified: stats.mtimeMs,
+        };
+      }
+
       return {
         ...(unitFramework && { unit: unitFramework }),
+        ...(documentationFramework && { documentation: documentationFramework }),
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
