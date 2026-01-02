@@ -21,6 +21,7 @@ const TEST_FRAMEWORKS = [
   'qunit',
   'lab',
   'tap',
+  'storybook',
 ] as const;
 
 export const DEFAULT_PACKAGE_MANAGER_FILE = 'package.json';
