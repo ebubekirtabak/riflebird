@@ -20,8 +20,13 @@ export interface DocumentFrameworkHandler {
   fixDocument(
     content: string,
     filePath: string,
+    storyFilePath: string,
     projectContext: ProjectContext,
     validationErrors?: string
   ): Promise<string | null>;
-  validateDocument(content: string, filePath: string, projectRoot: string): Promise<string | null>;
+  validateDocument(
+    content: string,
+    filePath: string,
+    projectContext: ProjectContext
+  ): Promise<string | null>;
 }
