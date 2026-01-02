@@ -108,6 +108,14 @@ export function getScopePatterns(scope: TestScope): string[] {
       '**/stores/**/*.{ts,js}',
       '**/src/state/**/*.{ts,js}',
     ],
+    document: [
+      '**/src/documents/**/*.{md,markdown}',
+      '**/documents/**/*.{md,markdown}',
+      '**/src/app/documents/**/*.{md,markdown}',
+      '**/app/documents/**/*.stories.{md,markdown,mdx,markdownx,tsx,jsx,vue,ts,js}',
+      '**/app/**/*.stories.{md,markdown,mdx,markdownx,tsx,jsx,vue,ts,js}',
+      '**/src/**/*.stories.{md,markdown,mdx,markdownx,tsx,jsx,vue,ts,js}',
+    ],
   };
 
   return patterns[scope] || [];
