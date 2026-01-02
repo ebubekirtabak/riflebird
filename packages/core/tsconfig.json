@@ -38,7 +38,9 @@
       "@agentic": ["src/agentic/index.ts"],
       "@agentic/*": ["src/agentic/*"],
       "@handlers": ["src/handlers/index.ts"],
-      "@handlers/*": ["src/handlers/*"]
+      "@handlers/*": ["src/handlers/*"],
+      "@services": ["src/services/index.ts"],
+      "@services/*": ["src/services/*"]
     }
   },
   "include": ["src/**/*", "index.ts"],
