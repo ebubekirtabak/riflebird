@@ -88,8 +88,7 @@ describe('DocumentWriter', () => {
       'src/components/Button.tsx',
       expect.stringContaining('Click me'), // content from mocked walker
       expect.stringContaining('docs/src/components/Button.doc'), // output path based on suffix and config
-      expect.any(Object), // ProjectContext
-      'react'
+      expect.any(Object) // ProjectContext
     );
     expect(mockHandler.validateDocument).toHaveBeenCalled();
 

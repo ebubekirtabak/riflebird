@@ -73,11 +73,7 @@ export class DocumentWriter {
     return { files: results, failures };
   }
 
-  async writeDocumentFile(
-    projectContext: ProjectContext,
-    filePath: string,
-    framework: string
-  ): Promise<boolean> {
+  async writeDocumentFile(projectContext: ProjectContext, filePath: string): Promise<boolean> {
     const fileWalker = new ProjectFileWalker({ projectRoot: projectContext.projectRoot });
     const fileContent = await fileWalker.readFileFromProject(filePath, true);
 
@@ -123,8 +119,7 @@ export class DocumentWriter {
           filePath,
           fileContent,
           storyFilePath,
-          projectContext,
-          framework
+          projectContext
         );
       } catch (err) {
         checkAndThrowFatalError(err);

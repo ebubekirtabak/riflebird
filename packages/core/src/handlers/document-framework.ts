@@ -14,8 +14,7 @@ export interface DocumentFrameworkHandler {
     sourceFilePath: string,
     sourceFileContent: string,
     outputFilePath: string,
-    projectContext: ProjectContext,
-    framework: string
+    projectContext: ProjectContext
   ): Promise<string | null>;
   fixDocument(
     content: string,
