@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `fire` command generates and executes tests with flexible filtering options. Currently, **unit test generation is fully supported** with glob patterns, scope filtering, batch processing, and **auto-healing capabilities**. E2E, visual, and performance testing infrastructure is in place but not yet fully implemented.
+The `fire` command generates and executes tests with flexible filtering options. Currently, **unit test generation is fully supported** with glob patterns, scope filtering, batch processing, and **auto-healing capabilities**. E2E and performance testing infrastructure is in place but not yet fully implemented.
 
 The command automatically validates your AI configuration (API keys, model settings) before execution to ensure proper setup.
 
@@ -20,7 +20,7 @@ Generate tests with specific type:
 
 ```bash
 riflebird fire src/utils/calculator.ts --unit
-riflebird fire src/components/Button.tsx --e2e --visual
+riflebird fire src/components/Button.tsx --document
 ```
 
 ### Glob Pattern Matching
@@ -64,7 +64,10 @@ Run specific test types across all files:
 ```bash
 riflebird fire --all --unit
 riflebird fire --all --e2e --unit
-riflebird fire --all --visual --performance
+riflebird fire --all --unit
+riflebird fire --all --e2e --unit
+riflebird fire --all --performance
+riflebird fire --all --document
 ```
 
 ### Test Type Filters
@@ -72,11 +75,11 @@ riflebird fire --all --visual --performance
 Available test type flags:
 
 - `--unit`: Unit tests (Jest, Vitest, Mocha, AVA) ✅ **Fully Implemented**
+- `--document`: Documentation generation (Storybook) ✅ **Fully Implemented**
 - `--e2e`: End-to-end tests (Playwright, Cypress, Puppeteer, WebdriverIO) 🚧 **Coming Soon**
-- `--visual`: Visual regression tests 🚧 **Coming Soon**
 - `--performance`: Performance tests 🚧 **Coming Soon**
 
-**Note**: When using `--e2e`, `--visual`, or `--performance` flags, the command will acknowledge them but display a "coming soon" message as these features are under development.
+**Note**: When using `--e2e` or `--performance` flags, the command will acknowledge them but display a "coming soon" message as these features are under development.
 
 ### Scope Filters
 
@@ -111,23 +114,23 @@ fire [testPath] [options]
 
 ### Options
 
-| Option | Alias | Description |
-|--------|-------|-------------|
-| `--all` | `-a` | Run all test types for all files |
-| `--e2e` | - | Include E2E tests |
-| `--unit` | - | Include unit tests |
-| `--visual` | - | Include visual regression tests |
-| `--performance` | - | Include performance tests |
-| `--scope <scope>` | `-s` | Filter by scope (component, layout, page, service, util, hook, store) |
-| `--headless` | `-h` | Run in headless mode |
-| `--browser <browser>` | `-b` | Browser to use (chromium, firefox, webkit) |
+| Option                | Alias | Description                                                           |
+| --------------------- | ----- | --------------------------------------------------------------------- |
+| `--all`               | `-a`  | Run all test types for all files                                      |
+| `--e2e`               | -     | Include E2E tests                                                     |
+| `--unit`              | -     | Include unit tests                                                    |
+| `--document`          | -     | Include documentation generation                                      |
+| `--performance`       | -     | Include performance tests                                             |
+| `--scope <scope>`     | `-s`  | Filter by scope (component, layout, page, service, util, hook, store) |
+| `--headless`          | `-h`  | Run in headless mode                                                  |
+| `--browser <browser>` | `-b`  | Browser to use (chromium, firefox, webkit)                            |
 
 ## Resolution Logic
 
 The command determines which test types to execute based on the following logic:
 
 1. **`--all` with no type flags**: Runs unit tests only (currently the only fully supported type)
-2. **Specific type flags**: Runs only the specified test types (note: e2e, visual, performance show "coming soon" messages)
+2. **Specific type flags**: Runs only the specified test types (note: e2e, performance show "coming soon" messages)
 3. **Single file with no flags**: Defaults to unit tests only
 4. **`--all` + specific flags**: Runs specified types for all files
 5. **`--scope` without `--all`**: Automatically enables `--all` mode
@@ -148,8 +151,8 @@ riflebird fire --all
 # All files, unit tests (explicit)
 riflebird fire --all --unit
 
-# All files, multiple types (e2e/visual/performance show "coming soon")
-riflebird fire --all --unit --e2e --visual
+# All files, multiple types (e2e/document/performance show "coming soon")
+riflebird fire --all --unit --e2e --document
 
 # Scope filtering (only with --all)
 riflebird fire --all --scope component --unit
@@ -160,7 +163,7 @@ riflebird fire --all --scope hook --unit
 riflebird fire src/app.ts --unit --e2e
 
 # Complex combinations
-riflebird fire --all --scope component --unit --visual
+riflebird fire --all --scope component --unit --document
 ```
 
 ## Validation Rules
@@ -168,10 +171,11 @@ riflebird fire --all --scope component --unit --visual
 The command enforces the following validation:
 
 1. **Must provide either a path/pattern or `--all` flag**
+
    ```bash
    # ❌ Invalid
    riflebird fire
-   
+
    # ✅ Valid
    riflebird fire src/app.ts
    riflebird fire "src/**/*.ts"
@@ -179,19 +183,20 @@ The command enforces the following validation:
    ```
 
 2. **Scope automatically enables `--all` mode**
+
    ```bash
    # ✅ Valid - scope auto-enables --all
    riflebird fire --scope component
-   
+
    # ✅ Also valid - explicit --all
    riflebird fire --all --scope component
-   
+
    # ❌ Invalid - scope cannot be used with specific file paths
    riflebird fire src/app.ts --scope component
    ```
 
 3. **Test type flags must be valid**
-   - Valid: `e2e`, `unit`, `visual`, `performance`
+   - Valid: `e2e`, `unit`, `document`, `performance`
    - Invalid flags throw an error
 
 4. **Scope values must be valid**
@@ -223,9 +228,9 @@ By default, auto-healing is **enabled** for all unit test generation commands.
 ### ✅ Fully Implemented
 
 - [x] Test type filtering infrastructure
-- [x] CLI flag parsing (`--all`, `--unit`, `--e2e`, `--visual`, `--performance`)
 - [x] Input validation and resolution logic
 - [x] Single file unit test generation
+- [x] Documentation generation for Storybook
 - [x] Glob pattern matching for file discovery
 - [x] Batch test generation for `--all` flag
 - [x] Scope-based file discovery (component, layout, page, service, util, hook, store)
@@ -242,6 +247,7 @@ By default, auto-healing is **enabled** for all unit test generation commands.
 - [ ] Performance testing (shows "coming soon" message)
 - [ ] Parallel test generation optimization
 - [ ] Test coverage analytics
+- [ ] CLI flag parsing (`--all`, `--unit`, `--e2e`, `--document`, `--performance`)
 
 ## Configuration
 
@@ -256,7 +262,7 @@ export default defineConfig({
     model: 'gpt-4o-mini',
     temperature: 0.2,
   },
-  
+
   // Unit Testing (fully supported)
   unitTesting: {
     enabled: true,
@@ -265,7 +271,7 @@ export default defineConfig({
     // testOutputStrategy auto-detected: 'tests/unit' = root, '__tests__' = colocated
     testMatch: ['**/*.test.ts', '**/*.spec.ts'], // Patterns to discover existing tests
   },
-  
+
   // E2E Testing (coming soon)
   e2e: {
     framework: 'playwright',
@@ -274,18 +280,25 @@ export default defineConfig({
       headless: false,
     },
   },
-  
-  // Visual Testing (coming soon)
-  visual: {
-    enabled: true,
-    threshold: 0.1,
-  },
 
   // Auto-Healing Configuration
   healing: {
-    enabled: true,      // Set to false to disable auto-healing
-    maxRetries: 3,      // Number of retry attempts (1-3)
-    mode: 'auto',       // 'auto' or 'manual' (manual not yet implemented)
+    enabled: true, // Set to false to disable auto-healing
+    maxRetries: 3, // Number of retry attempts (1-3)
+    mode: 'auto', // 'auto' or 'manual' (manual not yet implemented)
+  },
+
+  documentation: {
+    enabled: true,
+    framework: 'storybook',
+    documentationOutputDir: 'docs', // Directory where generated documentation will be written
+    setupFiles: [],
+    // documentationOutputStrategy auto-detected: 'docs' = root, '__docs__' = colocated
+    documentationMatch: ['**/*.docs.ts', '**/*.spec.ts'], // Patterns to discover existing tests
+    visual: {
+      enabled: true,
+      framework: 'chromatic',
+    },
   },
 });
 ```
@@ -295,24 +308,26 @@ export default defineConfig({
 The strategy is **automatically detected** from `testOutputDir` path during project context initialization (not stored in config):
 
 **Root Strategy** (auto-detected for paths like `tests/unit`, `spec/unit`):
+
 ```typescript
 {
-  testOutputDir: 'tests/unit'
+  testOutputDir: 'tests/unit';
 }
 // src/components/form/component.tsx → tests/unit/src/components/form/component.test.tsx
 ```
 
 **Colocated Strategy** (auto-detected for `__tests__`, `__test__`, or paths starting with `./`):
+
 ```typescript
 {
-  testOutputDir: '__tests__'
+  testOutputDir: '__tests__';
 }
 // src/components/form/component.tsx → src/components/form/__tests__/component.test.tsx
 ```
 
 ```typescript
 {
-  testOutputDir: './__tests__'
+  testOutputDir: './__tests__';
 }
 // src/components/form/component.tsx → src/components/form/__tests__/component.test.tsx
 ```
@@ -322,6 +337,7 @@ The strategy is **automatically detected** from `testOutputDir` path during proj
 ### AI Configuration Validation
 
 Before executing any command, Riflebird validates:
+
 - **API Key presence**: Checks config or environment variables (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
 - **API Key format**: OpenAI keys must start with `sk-`
 - **Model configuration**: Ensures model name is specified
@@ -350,7 +366,7 @@ Error: Either provide a test path/pattern or use --all flag
 Error: Scope filters (component, layout, etc.) can only be used with --all flag
 
 # Invalid test type
-Error: Invalid test type: invalid. Valid types are: e2e, unit, visual, performance
+Error: Invalid test type: invalid. Valid types are: e2e, unit, document, performance
 
 # Invalid scope
 Error: Invalid scope: invalid. Valid scopes are: component, layout, page, service, util, hook, store
@@ -361,15 +377,15 @@ Error: Invalid scope: invalid. Valid scopes are: component, layout, page, servic
 ### Type Definitions
 
 ```typescript
-export type TestType = 'e2e' | 'unit' | 'visual' | 'performance';
+export type TestType = 'e2e' | 'unit' | 'document' | 'performance';
 
 export type TestScope = 'component' | 'layout' | 'page' | 'service' | 'util' | 'hook' | 'store';
 
 export type FireInput = {
-  testPath?: string;      // File path or glob pattern
-  all?: boolean;          // Run all files
+  testPath?: string; // File path or glob pattern
+  all?: boolean; // Run all files
   testTypes?: TestType[]; // Filter by test types
-  scope?: TestScope;      // Filter by file scope (only with --all)
+  scope?: TestScope; // Filter by file scope (only with --all)
 };
 ```
 
@@ -441,5 +457,6 @@ When adding new test types:
 ## Support
 
 For issues or questions about the fire command:
+
 - GitHub Issues: [riflebird/issues](https://github.com/ebubekirtabak/riflebird/issues)
 - Discussions: [riflebird/discussions](https://github.com/ebubekirtabak/riflebird/discussions)
