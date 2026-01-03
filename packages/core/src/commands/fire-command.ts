@@ -105,12 +105,6 @@ export class FireCommand extends Command<FireInput, FireOutput> {
         results.push(...docResults);
       }
 
-      if (activeTestTypes.includes('visual')) {
-        // @todo: Implement visual regression testing
-        info('Visual regression testing (coming soon)');
-        results.push('Visual testing (coming soon)');
-      }
-
       if (activeTestTypes.includes('performance')) {
         // @todo: Implement performance testing
         info('Performance testing (coming soon)');

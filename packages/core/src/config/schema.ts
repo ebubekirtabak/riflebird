@@ -26,12 +26,20 @@ export const TestEnvironmentSchema = z.enum(['node', 'jsdom', 'happy-dom']);
 
 export const DocumentationFrameworkSchema = z.enum(['storybook']);
 
+export const VisualFrameworkSchema = z.enum(['chromatic', 'percy', 'applitools']);
+
 export const DocumentationConfigSchema = z.object({
   enabled: z.boolean().default(true),
   framework: DocumentationFrameworkSchema.optional(),
   documentationOutputDir: z.string().optional().default('./stories/'),
   setupFiles: z.array(z.string()).default([]),
   documentationMatch: z.array(z.string()).default(['src/**/*.stories.{ts,tsx,js,jsx,vue}']),
+  visual: z
+    .object({
+      enabled: z.boolean().default(false),
+      framework: VisualFrameworkSchema.optional(),
+    })
+    .optional(),
 });
 
 // Base AI Config shared by all providers
@@ -219,15 +227,6 @@ export const RiflebirdConfigSchema = z.object({
       mode: z.enum(['auto', 'manual', 'off']).default('auto'),
       maxRetries: z.number().default(3),
       strategy: z.enum(['smart', 'visual', 'text', 'hybrid']).default('smart'),
-    })
-    .optional(),
-
-  visual: z
-    .object({
-      enabled: z.boolean().default(true),
-      threshold: z.number().min(0).max(1).default(0.1),
-      ignoreRegions: z.array(z.object({})).default([]),
-      updateBaselines: z.boolean().default(false),
     })
     .optional(),
 
