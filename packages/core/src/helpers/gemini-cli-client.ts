@@ -65,12 +65,10 @@ export async function createGeminiClient(ai: RiflebirdConfig['ai']): Promise<AIC
       const promptContent = getMessageContent(lastMessage.content);
 
       const args: string[] = ['-p', promptContent, '--output-format', 'json'];
-      const executionResult = await executeProcessCommand(
-        GEMINI_CLI_CMD,
-        args,
-        process.cwd(),
-        DEFAULT_TIMEOUT
-      );
+      const executionResult = await executeProcessCommand(GEMINI_CLI_CMD, args, {
+        cwd: process.cwd(),
+        timeout: DEFAULT_TIMEOUT,
+      });
 
       if (executionResult.timedOut) {
         throw new Error('Gemini CLI timed out');
@@ -114,7 +112,10 @@ export async function ensureGeminiLoggedIn(): Promise<void> {
 
   let result;
   try {
-    result = await executeProcessCommand(GEMINI_CLI_CMD, args, process.cwd(), 10000);
+    result = await executeProcessCommand(GEMINI_CLI_CMD, args, {
+      cwd: process.cwd(),
+      timeout: 10000,
+    });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     throw new Error(`Failed to check Gemini CLI login status: ${errorMessage}`);

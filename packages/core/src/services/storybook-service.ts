@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { debug, info, executeProcessCommand, ProjectFileWalker } from '@utils';
+import { debug, info, ProjectFileWalker } from '@utils';
+import { executeProcessCommand } from '@runners/process-execution';
 import type { ProjectContext } from '@models';
 
 export interface StorybookConfig {
@@ -99,10 +100,15 @@ export class StorybookService {
       // We need to run this interactively or handle prompts if possible,
       // but usually 'init' tries to auto-detect.
       // For now we'll run it and pipe output.
-      await executeProcessCommand('npx', ['storybook@latest', 'init', '--yes'], {
+      const result = await executeProcessCommand('npx', ['storybook@latest', 'init', '--yes'], {
         cwd: this.projectRoot,
         stdio: 'inherit', // Let user see output
       });
+
+      if (result.exitCode !== 0) {
+        throw new Error(`Storybook init failed with code ${result.exitCode}`);
+      }
+
       return true;
     } catch (error) {
       info('Failed to install Storybook.');

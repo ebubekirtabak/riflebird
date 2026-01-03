@@ -1,4 +1,5 @@
-import { cleanCodeContent, checkAndThrowFatalError, executeProcessCommand, debug } from '@utils';
+import { cleanCodeContent, checkAndThrowFatalError, debug } from '@utils';
+import { executeProcessCommand } from '@runners/process-execution';
 import type { AIClient, ProjectContext, TestFile } from '@models';
 import type { RiflebirdConfig } from '@config/schema';
 import { PromptTemplateBuilder } from '@commands/fire/prompt-template-builder';
@@ -104,10 +105,20 @@ export class StorybookDocumentHandler implements DocumentFrameworkHandler {
       const extraArgs = this.getTscArgsForFramework(configFiles.framework?.name);
       const tscArgs = ['tsc', '--noEmit', '--skipLibCheck', filePath, ...extraArgs];
 
-      await executeProcessCommand('npx', tscArgs, {
+      const result = await executeProcessCommand('npx', tscArgs, {
         cwd: projectRoot,
         stdio: 'pipe',
       });
+
+      if (result.exitCode !== 0) {
+        const validationErrors =
+          result.stdout && result.stdout.trim()
+            ? result.stdout
+            : result.stderr || `TSC failed with exit code ${result.exitCode}`;
+
+        debug(`Story validation failed for ${filePath}: ${validationErrors}`);
+        return validationErrors;
+      }
 
       return null; // Success (no errors)
     } catch (error) {
