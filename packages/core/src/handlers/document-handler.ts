@@ -25,7 +25,7 @@ export class DocumentHandler {
       return [];
     }
 
-    const framewors = {
+    const frameworks = {
       storybook: () => {
         const storybookRunner = new StorybookRunner(this.context);
         return storybookRunner.run(projectRoot, provider, projectContext, input, matchedFiles);
@@ -36,6 +36,6 @@ export class DocumentHandler {
       },
     };
 
-    return framewors[framework as keyof typeof framewors]();
+    return frameworks[framework as keyof typeof frameworks]();
   }
 }
