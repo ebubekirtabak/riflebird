@@ -4,8 +4,7 @@ import type { RiflebirdConfig } from '@config/schema';
 import { PromptTemplateBuilder } from '@commands/fire/prompt-template-builder';
 import { DEFAULT_FILE_EXCLUDE_PATTERNS } from '@config/constants';
 import { DocumentFrameworkHandler } from './document-framework';
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { FRAMEWORK_CONFIGS } from './framework-configs';
 
 export type StorybookHandlerOptions = {
   aiClient: AIClient;
@@ -95,29 +94,15 @@ export class StorybookDocumentHandler implements DocumentFrameworkHandler {
     if (!content.includes('export default')) {
       return 'Missing "export default"';
     }
+
     if (!content.includes('component:')) {
       return 'Missing "component:" in default export';
     }
 
     // 2. TSC Validation
-    // Validate the actual document file path as requested by the user
-    // "that's why you whould save the document file anyway"
-
-    // Use the provided filePath as the target.
-    // NOTE: It is the caller's responsibility to pass the correct DOCUMENT path, not source path.
-    const absolutePath = join(projectRoot, filePath);
-
     try {
-      await writeFile(absolutePath, content, 'utf8');
-
-      const frameworkName = configFiles.framework?.name?.toLowerCase();
-      const tscArgs = ['tsc', '--noEmit', '--skipLibCheck', absolutePath];
-
-      if (frameworkName === 'react') {
-        tscArgs.push('--jsx', 'react-jsx');
-      } else if (frameworkName === 'angular') {
-        tscArgs.push('--experimentalDecorators', '--emitDecoratorMetadata');
-      }
+      const extraArgs = this.getTscArgsForFramework(configFiles.framework?.name);
+      const tscArgs = ['tsc', '--noEmit', '--skipLibCheck', filePath, ...extraArgs];
 
       await executeProcessCommand('npx', tscArgs, {
         cwd: projectRoot,
@@ -133,6 +118,21 @@ export class StorybookDocumentHandler implements DocumentFrameworkHandler {
       debug(`Story validation failed for ${filePath}: ${validationErrors}`);
       return validationErrors;
     }
+  }
+
+  private getTscArgsForFramework(frameworkName?: string): string[] {
+    const name = frameworkName?.toLowerCase();
+    if (!name) {
+      return [];
+    }
+
+    for (const config of Object.values(FRAMEWORK_CONFIGS)) {
+      if (config.aliases.includes(name)) {
+        return config.tscArgs;
+      }
+    }
+
+    return [];
   }
 
   async fixDocument(

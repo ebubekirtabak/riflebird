@@ -105,6 +105,34 @@ describe('StorybookDocumentHandler', () => {
       );
     });
 
+    it('should use React-specific tsc flags when framework is Next.js', async () => {
+      mockProjectContext.configFiles.framework.name = 'next.js';
+      const content = 'export default { component: {} }';
+      const filePath = 'Button.stories.tsx';
+
+      await handler.validateDocument(content, filePath, mockProjectContext);
+
+      expect(mocks.executeProcessCommand).toHaveBeenCalledWith(
+        'npx',
+        expect.arrayContaining(['tsc', '--jsx', 'react-jsx']),
+        expect.objectContaining({ cwd: '/root' })
+      );
+    });
+
+    it('should use React-specific tsc flags when framework is Remix', async () => {
+      mockProjectContext.configFiles.framework.name = 'remix';
+      const content = 'export default { component: {} }';
+      const filePath = 'Button.stories.tsx';
+
+      await handler.validateDocument(content, filePath, mockProjectContext);
+
+      expect(mocks.executeProcessCommand).toHaveBeenCalledWith(
+        'npx',
+        expect.arrayContaining(['tsc', '--jsx', 'react-jsx']),
+        expect.objectContaining({ cwd: '/root' })
+      );
+    });
+
     it('should use Angular-specific tsc flags when framework is Angular', async () => {
       mockProjectContext.configFiles.framework.name = 'angular';
       const content = 'export default { component: {} }';
@@ -119,9 +147,38 @@ describe('StorybookDocumentHandler', () => {
       );
     });
 
-    it('should use default tsc flags for other frameworks', async () => {
-      mockProjectContext.configFiles.framework.name = 'vue';
+    it('should use Solid-specific tsc flags when framework is Solid', async () => {
+      mockProjectContext.configFiles.framework.name = 'solid';
       const content = 'export default { component: {} }';
+      const filePath = 'Button.stories.tsx';
+
+      await handler.validateDocument(content, filePath, mockProjectContext);
+
+      expect(mocks.executeProcessCommand).toHaveBeenCalledWith(
+        'npx',
+        expect.arrayContaining(['tsc', '--jsx', 'preserve']),
+        expect.objectContaining({ cwd: '/root' })
+      );
+    });
+
+    it('should use Vue-specific tsc flags when framework is Nuxt', async () => {
+      mockProjectContext.configFiles.framework.name = 'nuxt';
+      const content = 'export default { component: {} }';
+      const filePath = 'Button.stories.ts';
+
+      await handler.validateDocument(content, filePath, mockProjectContext);
+
+      expect(mocks.executeProcessCommand).toHaveBeenCalledWith(
+        'npx',
+        expect.arrayContaining(['tsc', '--jsx', 'react-jsx']),
+        expect.objectContaining({ cwd: '/root' })
+      );
+    });
+
+    it('should use default tsc flags for unknown frameworks', async () => {
+      mockProjectContext.configFiles.framework.name = 'unknown-framework';
+      const content = 'export default { component: {} }';
+
       const filePath = 'Button.stories.ts';
 
       await handler.validateDocument(content, filePath, mockProjectContext);
@@ -174,11 +231,7 @@ describe('StorybookDocumentHandler', () => {
       expect(result).toBe('Fixed Content');
 
       // Verify validation runs
-      expect(mocks.writeFile).toHaveBeenCalledWith(
-        expect.stringContaining('Button.stories.tsx'),
-        invalidContent,
-        'utf8'
-      );
+
       expect(mocks.executeProcessCommand).toHaveBeenCalledWith(
         'npx',
         expect.arrayContaining(['tsc', '--noEmit']),
