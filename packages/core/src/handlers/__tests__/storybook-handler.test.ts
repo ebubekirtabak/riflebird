@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { StorybookDocumentHandler } from '../storybook-handler';
 import { AIClient, ProjectContext } from '@models';
 import { RiflebirdConfig } from '@config/schema';
@@ -49,6 +49,10 @@ vi.mock('@prompts/storybook-story-fix-agentic-prompt.txt', () => ({
   default: 'Errors: {{FAILING_TESTS_DETAIL}} Source: {{CODE_SNIPPET}}',
 }));
 
+vi.mock('@prompts/storybook-story-prompt.txt', () => ({
+  default: 'Prompt with: {{VISUAL_TESTING_RULES}}',
+}));
+
 describe('StorybookDocumentHandler', () => {
   let handler: StorybookDocumentHandler;
   let mockAIClient: AIClient;
@@ -91,6 +95,66 @@ describe('StorybookDocumentHandler', () => {
       linterConfig: { name: 'eslint', fileLang: 'json' },
       formatterConfig: { name: 'prettier', fileLang: 'json' },
     } as unknown as ProjectContext;
+  });
+
+  describe('generateDocument', () => {
+    it('should include visual testing rules when enabled', async () => {
+      // @ts-ignore
+      mockConfig.documentation = { visual: { enabled: true } };
+      // Force update options
+      handler = new StorybookDocumentHandler({
+        aiClient: mockAIClient,
+        config: mockConfig,
+      });
+
+      // Mock AI response
+      (mockAIClient.createChatCompletion as Mock).mockResolvedValue({
+        choices: [{ message: { content: 'Generated Story' } }],
+      });
+
+      await handler.generateDocument(
+        'Button.tsx',
+        'export const Button = () => {}',
+        'Button.stories.tsx',
+        mockProjectContext
+      );
+
+      expect(mockAIClient.createChatCompletion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: expect.arrayContaining([
+            expect.objectContaining({
+              content: expect.stringContaining('Visual Testing Best Practices'),
+            }),
+          ]),
+        })
+      );
+    });
+
+    it('should not include visual testing rules when disabled', async () => {
+      // @ts-ignore
+      mockConfig.documentation = { visual: { enabled: false } };
+      handler = new StorybookDocumentHandler({
+        aiClient: mockAIClient,
+        config: mockConfig,
+      });
+
+      // Mock AI response
+      (mockAIClient.createChatCompletion as Mock).mockResolvedValue({
+        choices: [{ message: { content: 'Generated Story' } }],
+      });
+
+      await handler.generateDocument(
+        'Button.tsx',
+        'export const Button = () => {}',
+        'Button.stories.tsx',
+        mockProjectContext
+      );
+
+      const calls = (mockAIClient.createChatCompletion as Mock).mock.calls;
+      const prompt = calls[0][0].messages[0].content;
+      // Should result in empty string replacement or just not containing the rules header
+      expect(prompt).not.toContain('Visual Testing Best Practices');
+    });
   });
 
   describe('validateDocument', () => {

@@ -20,6 +20,9 @@ Context:
 **LINTING_RULES:**
 {{LINTING_RULES}}
 
+ **VISUAL_TESTING_RULES:**
+ {{VISUAL_TESTING_RULES}}
+
 Instructions:
 1. Analyze the provided component code to understand its props, state, and usage.
 2. Create a comprehensive Storybook story file content.

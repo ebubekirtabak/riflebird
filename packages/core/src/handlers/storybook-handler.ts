@@ -47,6 +47,17 @@ export class StorybookDocumentHandler implements DocumentFrameworkHandler {
     // @todo: Make this import robust or dependency injected if possible
     const promptTemplate = await import('@prompts/storybook-story-prompt.txt');
 
+    let visualTestingRules = '';
+    if (this.options.config.documentation?.visual?.enabled) {
+      visualTestingRules = `
+Visual Testing Best Practices (CRITICAL):
+1. Deterministic Data: Avoid Math.random(), Date.now(), or any non-deterministic data. Use static dates (e.g., '2024-01-01') and seeds.
+2. Stable Snapshots: Ensure loading states, animations, or spinners are paused or have a static fallback for snapshots.
+3. Interaction Testing: Use expectations within the 'play' function to verify interactions (e.g., opening a dropdown) so hidden content is revealed for the snapshot.
+4. Explict States: Generate separate stories for 'Loading', 'Empty', 'Error' states to ensure full visual coverage.
+      `.trim();
+    }
+
     const prompt = this.promptBuilder.build(promptTemplate.default, {
       framework: framework.name,
       language,
@@ -57,6 +68,7 @@ export class StorybookDocumentHandler implements DocumentFrameworkHandler {
       languageConfig,
       linterConfig,
       formatterConfig,
+      visual_testing_rules: visualTestingRules,
       targetFile: {
         filePath: sourceFilePath,
         content: sourceFileContent,
