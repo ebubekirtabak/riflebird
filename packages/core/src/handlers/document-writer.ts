@@ -158,9 +158,6 @@ export class DocumentWriter {
           `Failed to generate valid document for ${filePath}${attempt === maxRetries ? ' (max retries reached)' : ''}`
         );
         debug(`Validation error: ${validationError}`);
-        if (currentContent) {
-          debug('Invalid content generated:', currentContent);
-        }
         return false;
       }
 
