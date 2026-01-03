@@ -16,7 +16,6 @@ vi.mock('@utils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@utils')>();
   return {
     ...actual,
-    executeProcessCommand: mocks.executeProcessCommand,
     checkAndThrowFatalError: vi.fn(),
     cleanCodeContent: (code: string) => code,
     ProjectFileWalker: vi.fn().mockImplementation(() => ({
@@ -24,6 +23,10 @@ vi.mock('@utils', async (importOriginal) => {
     })),
   };
 });
+
+vi.mock('@runners/process-execution', () => ({
+  executeProcessCommand: mocks.executeProcessCommand,
+}));
 
 vi.mock('node:fs/promises', async () => ({
   writeFile: mocks.writeFile,
@@ -210,14 +213,16 @@ describe('StorybookDocumentHandler', () => {
       // Mock reading source file
       mocks.readFileFromProject.mockResolvedValue(sourceContent);
 
-      // Mock validation failure (executeProcessCommand throws)
-      const validationError = {
+      // Mock validation failure (executeProcessCommand returns non-zero exit code)
+      const validationResult = {
+        exitCode: 1,
         stdout: 'Error: Component not exported',
-        message: 'Command failed',
+        stderr: '',
+        timedOut: false,
       };
-      mocks.executeProcessCommand.mockRejectedValue(validationError);
+      mocks.executeProcessCommand.mockResolvedValue(validationResult);
 
-      // Mock Agentic Runner success
+      // Mock AgenticRunner Success
       mocks.agenticRun.mockResolvedValue('Fixed Content');
 
       const storyPath = 'src/components/Button.stories.tsx';
@@ -231,7 +236,6 @@ describe('StorybookDocumentHandler', () => {
       expect(result).toBe('Fixed Content');
 
       // Verify validation runs
-
       expect(mocks.executeProcessCommand).toHaveBeenCalledWith(
         'npx',
         expect.arrayContaining(['tsc', '--noEmit']),
@@ -248,7 +252,13 @@ describe('StorybookDocumentHandler', () => {
     it('should handle validation success (weird case) and still run runner', async () => {
       const content = 'export default {}';
       mocks.readFileFromProject.mockResolvedValue('');
-      mocks.executeProcessCommand.mockResolvedValue('Success Output'); // Success returns stdout string
+      // Success returns object with exitCode 0
+      mocks.executeProcessCommand.mockResolvedValue({
+        exitCode: 0,
+        stdout: 'Success Output',
+        stderr: '',
+        timedOut: false,
+      });
       mocks.agenticRun.mockResolvedValue('Fixed Content');
 
       await handler.fixDocument(content, 'test.tsx', 'test.stories.tsx', mockProjectContext);

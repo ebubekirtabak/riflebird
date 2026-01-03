@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createGeminiClient, ensureGeminiLoggedIn } from '../gemini-cli-client';
-import { executeProcessCommand } from '@runners/process-execution';
+import { executeProcessCommand } from '../../runners/process-execution';
 import { ensureCommandExists } from '@utils/process/command.util';
 import { ChatMessage } from '@models/chat';
 
 // Mock dependencies
-vi.mock('@runners/process-execution', () => ({
+vi.mock('../../runners/process-execution', () => ({
   executeProcessCommand: vi.fn(),
 }));
 
@@ -80,8 +80,10 @@ describe('gemini-cli-client', () => {
       expect(executeProcessCommand).toHaveBeenLastCalledWith(
         'gemini',
         expectedArgs,
-        expect.any(String), // cwd
-        300000 // timeout
+        expect.objectContaining({
+          cwd: expect.any(String), // cwd
+          timeout: 300000, // timeout
+        })
       );
     });
 
@@ -232,8 +234,10 @@ describe('gemini-cli-client', () => {
       expect(executeProcessCommand).toHaveBeenLastCalledWith(
         'gemini',
         expectedArgs,
-        expect.any(String), // cwd
-        300000 // timeout
+        expect.objectContaining({
+          cwd: expect.any(String),
+          timeout: 300000,
+        })
       );
     });
 
@@ -290,8 +294,10 @@ describe('gemini-cli-client', () => {
       expect(executeProcessCommand).toHaveBeenCalledWith(
         'gemini',
         ['--list-sessions'],
-        expect.any(String),
-        10000
+        expect.objectContaining({
+          cwd: expect.any(String),
+          timeout: 10000,
+        })
       );
     });
 

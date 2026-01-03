@@ -1,7 +1,7 @@
 import { CommandContext } from '@commands/base';
 import type { FileNode, ProjectContext } from '@models';
 import { ProjectContextProvider } from '@providers/project-context-provider';
-import { StorybookRunner } from '@/runners/storybook-runner/storybook-runner';
+import { StorybookRunner } from '@runners';
 import { FireInput } from '@commands/fire/types';
 import { info } from '@utils';
 
