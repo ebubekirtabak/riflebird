@@ -54,7 +54,7 @@ Visual Testing Best Practices (CRITICAL):
 1. Deterministic Data: Avoid Math.random(), Date.now(), or any non-deterministic data. Use static dates (e.g., '2024-01-01') and seeds.
 2. Stable Snapshots: Ensure loading states, animations, or spinners are paused or have a static fallback for snapshots.
 3. Interaction Testing: Use expectations within the 'play' function to verify interactions (e.g., opening a dropdown) so hidden content is revealed for the snapshot.
-4. Explict States: Generate separate stories for 'Loading', 'Empty', 'Error' states to ensure full visual coverage.
+4. Explicit States: Generate separate stories for 'Loading', 'Empty', 'Error' states to ensure full visual coverage.
       `.trim();
     }
 
