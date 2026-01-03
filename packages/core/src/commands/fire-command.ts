@@ -3,8 +3,7 @@ import { ProjectContextProvider } from '@providers/project-context-provider';
 import { debug, info, findProjectRoot, findFilesByPatternInFileTree } from '@utils';
 import { getPatternsFromInput, resolveTestTypes } from './fire/fire-command-helpers';
 import { UnitTestWriter } from './fire/unit-test-writer';
-import { DocumentWriter } from './fire/document-writer';
-import { DocumentHandler } from './fire/document-handler';
+import { DocumentHandler } from '../handlers/document-handler';
 import { FireInput, FireOutput, TestType, TestScope } from './fire/types';
 import { ALL_TEST_TYPES, SUPPORTED_TEST_SCOPES } from './fire/constants';
 
@@ -22,7 +21,6 @@ export type { FireInput, FireOutput, TestType, TestScope };
  */
 export class FireCommand extends Command<FireInput, FireOutput> {
   private unitTestWriter: UnitTestWriter;
-  private documentWriter: DocumentWriter;
   private documentHandler: DocumentHandler;
 
   constructor(context: CommandContext) {
@@ -31,11 +29,7 @@ export class FireCommand extends Command<FireInput, FireOutput> {
       aiClient: context.aiClient,
       config: context.config,
     });
-    this.documentWriter = new DocumentWriter({
-      aiClient: context.aiClient,
-      config: context.config,
-    });
-    this.documentHandler = new DocumentHandler(context, this.documentWriter);
+    this.documentHandler = new DocumentHandler(context);
   }
 
   async execute(input: FireInput): Promise<FireOutput> {
@@ -101,9 +95,14 @@ export class FireCommand extends Command<FireInput, FireOutput> {
       }
 
       if (activeTestTypes.includes('document')) {
-        // @todo: Implement document generation
-        info('Document generation (coming soon)');
-        results.push('Document generation (coming soon)');
+        const docResults = await this.documentHandler.handle(
+          projectRoot,
+          provider,
+          projectContext,
+          input,
+          matchedFiles
+        );
+        results.push(...docResults);
       }
 
       if (activeTestTypes.includes('visual')) {

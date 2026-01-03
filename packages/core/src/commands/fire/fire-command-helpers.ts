@@ -42,7 +42,8 @@ export function resolveTestTypes(all: boolean | undefined, testTypes: TestType[]
     return testTypes;
   }
 
-  return ['unit'];
+  return ['unit', 'document'];
+}
 
 /**
  * Get file patterns from input arguments

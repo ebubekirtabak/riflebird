@@ -1,6 +1,6 @@
 import type { TestType, TestScope } from '../fire-command';
 
-export const SUPPORTED_TEST_TYPES: TestType[] = ['unit'];
+export const SUPPORTED_TEST_TYPES: TestType[] = ['unit', 'document'];
 
 export const ALL_TEST_TYPES: TestType[] = ['unit', 'e2e', 'visual', 'performance', 'document'];
 

@@ -40,6 +40,7 @@ program
   .option('--unit', 'Include unit tests')
   .option('--visual', 'Include visual regression tests')
   .option('--performance', 'Include performance tests')
+  .option('--document', 'Include document tests')
   .option(
     '-s, --scope <scope>',
     'Filter by scope: component, layout, page, service, util, hook, store'
