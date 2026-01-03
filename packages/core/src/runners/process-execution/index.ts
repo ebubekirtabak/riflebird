@@ -13,6 +13,7 @@ export type ProcessExecutionOptions = {
   timeout?: number;
   stdio?: StdioOptions;
   env?: NodeJS.ProcessEnv;
+  shell?: boolean | string;
 };
 
 /**
@@ -23,13 +24,19 @@ export async function executeProcessCommand(
   args: string[],
   options: ProcessExecutionOptions = {}
 ): Promise<ProcessExecutionResult> {
-  const { cwd = process.cwd(), timeout = 0, stdio = 'pipe', env = process.env } = options;
+  const {
+    cwd = process.cwd(),
+    timeout = 0,
+    stdio = 'pipe',
+    env = process.env,
+    shell = true,
+  } = options;
 
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
       stdio,
-      shell: true,
+      shell,
       env,
     });
 

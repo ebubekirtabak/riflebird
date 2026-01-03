@@ -83,6 +83,7 @@ describe('gemini-cli-client', () => {
         expect.objectContaining({
           cwd: expect.any(String), // cwd
           timeout: 300000, // timeout
+          shell: false,
         })
       );
     });
@@ -237,6 +238,7 @@ describe('gemini-cli-client', () => {
         expect.objectContaining({
           cwd: expect.any(String),
           timeout: 300000,
+          shell: false,
         })
       );
     });
@@ -297,6 +299,7 @@ describe('gemini-cli-client', () => {
         expect.objectContaining({
           cwd: expect.any(String),
           timeout: 10000,
+          shell: false,
         })
       );
     });

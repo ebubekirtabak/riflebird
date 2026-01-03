@@ -64,10 +64,11 @@ export async function createGeminiClient(ai: RiflebirdConfig['ai']): Promise<AIC
 
       const promptContent = getMessageContent(lastMessage.content);
 
-      const args: string[] = ['-p', promptContent, '--output-format', 'json'];
+      const args: string[] = ['-p', promptContent, '--model', model, '--output-format', 'json'];
       const executionResult = await executeProcessCommand(GEMINI_CLI_CMD, args, {
         cwd: process.cwd(),
         timeout: DEFAULT_TIMEOUT,
+        shell: false,
       });
 
       if (executionResult.timedOut) {
@@ -115,6 +116,7 @@ export async function ensureGeminiLoggedIn(): Promise<void> {
     result = await executeProcessCommand(GEMINI_CLI_CMD, args, {
       cwd: process.cwd(),
       timeout: 10000,
+      shell: false,
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
