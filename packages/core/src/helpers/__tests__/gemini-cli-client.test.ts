@@ -75,7 +75,7 @@ describe('gemini-cli-client', () => {
 
       expect(response.choices[0].message.content).toBe('Hello from Gemini');
 
-      const expectedArgs = ['-p', 'Hello', '--output-format', 'json'];
+      const expectedArgs = ['-p', 'Hello', '--model', 'gemini-pro', '--output-format', 'json'];
       expect(executeProcessCommand).toHaveBeenCalledTimes(2); // 1 for login, 1 for chat
       expect(executeProcessCommand).toHaveBeenLastCalledWith(
         'gemini',
@@ -231,7 +231,14 @@ describe('gemini-cli-client', () => {
         model: 'gemini-pro',
       });
 
-      const expectedArgs = ['-p', 'Part 1\nPart 2', '--output-format', 'json'];
+      const expectedArgs = [
+        '-p',
+        'Part 1\nPart 2',
+        '--model',
+        'gemini-pro',
+        '--output-format',
+        'json',
+      ];
       expect(executeProcessCommand).toHaveBeenLastCalledWith(
         'gemini',
         expectedArgs,
