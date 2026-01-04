@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { ProjectFileWalker } from '@utils';
 import { TestRunOptions, TestRunResult, VitestJsonReport, ReporterArgsParams } from './types';
 import { executeProcessCommand } from '@runners/process-execution';
+import { RIFLEBIRD_DIR } from '@commons';
 
 export * from './types';
 export * from './test-output-extractor';
@@ -46,9 +47,9 @@ export function getReporterArgsByFramework(
  */
 export function generateJsonReportPath(cwd: string, framework?: string): string {
   const safeFramework = (framework || 'unit-test').replace(/[^a-z0-9-]/gi, '-');
-  const filename = `.${safeFramework}-report-${Date.now()}-${randomUUID()}.json`;
+  const filename = `${safeFramework}-report-${Date.now()}-${randomUUID()}.json`;
 
-  return path.join(cwd, filename);
+  return path.join(cwd, RIFLEBIRD_DIR, filename);
 }
 
 /**
@@ -107,6 +108,8 @@ export async function runTest(
   const { command, args } = parseTestCommand(testCommand);
 
   const jsonReportPath = generateJsonReportPath(cwd, framework);
+  await fs.mkdir(path.dirname(jsonReportPath), { recursive: true });
+
   args.push(...getReporterArgsByFramework({ jsonReportPath }, framework));
 
   const relativeTestPath = path.relative(cwd, testFilePath);
