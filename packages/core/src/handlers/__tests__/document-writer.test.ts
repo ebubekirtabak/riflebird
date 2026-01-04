@@ -33,6 +33,7 @@ vi.mock('@utils', () => {
     executeProcessCommand: vi.fn(),
     ProjectFileWalker: vi.fn().mockImplementation(
       () =>
+        // @ts-expect-error - Partial mock
         ({
           readFileFromProject: vi
             .fn()
@@ -46,7 +47,7 @@ vi.mock('@utils', () => {
           getFileStats: vi.fn(),
           getFileLastModified: vi.fn(),
           writeFileToProject: vi.fn(),
-        }) as unknown as Mocked<ProjectFileWalker>
+        }) as Mocked<ProjectFileWalker>
     ),
   };
 });
@@ -59,13 +60,14 @@ describe('DocumentWriter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // @ts-expect-error - Partial mock
     mockHandler = {
       getExclusionPatterns: vi.fn().mockReturnValue(['**/*.ignore']),
       getOutputSuffix: vi.fn().mockReturnValue('.doc'),
       generateDocument: vi.fn().mockResolvedValue('Calculated Doc Content'),
       fixDocument: vi.fn().mockResolvedValue('Fixed Doc Content'),
       validateDocument: vi.fn().mockResolvedValue(null),
-    } as unknown as Mocked<DocumentFrameworkHandler>;
+    } as Mocked<DocumentFrameworkHandler>;
 
     mockConfig = {
       documentation: {
@@ -87,6 +89,7 @@ describe('DocumentWriter', () => {
 
     vi.mocked(ProjectFileWalker).mockImplementation(
       () =>
+        // @ts-expect-error - Partial mock
         ({
           readFileFromProject: vi
             .fn()
@@ -100,7 +103,8 @@ describe('DocumentWriter', () => {
           getFileStats: vi.fn(),
           getFileLastModified: vi.fn(),
           writeFileToProject: vi.fn(),
-        }) as unknown as Mocked<ProjectFileWalker>
+          // @ts-expect-error - Partial mock
+        }) as Mocked<ProjectFileWalker>
     );
   });
 
@@ -140,6 +144,7 @@ describe('DocumentWriter', () => {
     // Mock walker reading existing file
     vi.mocked(ProjectFileWalker).mockImplementation(
       () =>
+        // @ts-expect-error - Partial mock
         ({
           readFileFromProject: vi.fn().mockResolvedValue('Existing Valid Content'),
           readWithStats: vi
@@ -147,7 +152,7 @@ describe('DocumentWriter', () => {
             .mockResolvedValue({ content: 'Existing Valid Content', stats: { mtimeMs: 1000 } }),
           resolvePath: vi.fn((p) => p),
           writeFileToProject: vi.fn(),
-        }) as unknown as Mocked<ProjectFileWalker>
+        }) as Mocked<ProjectFileWalker>
     );
 
     const mockContext = { projectRoot: '/root' } as ProjectContext;
@@ -175,6 +180,7 @@ describe('DocumentWriter', () => {
     // Mock walker reading existing file
     vi.mocked(ProjectFileWalker).mockImplementation(
       () =>
+        // @ts-expect-error - Partial mock
         ({
           readFileFromProject: vi.fn().mockResolvedValue('Existing Invalid Content'),
           readWithStats: vi
@@ -182,7 +188,8 @@ describe('DocumentWriter', () => {
             .mockResolvedValue({ content: 'Existing Invalid Content', stats: { mtimeMs: 1000 } }),
           resolvePath: vi.fn((p) => p),
           writeFileToProject: vi.fn(),
-        }) as unknown as Mocked<ProjectFileWalker>
+          // @ts-expect-error - Partial mock
+        }) as Mocked<ProjectFileWalker>
     );
 
     // Mock validation to fail first (for existing), then fail again (in loop), then succeed (after fix)
@@ -281,11 +288,12 @@ describe('DocumentWriter', () => {
   it('should handle errors during file processing and continue', async () => {
     vi.mocked(ProjectFileWalker).mockImplementation(
       () =>
+        // @ts-expect-error - Partial mock
         ({
           readFileFromProject: vi.fn().mockImplementation(() => {
             throw new Error('Read failed');
           }),
-        }) as unknown as Mocked<ProjectFileWalker>
+        }) as Mocked<ProjectFileWalker>
     );
 
     const mockContext = { projectRoot: '/root' } as ProjectContext;

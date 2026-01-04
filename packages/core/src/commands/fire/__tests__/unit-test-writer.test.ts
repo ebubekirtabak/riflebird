@@ -67,7 +67,7 @@ vi.mock('@config/constants', () => ({
 
 const agenticMocks = vi.hoisted(() => {
   return {
-    run: vi.fn().mockResolvedValue('// generated code'),
+    run: vi.fn().mockResolvedValue('// generated code' as string | null),
   };
 });
 
@@ -1169,7 +1169,7 @@ describe('Calculator', () => {
       });
 
       // 2. Mock AgenticRunner to return null
-      agenticMocks.run.mockResolvedValueOnce(null as unknown as string);
+      agenticMocks.run.mockResolvedValueOnce(null);
 
       // 3. Execute writeTestFile
       await agenticWriter.writeTestFile(mockProjectContext, 'src/skipped.ts');

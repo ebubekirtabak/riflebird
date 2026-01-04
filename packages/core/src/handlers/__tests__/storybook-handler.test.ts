@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StorybookDocumentHandler } from '../storybook-handler';
 import { AIClient, ProjectContext } from '@models';
 import { RiflebirdConfig } from '@config/schema';
@@ -82,7 +82,8 @@ describe('StorybookDocumentHandler', () => {
     mockAIClient = {
       createChatCompletion: vi.fn(),
       createCompletion: vi.fn(),
-    } as unknown as AIClient;
+      // @ts-expect-error - Partial mock
+    } as AIClient;
 
     mockConfig = {
       ai: {
@@ -95,7 +96,8 @@ describe('StorybookDocumentHandler', () => {
         linterConfig: {},
         formatterConfig: {},
       },
-    } as unknown as RiflebirdConfig;
+      // @ts-expect-error - Partial mock
+    } as RiflebirdConfig;
 
     handler = new StorybookDocumentHandler({
       aiClient: mockAIClient,
@@ -111,7 +113,8 @@ describe('StorybookDocumentHandler', () => {
       languageConfig: { name: 'typescript', fileLang: 'ts' },
       linterConfig: { name: 'eslint', fileLang: 'json' },
       formatterConfig: { name: 'prettier', fileLang: 'json' },
-    } as unknown as ProjectContext;
+      // @ts-expect-error - Partial mock
+    } as ProjectContext;
   });
 
   describe('Utility Methods', () => {
@@ -137,7 +140,7 @@ describe('StorybookDocumentHandler', () => {
       });
 
       // Mock AI response
-      (mockAIClient.createChatCompletion as Mock).mockResolvedValue({
+      vi.mocked(mockAIClient.createChatCompletion).mockResolvedValue({
         choices: [{ message: { content: 'Generated Story' } }],
       });
 
@@ -168,7 +171,7 @@ describe('StorybookDocumentHandler', () => {
       });
 
       // Mock AI response
-      (mockAIClient.createChatCompletion as Mock).mockResolvedValue({
+      vi.mocked(mockAIClient.createChatCompletion).mockResolvedValue({
         choices: [{ message: { content: 'Generated Story' } }],
       });
 
@@ -179,7 +182,7 @@ describe('StorybookDocumentHandler', () => {
         mockProjectContext
       );
 
-      const calls = (mockAIClient.createChatCompletion as Mock).mock.calls;
+      const calls = vi.mocked(mockAIClient.createChatCompletion).mock.calls;
       const prompt = calls[0][0].messages[0].content;
       // Should result in empty string replacement or just not containing the rules header
       expect(prompt).not.toContain('Visual Testing Best Practices');
@@ -286,7 +289,8 @@ describe('StorybookDocumentHandler', () => {
     });
 
     it('should handle undefined framework name', async () => {
-      mockProjectContext.configFiles.framework.name = undefined as unknown as string;
+      // @ts-expect-error - Testing undefined framework name
+      mockProjectContext.configFiles.framework.name = undefined;
       const content = 'export default { component: {} }';
       await handler.validateDocument(content, 'file.ts', mockProjectContext);
       // specific args check to ensure no extra flags
@@ -406,7 +410,7 @@ describe('StorybookDocumentHandler', () => {
   // Additional Tests for Coverage
 
   it('should throw error if AI does not return choices', async () => {
-    (mockAIClient.createChatCompletion as Mock).mockResolvedValue({
+    vi.mocked(mockAIClient.createChatCompletion).mockResolvedValue({
       choices: [],
     });
 
@@ -416,7 +420,7 @@ describe('StorybookDocumentHandler', () => {
   });
 
   it('should propagate errors from AI client', async () => {
-    (mockAIClient.createChatCompletion as Mock).mockRejectedValue(new Error('AI Error'));
+    vi.mocked(mockAIClient.createChatCompletion).mockRejectedValue(new Error('AI Error'));
 
     await expect(
       handler.generateDocument('Button.tsx', 'code', 'Button.stories.tsx', mockProjectContext)

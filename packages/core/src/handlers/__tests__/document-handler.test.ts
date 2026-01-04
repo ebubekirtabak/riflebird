@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, Mock } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { DocumentHandler } from '../document-handler';
 import { CommandContext } from '@commands/base';
 import { ProjectContext } from '@models';
@@ -70,7 +70,7 @@ describe('DocumentHandler', () => {
 
     const { StorybookRunner } = await import('@runners');
     expect(StorybookRunner).toHaveBeenCalledWith(mockContext);
-    const mockInstance = (StorybookRunner as unknown as Mock).mock.results[0].value;
+    const mockInstance = vi.mocked(StorybookRunner).mock.results[0].value;
     expect(mockInstance.run).toHaveBeenCalledWith(
       '/root',
       mockProvider,
