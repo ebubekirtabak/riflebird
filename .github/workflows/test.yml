@@ -101,7 +101,7 @@ jobs:
 
       - name: Coverage Summary Comment
         if: github.event_name == 'pull_request' && matrix.node-version == '20.x'
-        uses: romeovs/lcov-reporter-action@v0.3.1
+        uses: romeovs/lcov-reporter-action@v0.4.0
         with:
           lcov-file: ./packages/core/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
