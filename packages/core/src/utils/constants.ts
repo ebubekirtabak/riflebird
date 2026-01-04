@@ -1,4 +1,3 @@
-
 export const COMMON_EXCLUDE_DIRS = [
   'node_modules',
   '.git',
@@ -15,14 +14,7 @@ export const COMMON_EXCLUDE_DIRS = [
   'temp',
 ] as const;
 
-export const COMPONENT_EXTENSIONS = [
-  '.tsx',
-  '.jsx',
-  '.ts',
-  '.js',
-  '.vue',
-  '.svelte',
-] as const;
+export const COMPONENT_EXTENSIONS = ['.tsx', '.jsx', '.ts', '.js', '.vue', '.svelte'] as const;
 
 export const TEST_FILE_PATTERNS = [
   '.test.ts',
@@ -44,39 +36,33 @@ export const CONFIG_FILE_PATTERNS = [
   'eslint.config.js',
 ] as const;
 
-// Riflebird directory structure in user's project
-export const RIFLEBIRD_DIR = '.riflebird' as const;
-export const RIFLEBIRD_PROMPTS_DIR = 'prompts' as const;
-export const RIFLEBIRD_TEMPLATES_DIR = 'templates' as const;
-export const RIFLEBIRD_CONFIG_DIR = 'config' as const;
-
 export const languageMap: Record<string, string> = {
-  'ts': 'typescript',
-  'tsx': 'typescript',
-  'js': 'javascript',
-  'jsx': 'javascript',
-  'mjs': 'javascript',
-  'cjs': 'javascript',
-  'py': 'python',
-  'rb': 'ruby',
-  'java': 'java',
-  'cpp': 'cpp',
-  'c': 'c',
-  'cs': 'csharp',
-  'go': 'go',
-  'rs': 'rust',
-  'php': 'php',
-  'sh': 'bash',
-  'bash': 'bash',
-  'zsh': 'zsh',
-  'json': 'json',
-  'yaml': 'yaml',
-  'yml': 'yaml',
-  'xml': 'xml',
-  'html': 'html',
-  'css': 'css',
-  'scss': 'scss',
-  'sass': 'sass',
-  'md': 'markdown',
-  'sql': 'sql',
+  ts: 'typescript',
+  tsx: 'typescript',
+  js: 'javascript',
+  jsx: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  py: 'python',
+  rb: 'ruby',
+  java: 'java',
+  cpp: 'cpp',
+  c: 'c',
+  cs: 'csharp',
+  go: 'go',
+  rs: 'rust',
+  php: 'php',
+  sh: 'bash',
+  bash: 'bash',
+  zsh: 'zsh',
+  json: 'json',
+  yaml: 'yaml',
+  yml: 'yaml',
+  xml: 'xml',
+  html: 'html',
+  css: 'css',
+  scss: 'scss',
+  sass: 'sass',
+  md: 'markdown',
+  sql: 'sql',
 };

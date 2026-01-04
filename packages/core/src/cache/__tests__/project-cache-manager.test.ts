@@ -1,4 +1,4 @@
-import { ProjectCacheManager, CACHE_FILE, CACHE_FOLDER } from '../project-cache-manager';
+import { ProjectCacheManager } from '../project-cache-manager';
 import { ProjectContext } from '@models/project-context';
 import { ProjectFileWalker, FileContentWithStats } from '@utils';
 import { ProjectConfigFiles, ConfigFile } from '@models/project-config-files';
@@ -6,6 +6,7 @@ import * as fs from 'fs/promises';
 import { Stats } from 'fs';
 import * as path from 'path';
 import { describe, it, expect, beforeEach, vi, type Mocked, type Mock } from 'vitest';
+import { RIFLEBIRD_CACHE_FILE, RIFLEBIRD_DIR } from '@commons';
 
 // Mock fs/promises
 vi.mock('fs/promises');
@@ -48,8 +49,8 @@ const createMockProjectConfigFiles = (): ProjectConfigFiles => {
 
 describe('ProjectCacheManager', () => {
   const mockProjectRoot = '/test/project';
-  const mockCacheDir = path.join(mockProjectRoot, CACHE_FOLDER);
-  const mockCachePath = path.join(mockCacheDir, CACHE_FILE);
+  const mockCacheDir = path.join(mockProjectRoot, RIFLEBIRD_DIR);
+  const mockCachePath = path.join(mockCacheDir, RIFLEBIRD_CACHE_FILE);
   let cacheManager: ProjectCacheManager;
   let mockContext: ProjectContext;
   let defaultWalkerMock: { readWithStats: Mock; writeFileToProject: Mock };

@@ -38,6 +38,7 @@ export default defineConfig({
       '@config': resolve(__dirname, './src/config'),
       '@adapters': resolve(__dirname, './src/adapters'),
       '@commands': resolve(__dirname, './src/commands'),
+      '@commons': resolve(__dirname, './src/commons'),
       '@prompts': resolve(__dirname, './src/prompts'),
       '@providers': resolve(__dirname, './src/providers'),
       '@security': resolve(__dirname, './src/security'),

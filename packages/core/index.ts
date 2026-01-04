@@ -48,11 +48,14 @@ export {
   COMPONENT_EXTENSIONS,
   TEST_FILE_PATTERNS,
   CONFIG_FILE_PATTERNS,
+} from './src/utils/constants';
+
+export {
   RIFLEBIRD_DIR,
   RIFLEBIRD_PROMPTS_DIR,
   RIFLEBIRD_TEMPLATES_DIR,
   RIFLEBIRD_CONFIG_DIR,
-} from './src/utils/constants';
+} from './src/commons/constants';
 
 // Export project path utilities
 export {
