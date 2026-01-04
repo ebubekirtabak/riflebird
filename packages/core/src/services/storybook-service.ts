@@ -4,11 +4,11 @@ import { debug, info, ProjectFileWalker } from '@utils';
 import { executeProcessCommand } from '@runners/process-execution';
 import type { ProjectContext } from '@models';
 
-export interface StorybookConfig {
+export type StorybookConfig = {
   version: string;
   framework: string;
   configPath: string;
-}
+};
 
 export class StorybookService {
   private fileWalker: ProjectFileWalker;
