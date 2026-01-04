@@ -121,6 +121,7 @@ describe('StorybookService', () => {
     it('should detect from context dependencies if documentation config missing', async () => {
       const context = createMockProjectContext({
         packageManager: {
+          type: 'npm',
           packageInfo: {
             dependencies: { '@storybook/react': '^7.0.0' },
             devDependencies: {},
