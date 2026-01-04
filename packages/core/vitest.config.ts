@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
+import pkg from './package.json';
 
 export default defineConfig({
   test: {
@@ -22,6 +23,9 @@ export default defineConfig({
         branches: 85,
         statements: 85,
       },
+    },
+    env: {
+      RIFLEBIRD_VERSION: pkg.version,
     },
   },
   resolve: {

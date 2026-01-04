@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsup';
+import pkg from './package.json';
 
 export default defineConfig({
   entry: ['index.ts'],
@@ -10,4 +11,7 @@ export default defineConfig({
   external: ['playwright', 'openai'],
   publicDir: 'src/prompts',
   outDir: 'dist',
+  define: {
+    'process.env.RIFLEBIRD_VERSION': JSON.stringify(pkg.version),
+  },
 });
