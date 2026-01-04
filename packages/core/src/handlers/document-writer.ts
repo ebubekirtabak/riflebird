@@ -59,7 +59,7 @@ export class DocumentWriter {
       }
 
       try {
-        const generated = await this.writeDocumentFile(projectContext, file.path, framework);
+        const generated = await this.writeDocumentFile(projectContext, file.path);
         if (generated) {
           results.push(`Generated Document for: ${file.path}`);
         }
