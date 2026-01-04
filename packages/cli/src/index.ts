@@ -38,7 +38,6 @@ program
   .option('-a, --all', 'Run all test types for all files')
   .option('--e2e', 'Include E2E tests')
   .option('--unit', 'Include unit tests')
-  .option('--visual', 'Include visual regression tests (requires documentation)')
   .option('--performance', 'Include performance tests')
   .option('--document', 'Include document tests')
   .option(
