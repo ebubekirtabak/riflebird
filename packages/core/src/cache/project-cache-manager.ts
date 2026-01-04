@@ -77,7 +77,7 @@ export class ProjectCacheManager {
 
   async save(context: ProjectContext): Promise<void> {
     try {
-      const cachePath = path.join(this.cacheDir, RIFLEBIRD_DIR);
+      const cachePath = path.join(this.cacheDir, RIFLEBIRD_CACHE_FILE);
 
       // Inject current version
       const cacheToSave: ProjectContext = {
