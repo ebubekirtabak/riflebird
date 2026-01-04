@@ -68,8 +68,6 @@ vi.mock('@commands/fire/prompt-template-builder', () => ({
   }),
 }));
 
-// ... (in describe block)
-
 describe('StorybookDocumentHandler', () => {
   let handler: StorybookDocumentHandler;
   let mockAIClient: AIClient;
