@@ -82,7 +82,6 @@ describe('DocumentWriter', () => {
     } as RiflebirdConfig;
 
     // DocumentWriter now takes { handler, config }
-    // DocumentWriter now takes { handler, config }
     writer = new DocumentWriter({ handler: mockHandler, config: mockConfig });
 
     vi.mocked(ProjectFileWalker).mockImplementation(
