@@ -1161,54 +1161,78 @@ describe('Calculator', () => {
       });
     });
 
-    it.skip('should skip test generation (no write) when agentic runner returns null (skip_test)', async () => {
-      // 1. Setup writer with agentic config (default)
+    it('should skip test generation (no write) when agentic runner returns null (skip_test)', async () => {
+      // Setup writer with agentic config (non-copilot provider triggers agentic mode)
       const agenticWriter = new UnitTestWriter({
         aiClient: mockAiClient,
-        config: mockConfig,
+        config: {
+          ...mockConfig,
+          ai: {
+            ...mockConfig.ai,
+            provider: 'openai', // Triggers agentic mode
+          },
+        } as RiflebirdConfig,
       });
 
-      // 2. Mock AgenticRunner to return null
+      // Mock AgenticRunner to return null
       agenticMocks.run.mockResolvedValueOnce(null);
 
-      // 3. Execute writeTestFile
+      // Execute writeTestFile
       await agenticWriter.writeTestFile(mockProjectContext, 'src/skipped.ts');
 
-      // 4. Verify writeFileToProject was NOT called
+      // Verify writeFileToProject was NOT called because generateTest returned null
       expect(mockWalkerInstance.writeFileToProject).not.toHaveBeenCalled();
     });
   });
   describe('healing and verification', () => {
-    it.skip('should retry test generation if verification fails and healing is enabled', async () => {
+    it('should retry test generation if verification fails and healing is enabled', async () => {
+      // Enable healing
+      const healingWriter = new UnitTestWriter({
+        aiClient: mockAiClient,
+        config: {
+          ...mockConfig,
+          healing: { enabled: true, mode: 'auto', maxRetries: 2, strategy: 'smart' },
+        },
+      });
+
       // Mock runTest to fail first time, succeed second time
-      const { runTest } = await import('@runners/test-runner');
+      const { runTest, extractTestErrors } = await import('@runners/test-runner');
       (runTest as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce({
           success: false,
           exitCode: 1,
-          testResults: [
-            { file: 'src/fail.test.ts', status: 'failed', error: 'SyntaxError', code: 'bad code' },
-          ],
+          stdout: '',
+          stderr: 'SyntaxError: Unexpected token',
+          jsonReport: null,
+          duration: 100,
         })
         .mockResolvedValueOnce({
           success: true,
           exitCode: 0,
-          testResults: [{ file: 'src/fail.test.ts', status: 'passed' }],
+          stdout: 'All tests passed',
+          stderr: '',
+          jsonReport: null,
+          duration: 100,
         });
 
-      // Enable healing
-      mockConfig.healing = { enabled: true, mode: 'auto', maxRetries: 2, strategy: 'smart' };
+      (extractTestErrors as ReturnType<typeof vi.fn>).mockReturnValue(
+        'SyntaxError: Unexpected token'
+      );
 
-      const targetFile: TestFile = {
-        filePath: 'src/fail.ts',
-        content: 'const x = 1;',
-        testFilePath: 'src/fail.test.ts',
-        testContent: '',
+      // Setup context with test command
+      const contextWithTest = {
+        ...mockProjectContext,
+        packageManager: { type: 'npm', testCommand: 'npm test' },
       };
 
-      await writer.writeTestFile(mockProjectContext, targetFile.filePath, undefined);
+      await healingWriter.writeTestFile(
+        contextWithTest as unknown as ProjectContext,
+        'src/fail.ts'
+      );
 
-      expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2); // Initial gen + retry
+      // Should have called AI twice: initial generation + fix attempt
+      expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2);
+      // Should have run tests twice: after initial gen + after fix
       expect(runTest).toHaveBeenCalledTimes(2);
     });
 
@@ -1236,28 +1260,46 @@ describe('Calculator', () => {
       expect(runTest).not.toHaveBeenCalled();
     });
 
-    it.skip('should stop retrying when maxRetries reached and throw error', async () => {
-      const { runTest } = await import('@runners/test-runner');
+    it('should stop retrying when maxRetries reached and throw error', async () => {
+      // Enable healing with max 2 retries
+      const healingWriter = new UnitTestWriter({
+        aiClient: mockAiClient,
+        config: {
+          ...mockConfig,
+          healing: { enabled: true, mode: 'auto', maxRetries: 2, strategy: 'smart' },
+        },
+      });
+
+      const { runTest, extractTestErrors } = await import('@runners/test-runner');
+      // Always fail the test
       (runTest as ReturnType<typeof vi.fn>).mockResolvedValue({
         success: false,
         exitCode: 1,
-        testResults: [{ file: 'src/max-retry.test.ts', status: 'failed', error: 'Error' }],
+        stdout: '',
+        stderr: 'Persistent error',
+        jsonReport: null,
+        duration: 100,
       });
 
-      mockConfig.healing = { enabled: true, mode: 'auto', maxRetries: 2, strategy: 'smart' };
+      (extractTestErrors as ReturnType<typeof vi.fn>).mockReturnValue('Persistent error');
 
-      const targetFile: TestFile = {
-        filePath: 'src/max-retry.ts',
-        content: 'const x = 1;',
-        testFilePath: 'src/max-retry.test.ts',
-        testContent: '',
+      // Setup context with test command
+      const contextWithTest = {
+        ...mockProjectContext,
+        packageManager: { type: 'npm', testCommand: 'npm test' },
       };
 
       await expect(
-        writer.writeTestFile(mockProjectContext, targetFile.filePath, undefined)
+        healingWriter.writeTestFile(
+          contextWithTest as unknown as ProjectContext,
+          'src/max-retry.ts'
+        )
       ).rejects.toThrow('Test failed after 2 attempts');
 
+      // Should have called AI twice (initial generation + 1 fix attempt)
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2);
+      // Should have run tests twice (after each generation)
+      expect(runTest).toHaveBeenCalledTimes(2);
     });
 
     it('should verify test success using JSON report logic', async () => {
@@ -1279,32 +1321,44 @@ describe('Calculator', () => {
       await writer.writeTestFile(mockProjectContext, targetFile.filePath, undefined);
     });
 
-    it.skip('should fallback to regeneration if verification throws error', async () => {
-      const { runTest } = await import('@runners/test-runner');
-      // Attempt 1: verification throws error
-      (runTest as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-        new Error('Fatal verification error')
-      );
-
-      // Attempt 2: verification succeeds
-      (runTest as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        success: true,
-        exitCode: 0,
-        testResults: [{ file: 'src/fallback.test.ts', status: 'passed' }],
+    it('should fallback to regeneration if verification throws error', async () => {
+      // Enable healing
+      const healingWriter = new UnitTestWriter({
+        aiClient: mockAiClient,
+        config: {
+          ...mockConfig,
+          healing: { enabled: true, mode: 'auto', maxRetries: 2, strategy: 'smart' },
+        },
       });
 
-      mockConfig.healing = { enabled: true, mode: 'auto', maxRetries: 2, strategy: 'smart' };
+      const { runTest } = await import('@runners/test-runner');
+      // Attempt 1: verification throws non-fatal error
+      (runTest as ReturnType<typeof vi.fn>)
+        .mockRejectedValueOnce(new Error('Non-fatal verification error'))
+        // Attempt 2: verification succeeds
+        .mockResolvedValueOnce({
+          success: true,
+          exitCode: 0,
+          stdout: 'All tests passed',
+          stderr: '',
+          jsonReport: null,
+          duration: 100,
+        });
 
-      const targetFile: TestFile = {
-        filePath: 'src/fallback.ts',
-        content: 'const x = 1;',
-        testFilePath: 'src/fallback.test.ts',
-        testContent: '',
+      // Setup context with test command
+      const contextWithTest = {
+        ...mockProjectContext,
+        packageManager: { type: 'npm', testCommand: 'npm test' },
       };
 
-      await writer.writeTestFile(mockProjectContext, targetFile.filePath, undefined);
+      await healingWriter.writeTestFile(
+        contextWithTest as unknown as ProjectContext,
+        'src/fallback.ts'
+      );
 
+      // Should have called AI twice (initial generation + retry after error)
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2);
+      // Should have attempted to run tests twice
       expect(runTest).toHaveBeenCalledTimes(2);
     });
   });
