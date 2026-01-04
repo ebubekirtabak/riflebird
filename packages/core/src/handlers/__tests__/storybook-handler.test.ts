@@ -12,12 +12,11 @@ const mocks = vi.hoisted(() => ({
   agenticRun: vi.fn(),
 }));
 
-vi.mock('@utils', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@utils')>();
+vi.mock('@utils', () => {
   return {
-    ...actual,
     checkAndThrowFatalError: vi.fn(),
     cleanCodeContent: (code: string) => code,
+    debug: vi.fn(),
     ProjectFileWalker: vi.fn().mockImplementation(() => ({
       readFileFromProject: mocks.readFileFromProject,
     })),
@@ -52,6 +51,24 @@ vi.mock('@prompts/storybook-story-fix-agentic-prompt.txt', () => ({
 vi.mock('@prompts/storybook-story-prompt.txt', () => ({
   default: 'Prompt with: {{VISUAL_TESTING_RULES}}',
 }));
+
+vi.mock('@config/constants', () => ({
+  DEFAULT_FILE_EXCLUDE_PATTERNS: ['node_modules', '*.min.js'],
+}));
+
+vi.mock('@commands/fire/prompt-template-builder', () => ({
+  PromptTemplateBuilder: vi.fn().mockImplementation(() => {
+    const builder = {
+      withSection: vi.fn(),
+      build: vi.fn().mockImplementation((template, data) => {
+        return template + ' ' + JSON.stringify(data);
+      }),
+    };
+    return builder;
+  }),
+}));
+
+// ... (in describe block)
 
 describe('StorybookDocumentHandler', () => {
   let handler: StorybookDocumentHandler;
@@ -95,6 +112,18 @@ describe('StorybookDocumentHandler', () => {
       linterConfig: { name: 'eslint', fileLang: 'json' },
       formatterConfig: { name: 'prettier', fileLang: 'json' },
     } as unknown as ProjectContext;
+  });
+
+  describe('Utility Methods', () => {
+    it('should return correct exclusion patterns', () => {
+      const patterns = handler.getExclusionPatterns();
+      expect(patterns).toContain('node_modules'); // from constants mock
+      expect(patterns).toContain('**/*.stories.{ts,tsx,js,jsx}');
+    });
+
+    it('should return correct output suffix', () => {
+      expect(handler.getOutputSuffix()).toBe('.stories');
+    });
   });
 
   describe('generateDocument', () => {
@@ -228,6 +257,46 @@ describe('StorybookDocumentHandler', () => {
       );
     });
 
+    it('should handle tsc validation failure with exit code 1 and stderr', async () => {
+      mocks.executeProcessCommand.mockResolvedValueOnce({
+        exitCode: 1,
+        stdout: '',
+        stderr: 'TSC Error',
+      });
+      const result = await handler.validateDocument(
+        'export default { component: {} }',
+        'file.ts',
+        mockProjectContext
+      );
+      expect(result).toBe('TSC Error');
+    });
+
+    it('should handle passed validation validation failure with exit code 1 and no stderr', async () => {
+      mocks.executeProcessCommand.mockResolvedValueOnce({
+        exitCode: 1,
+        stdout: '',
+        stderr: '',
+      });
+      const result = await handler.validateDocument(
+        'export default { component: {} }',
+        'file.ts',
+        mockProjectContext
+      );
+      expect(result).toBe('TSC failed with exit code 1');
+    });
+
+    it('should handle undefined framework name', async () => {
+      mockProjectContext.configFiles.framework.name = undefined as unknown as string;
+      const content = 'export default { component: {} }';
+      await handler.validateDocument(content, 'file.ts', mockProjectContext);
+      // specific args check to ensure no extra flags
+      const lastCallArgs =
+        mocks.executeProcessCommand.mock.calls[
+          mocks.executeProcessCommand.mock.calls.length - 1
+        ][1];
+      expect(lastCallArgs).not.toContain('--jsx');
+    });
+
     it('should use Vue-specific tsc flags when framework is Nuxt', async () => {
       mockProjectContext.configFiles.framework.name = 'nuxt';
       const content = 'export default { component: {} }';
@@ -332,5 +401,78 @@ describe('StorybookDocumentHandler', () => {
       // So validationErrors will be empty string.
       expect(mocks.agenticRun).toHaveBeenCalled();
     });
+  });
+
+  // Additional Tests for Coverage
+
+  it('should throw error if AI does not return choices', async () => {
+    (mockAIClient.createChatCompletion as Mock).mockResolvedValue({
+      choices: [],
+    });
+
+    await expect(
+      handler.generateDocument('Button.tsx', 'code', 'Button.stories.tsx', mockProjectContext)
+    ).rejects.toThrow('AI did not return any choices');
+  });
+
+  it('should propagate errors from AI client', async () => {
+    (mockAIClient.createChatCompletion as Mock).mockRejectedValue(new Error('AI Error'));
+
+    await expect(
+      handler.generateDocument('Button.tsx', 'code', 'Button.stories.tsx', mockProjectContext)
+    ).rejects.toThrow('AI Error');
+  });
+
+  it('should handle validation execution error (e.g. spawn fail)', async () => {
+    mocks.executeProcessCommand.mockRejectedValue(new Error('Spawn failed'));
+
+    // validateDocument catches error and returns it as string
+    const result = await handler.validateDocument(
+      'export default { component: Button }',
+      'file.ts',
+      mockProjectContext
+    );
+    expect(result).toBe('Spawn failed');
+  });
+
+  it('should gracefully handle source file read failure in fixDocument', async () => {
+    mocks.readFileFromProject.mockRejectedValue(new Error('Read failed'));
+    mocks.executeProcessCommand.mockResolvedValue({ exitCode: 1, stdout: 'Error', stderr: '' });
+    mocks.agenticRun.mockResolvedValue('Fixed');
+
+    const result = await handler.fixDocument(
+      'failed',
+      'source.tsx',
+      'story.tsx',
+      mockProjectContext,
+      'error'
+    );
+
+    // Should proceed with empty source content
+    expect(result).toBe('Fixed');
+    expect(mocks.agenticRun).toHaveBeenCalledWith(
+      expect.stringContaining('"FAILING_TESTS_DETAIL":"error"')
+    );
+    // Source content in prompt will be empty string if read failed?
+    // Implementation: let sourceContent = ''; try { sourceContent = await ... } catch ...
+    // So sourceContent remains ''
+    // We can verify prompt doesn't contain 'Read failed' but contains empty source placeholder if any
+  });
+
+  it('should return content immediately if initial validation in fixDocument passes', async () => {
+    // If we pass validationErrors=undefined, it runs validation.
+    // If validation returns null (success), it should return content.
+
+    mocks.executeProcessCommand.mockResolvedValue({ exitCode: 0 }); // Validation pass
+
+    const result = await handler.fixDocument(
+      'export default { component: Button }',
+      's.tsx',
+      'st.tsx',
+      mockProjectContext
+    );
+
+    expect(result).toBe('export default { component: Button }');
+    expect(mocks.agenticRun).not.toHaveBeenCalled();
   });
 });
