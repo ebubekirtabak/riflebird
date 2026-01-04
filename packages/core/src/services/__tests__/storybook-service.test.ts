@@ -190,24 +190,27 @@ describe('StorybookService', () => {
       expect(config).toBeNull();
     });
 
-    it('should identify various frameworks correctly', async () => {
+    it('should identify Angular framework correctly', async () => {
       service = new StorybookService(mockProjectRoot);
       mocks.existsSync.mockReturnValue(true);
-
-      // Angular
-      mocks.readFileFromProject.mockResolvedValueOnce(
+      mocks.readFileFromProject.mockResolvedValue(
         JSON.stringify({
           dependencies: { storybook: '7.0', '@storybook/angular': '7.0' },
         })
       );
-      expect((await service.detect())?.framework).toBe('angular');
 
-      // Svelte
-      mocks.readFileFromProject.mockResolvedValueOnce(
+      expect((await service.detect())?.framework).toBe('angular');
+    });
+
+    it('should identify Svelte framework correctly', async () => {
+      service = new StorybookService(mockProjectRoot);
+      mocks.existsSync.mockReturnValue(true);
+      mocks.readFileFromProject.mockResolvedValue(
         JSON.stringify({
           dependencies: { storybook: '7.0', '@storybook/svelte': '7.0' },
         })
       );
+
       expect((await service.detect())?.framework).toBe('svelte');
     });
   });
