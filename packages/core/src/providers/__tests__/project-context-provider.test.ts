@@ -13,6 +13,55 @@ type MockAIClient = AIClient & {
   createChatCompletion: Mock;
 };
 
+const { mockLoad } = vi.hoisted(() => ({ mockLoad: vi.fn() }));
+
+vi.mock('../../cache/project-cache-manager', () => {
+  return {
+    ProjectCacheManager: class {
+      load = mockLoad;
+      save = vi.fn();
+    },
+  };
+});
+
+vi.mock('@utils/log-util', () => ({
+  debug: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+}));
+
+vi.mock('@prompts/project-configuration.txt', () => ({
+  default: '{{FILE_TREE}}',
+}));
+
+vi.mock('@security', () => ({
+  SecretScanner: {
+    sanitize: vi.fn((content) => ({ secretsDetected: 0, sanitizedCode: content })),
+  },
+  sanitizationLogger: {
+    logSanitization: vi.fn(),
+  },
+}));
+
+vi.mock('@utils', async () => {
+  const { ProjectFileWalker } = await import('@utils/project-file-walker');
+  const { FileTreeWalker } = await import('@utils/file-tree-walker');
+  const { getFileTree } = await import('@utils/file-tree');
+  const { detectOutputStrategy } = await import('@utils/file-util');
+  const { detectPackageManagerInfo } = await import('@utils/package-manager-detector');
+
+  return {
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    ProjectFileWalker,
+    FileTreeWalker,
+    getFileTree,
+    detectOutputStrategy,
+    detectPackageManagerInfo,
+  };
+});
+
 describe('ProjectContextProvider', () => {
   let provider: ProjectContextProvider;
   let mockContext: CommandContext;
@@ -74,6 +123,7 @@ describe('ProjectContextProvider', () => {
       adapter: {} as TestFrameworkAdapter,
     } as CommandContext;
 
+    mockLoad.mockReset().mockResolvedValue(null);
     provider = new ProjectContextProvider(mockContext, projectRoot);
   });
 
@@ -108,6 +158,13 @@ describe('ProjectContextProvider', () => {
       const secondTree = await provider.getFileTree();
 
       expect(firstTree).toBe(secondTree);
+    });
+
+    it('should return existing fileTreeWalker if already initialized', async () => {
+      await provider.init();
+      const firstWalker = await provider.getFileTreeWalker();
+      const secondWalker = await provider.getFileTreeWalker();
+      expect(firstWalker).toBe(secondWalker);
     });
   });
 
@@ -159,6 +216,19 @@ describe('ProjectContextProvider', () => {
       });
     });
 
+    it('should return cached context if available', async () => {
+      const cachedContext = {
+        testFrameworks: { unit: { name: 'vitest' } },
+      };
+
+      mockLoad.mockResolvedValue(cachedContext);
+
+      const context = await provider.getContext();
+
+      expect(context).toBe(cachedContext);
+      expect(mockLoad).toHaveBeenCalled();
+    });
+
     it('should return complete project context reading real files', async () => {
       const context = await provider.getContext();
 
@@ -181,6 +251,13 @@ describe('ProjectContextProvider', () => {
       const context = await provider.getContext();
       expect(context.unitTestOutputStrategy).toBe('colocated');
     });
+
+    it('should throw error if underlying operations fail', async () => {
+      // Force error by mocking AI client to reject
+      mockAiClient.createChatCompletion.mockRejectedValue(new Error('AI invalid'));
+      // And checking expectation
+      await expect(provider.getContext()).rejects.toThrow('AI invalid');
+    });
   });
 
   describe('readTestFramework', () => {
@@ -201,6 +278,54 @@ describe('ProjectContextProvider', () => {
       expect(result.unit).toBeDefined();
       expect(result.unit?.configContent).toContain('export default {}');
       expect(result.unit?.lastModified).toEqual(expect.any(Number));
+    });
+
+    it('should read documentation framework when enabled', async () => {
+      // Enable documentation
+      if (!mockContext.config.documentation) {
+        mockContext.config.documentation = {
+          enabled: true,
+          setupFiles: [],
+          documentationOutputDir: 'docs',
+          documentationMatch: [],
+        };
+      }
+      mockContext.config.documentation.enabled = true;
+
+      // Create dummy doc config
+      await fs.writeFile(path.join(projectRoot, 'jsdoc.json'), '{}');
+
+      const testFrameworksConfig = {
+        documentation: {
+          type: 'documentation' as const,
+          name: 'jsdoc',
+          configFile: 'jsdoc.json',
+          configFilePath: 'jsdoc.json',
+          fileLang: 'json' as const,
+        },
+      };
+
+      const result = await provider.readTestFramework(testFrameworksConfig, projectRoot);
+
+      expect(result.documentation).toBeDefined();
+      expect(result.documentation?.name).toBe('jsdoc');
+      expect(result.documentation?.configContent).toBe('{}');
+    });
+
+    it('should handle errors during framework read gracefully', async () => {
+      // Point to non-existent file to force error in readFileFromProject
+      const testFrameworksConfig = {
+        unit: {
+          type: 'unit-test' as const,
+          name: 'vitest',
+          configFile: 'non-existent.ts',
+          configFilePath: 'non-existent.ts',
+          fileLang: 'typescript' as const,
+        },
+      };
+
+      const result = await provider.readTestFramework(testFrameworksConfig, projectRoot);
+      expect(result).toEqual({});
     });
 
     it('should return empty object when unit testing is disabled', async () => {

@@ -1,9 +1,21 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { DocumentHandler } from '../document-handler';
 import { CommandContext } from '@commands/base';
 import { ProjectContext } from '@models';
 import { ProjectContextProvider } from '@providers/project-context-provider';
 import { FireInput } from '@commands/fire/types';
+
+vi.mock('@runners', () => {
+  return {
+    StorybookRunner: vi.fn().mockImplementation(() => ({
+      run: vi.fn().mockResolvedValue(['generated-story']),
+    })),
+  };
+});
+
+vi.mock('@utils', () => ({
+  info: vi.fn(),
+}));
 
 describe('DocumentHandler', () => {
   let handler: DocumentHandler;
@@ -20,11 +32,11 @@ describe('DocumentHandler', () => {
           framework: 'storybook',
         },
       },
-    } as unknown as CommandContext;
+    } as CommandContext;
 
-    mockProvider = {} as unknown as ProjectContextProvider;
-    mockProjectContext = {} as unknown as ProjectContext;
-    mockInput = {} as unknown as FireInput;
+    mockProvider = {} as ProjectContextProvider;
+    mockProjectContext = {} as ProjectContext;
+    mockInput = {} as FireInput;
 
     handler = new DocumentHandler(mockContext);
   });
@@ -46,5 +58,37 @@ describe('DocumentHandler', () => {
     const result = await handler.handle('/root', mockProvider, mockProjectContext, mockInput, []);
 
     expect(result).toEqual([]);
+  });
+
+  it('should delegate to StorybookRunner when framework is storybook', async () => {
+    mockContext.config.documentation!.framework = 'storybook';
+    handler = new DocumentHandler(mockContext);
+
+    const result = await handler.handle('/root', mockProvider, mockProjectContext, mockInput, []);
+
+    expect(result).toEqual(['generated-story']);
+
+    const { StorybookRunner } = await import('@runners');
+    expect(StorybookRunner).toHaveBeenCalledWith(mockContext);
+    const mockInstance = vi.mocked(StorybookRunner).mock.results[0].value;
+    expect(mockInstance.run).toHaveBeenCalledWith(
+      '/root',
+      mockProvider,
+      mockProjectContext,
+      mockInput,
+      []
+    );
+  });
+
+  it('should return empty array and log info when framework is none', async () => {
+    // @ts-ignore
+    mockContext.config.documentation!.framework = 'none';
+    handler = new DocumentHandler(mockContext);
+
+    const result = await handler.handle('/root', mockProvider, mockProjectContext, mockInput, []);
+
+    expect(result).toEqual([]);
+    const { info } = await import('@utils');
+    expect(info).toHaveBeenCalledWith('Documentation framework not specified');
   });
 });

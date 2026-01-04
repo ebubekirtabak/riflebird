@@ -31,9 +31,8 @@ describe('gemini-cli-client', () => {
 
     it('should throw error if provider is not gemini-cli', async () => {
       await expect(
-        createGeminiClient({ ...mockConfig, provider: 'openai' } as unknown as Parameters<
-          typeof createGeminiClient
-        >[0])
+        // @ts-expect-error - Testing runtime validation for invalid provider
+        createGeminiClient({ ...mockConfig, provider: 'openai' })
       ).rejects.toThrow('Invalid provider for Gemini Client');
     });
 

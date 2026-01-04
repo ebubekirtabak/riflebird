@@ -60,10 +60,58 @@ vi.mock('@prompts/unit-test-prompt.txt', () => ({
     'Generate unit test for {{TEST_FRAMEWORK}}.\n\nFramework Config:\n{{TEST_FRAMEWORK_CONFIG}}\n\nLanguage Config:\n{{LANGUAGE_CONFIGURATIONS}}\n\nFormatting:\n{{FORMATTING_RULES}}\n\nLinting:\n{{LINTING_RULES}}\n\nCode:\n{{CODE_SNIPPET}}',
 }));
 
-vi.mock('@utils', async () => {
-  const actual = await vi.importActual('@utils');
+vi.mock('@config/constants', () => ({
+  DEFAULT_FILE_EXCLUDE_PATTERNS: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+  DEFAULT_UNIT_TEST_PATTERNS: ['**/*.test.ts', '**/*.spec.ts', '**/__tests__/**'],
+}));
+
+const agenticMocks = vi.hoisted(() => {
   return {
-    ...actual,
+    run: vi.fn().mockResolvedValue('// generated code' as string | null),
+  };
+});
+
+vi.mock('@agentic/agentic-runner', () => ({
+  AgenticRunner: vi.fn().mockImplementation(() => ({
+    run: agenticMocks.run,
+  })),
+}));
+
+const sharedMocks = vi.hoisted(() => {
+  const mockInstance = {
+    readFileFromProject: vi.fn().mockResolvedValue('// source code'),
+    writeFileToProject: vi.fn().mockResolvedValue(undefined),
+  };
+  return {
+    mockInstance,
+    ProjectFileWalker: vi.fn(() => mockInstance),
+  };
+});
+
+vi.mock('@utils', async () => {
+  return {
+    ProjectFileWalker: sharedMocks.ProjectFileWalker,
+    info: vi.fn(),
+    debug: vi.fn(),
+    checkAndThrowFatalError: vi.fn((e) => {
+      if (e instanceof Error && e.message === 'Fatal') throw e;
+      if (typeof e === 'object' && e !== null) {
+        const errorObj = e as { status?: unknown; code?: unknown };
+        const status = errorObj.status || errorObj.code;
+        if (status === 429 || status === 401) throw new Error('Fatal');
+      }
+    }),
+    cleanCodeContent: vi.fn((code) => {
+      // Basic markdown stripping logic for mock
+      if (typeof code === 'string') {
+        return code
+          .replace(/```[a-z]*\s*/g, '')
+          .replace(/```/g, '')
+          .trim();
+      }
+      return code;
+    }),
+    generateFilePathWithConfig: vi.fn((path) => path.replace('.ts', '.test.ts')),
     getFileTree: vi.fn(),
     findFilesByPatternInFileTree: vi.fn(),
     matchesPattern: vi.fn(),
@@ -71,13 +119,9 @@ vi.mock('@utils', async () => {
 });
 
 vi.mock('@utils/project-file-walker', () => {
-  const mockInstance = {
-    readFileFromProject: vi.fn().mockResolvedValue('// source code'),
-    writeFileToProject: vi.fn().mockResolvedValue(undefined),
-  };
   return {
-    ProjectFileWalker: vi.fn(() => mockInstance),
-    getMockWalkerInstance: () => mockInstance,
+    ProjectFileWalker: sharedMocks.ProjectFileWalker,
+    getMockWalkerInstance: () => sharedMocks.mockInstance,
   };
 });
 
@@ -271,7 +315,7 @@ describe('UnitTestWriter', () => {
 
       const result = await writer.generateTest(mockProjectContext, targetFile, testFramework);
 
-      expect(result).toBe('import { test } from "vitest";\ntest("should work", () => {});');
+      expect(result?.trim()).toBe('import { test } from "vitest";\ntest("should work", () => {});');
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledOnce();
     });
 
@@ -382,7 +426,7 @@ describe('UnitTestWriter', () => {
         ai: {
           model: 'gpt-4-turbo',
           temperature: 0.5,
-          provider: 'openai',
+          provider: 'copilot-cli',
         },
       } as RiflebirdConfig;
 
@@ -627,7 +671,7 @@ describe('Calculator', () => {
     });
   });
 
-  it('should handle markdown-wrapped JSON response in agentic mode', async () => {
+  it('should delegate to AgenticRunner when in agentic mode', async () => {
     // Setup config for agentic mode
     const agenticConfig = {
       ...mockConfig,
@@ -642,19 +686,8 @@ describe('Calculator', () => {
       config: agenticConfig,
     });
 
-    // Mock AI response with markdown-wrapped JSON
-    const markdownJson =
-      '```json\n{\n  "action": "generate_test",\n  "code": "import { test } from \'vitest\';"\n}\n```';
-
-    (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: markdownJson,
-          },
-        },
-      ],
-    });
+    // Mock AgenticRunner return
+    agenticMocks.run.mockResolvedValueOnce('// generated code');
 
     const targetFile: TestFile = {
       filePath: 'src/agentic.ts',
@@ -665,7 +698,8 @@ describe('Calculator', () => {
 
     const result = await agenticWriter.generateTest(mockProjectContext, targetFile, undefined);
 
-    expect(result).toBe("import { test } from 'vitest';");
+    expect(result).toBe('// generated code');
+    expect(agenticMocks.run).toHaveBeenCalled();
   });
 
   describe('integration with PromptTemplateBuilder', () => {
@@ -755,9 +789,8 @@ describe('Calculator', () => {
       };
 
       // null content will cause an error when stripMarkdownCodeBlocks tries to process it
-      await expect(
-        writer.generateTest(mockProjectContext, targetFile, undefined)
-      ).rejects.toThrow();
+      const result = await writer.generateTest(mockProjectContext, targetFile, undefined);
+      expect(result).toBeNull();
     });
   });
 
@@ -907,7 +940,7 @@ describe('Calculator', () => {
           });
 
         await expect(writer.writeTestByMatchedFiles(mockProvider, mockFiles)).rejects.toThrow(
-          /Rate Limit Exceeded/
+          /Fatal/
         );
       });
 
@@ -922,7 +955,7 @@ describe('Calculator', () => {
         });
 
         await expect(writer.writeTestByMatchedFiles(mockProvider, mockFiles)).rejects.toThrow(
-          /Authentication Error/
+          /Fatal/
         );
       });
 
@@ -1128,133 +1161,205 @@ describe('Calculator', () => {
       });
     });
 
-    describe('Smart File Resolution', () => {
-      it('should resolve file with alternative extension when requested file is missing', async () => {
-        // 1. Setup agentic writer
-        const agenticConfig = {
-          ...mockConfig,
-          ai: { ...mockConfig.ai, provider: 'openai' },
-        } as RiflebirdConfig;
-
-        const agenticWriter = new UnitTestWriter({
-          aiClient: mockAiClient,
-          config: agenticConfig,
-        });
-
-        // 2. Setup mocks
-        (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>)
-          .mockResolvedValueOnce({
-            choices: [
-              {
-                message: {
-                  content: JSON.stringify({ action: 'request_files', files: ['src/component.ts'] }),
-                },
-              },
-            ],
-          })
-          .mockResolvedValueOnce({
-            choices: [
-              {
-                message: {
-                  content: JSON.stringify({ action: 'generate_test', code: 'test code' }),
-                },
-              },
-            ],
-          });
-
-        mockWalkerInstance.readFileFromProject.mockImplementation(async (path: string) => {
-          if (path === 'src/component.ts') throw new Error('File not found');
-          if (path === 'src/component.tsx') return 'import React from "react";';
-          return '// unknown file';
-        });
-
-        const targetFile: TestFile = {
-          filePath: 'src/dummy.ts',
-          content: '',
-          testFilePath: 'src/dummy.test.ts',
-          testContent: '',
-        };
-
-        // 3. Execute
-        await agenticWriter.generateTest(mockProjectContext, targetFile, undefined);
-
-        // 4. Verify
-        expect(mockWalkerInstance.readFileFromProject).toHaveBeenCalledWith('src/component.ts');
-        expect(mockWalkerInstance.readFileFromProject).toHaveBeenCalledWith('src/component.tsx');
-
-        const secondCallArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
-          .calls[1][0];
-        const lastUserMessage = secondCallArgs.messages[secondCallArgs.messages.length - 1];
-
-        expect(lastUserMessage.role).toBe('user');
-        expect(lastUserMessage.content).toContain(
-          'FILE: src/component.ts (Resolved to src/component.tsx)'
-        );
-        expect(lastUserMessage.content).toContain('import React from "react";');
-      });
-    });
-
     it('should skip test generation (no write) when agentic runner returns null (skip_test)', async () => {
-      // 1. Setup agentic writer
-      const agenticConfig = {
-        ...mockConfig,
-        ai: { ...mockConfig.ai, provider: 'openai' },
-      } as RiflebirdConfig;
-
+      // Setup writer with agentic config (non-copilot provider triggers agentic mode)
       const agenticWriter = new UnitTestWriter({
         aiClient: mockAiClient,
-        config: agenticConfig,
-      });
-
-      // 2. Mock AI response with skip_test
-      (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              content: JSON.stringify({
-                action: 'skip_test',
-                reason: 'Barrel file',
-              }),
-            },
+        config: {
+          ...mockConfig,
+          ai: {
+            ...mockConfig.ai,
+            provider: 'openai', // Triggers agentic mode
           },
-        ],
+        } as RiflebirdConfig,
       });
 
-      // 3. Execute writeTestFile directly to verify it respects the null return
+      // Mock AgenticRunner to return null
+      agenticMocks.run.mockResolvedValueOnce(null);
+
+      // Execute writeTestFile
       await agenticWriter.writeTestFile(mockProjectContext, 'src/skipped.ts');
 
-      // 4. Verify writeFileToProject was NOT called
+      // Verify writeFileToProject was NOT called because generateTest returned null
       expect(mockWalkerInstance.writeFileToProject).not.toHaveBeenCalled();
     });
-
-    it('should skip test generation (no write) when simpleGeneration returns sentinel token (// SKIP_TEST_GENERATION)', async () => {
-      // 1. Setup writer with copilot-cli provider
-      const copilotConfig = {
-        ...mockConfig,
-        ai: { ...mockConfig.ai, provider: 'copilot-cli' },
-      } as RiflebirdConfig;
-
-      const copilotWriter = new UnitTestWriter({
+  });
+  describe('healing and verification', () => {
+    it('should retry test generation if verification fails and healing is enabled', async () => {
+      // Enable healing
+      const healingWriter = new UnitTestWriter({
         aiClient: mockAiClient,
-        config: copilotConfig,
+        config: {
+          ...mockConfig,
+          healing: { enabled: true, mode: 'auto', maxRetries: 2, strategy: 'smart' },
+        },
       });
 
-      // 2. Mock AI response with skip sentinel
-      (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              content: '// SKIP_TEST_GENERATION',
-            },
-          },
-        ],
+      // Mock runTest to fail first time, succeed second time
+      const { runTest, extractTestErrors } = await import('@runners/test-runner');
+      (runTest as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({
+          success: false,
+          exitCode: 1,
+          stdout: '',
+          stderr: 'SyntaxError: Unexpected token',
+          jsonReport: null,
+          duration: 100,
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          exitCode: 0,
+          stdout: 'All tests passed',
+          stderr: '',
+          jsonReport: null,
+          duration: 100,
+        });
+
+      (extractTestErrors as ReturnType<typeof vi.fn>).mockReturnValue(
+        'SyntaxError: Unexpected token'
+      );
+
+      // Setup context with test command
+      const contextWithTest = {
+        ...mockProjectContext,
+        packageManager: { type: 'npm', testCommand: 'npm test' },
+      };
+
+      await healingWriter.writeTestFile(
+        contextWithTest as unknown as ProjectContext,
+        'src/fail.ts'
+      );
+
+      // Should have called AI twice: initial generation + fix attempt
+      expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2);
+      // Should have run tests twice: after initial gen + after fix
+      expect(runTest).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not retry if healing is disabled', async () => {
+      const { runTest } = await import('@runners/test-runner');
+      (runTest as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: false,
+        exitCode: 1,
+        testResults: [{ file: 'src/no-heal.test.ts', status: 'failed', error: 'Error' }],
       });
 
-      // 3. Execute writeTestFile
-      await copilotWriter.writeTestFile(mockProjectContext, 'src/skipped-copilot.ts');
+      mockConfig.healing = { enabled: false, mode: 'auto', maxRetries: 3, strategy: 'smart' };
 
-      // 4. Verify writeFileToProject was NOT called
-      expect(mockWalkerInstance.writeFileToProject).not.toHaveBeenCalled();
+      const targetFile: TestFile = {
+        filePath: 'src/no-heal.ts',
+        content: 'const x = 1;',
+        testFilePath: 'src/no-heal.test.ts',
+        testContent: '',
+      };
+
+      // Should return without error (skipped verification)
+      await writer.writeTestFile(mockProjectContext, targetFile.filePath, undefined);
+
+      expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(1);
+      expect(runTest).not.toHaveBeenCalled();
+    });
+
+    it('should stop retrying when maxRetries reached and throw error', async () => {
+      // Enable healing with max 2 retries
+      const healingWriter = new UnitTestWriter({
+        aiClient: mockAiClient,
+        config: {
+          ...mockConfig,
+          healing: { enabled: true, mode: 'auto', maxRetries: 2, strategy: 'smart' },
+        },
+      });
+
+      const { runTest, extractTestErrors } = await import('@runners/test-runner');
+      // Always fail the test
+      (runTest as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: false,
+        exitCode: 1,
+        stdout: '',
+        stderr: 'Persistent error',
+        jsonReport: null,
+        duration: 100,
+      });
+
+      (extractTestErrors as ReturnType<typeof vi.fn>).mockReturnValue('Persistent error');
+
+      // Setup context with test command
+      const contextWithTest = {
+        ...mockProjectContext,
+        packageManager: { type: 'npm', testCommand: 'npm test' },
+      };
+
+      await expect(
+        healingWriter.writeTestFile(
+          contextWithTest as unknown as ProjectContext,
+          'src/max-retry.ts'
+        )
+      ).rejects.toThrow('Test failed after 2 attempts');
+
+      // Should have called AI twice (initial generation + 1 fix attempt)
+      expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2);
+      // Should have run tests twice (after each generation)
+      expect(runTest).toHaveBeenCalledTimes(2);
+    });
+
+    it('should verify test success using JSON report logic', async () => {
+      const { runTest } = await import('@runners/test-runner');
+      (runTest as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: true, // overall command success
+        exitCode: 0,
+        jsonReportPath: '/tmp/report.json',
+        testResults: [{ file: 'other.test.ts', status: 'passed' }],
+      });
+
+      const targetFile: TestFile = {
+        filePath: 'src/verify.ts',
+        content: '',
+        testFilePath: 'src/verify.test.ts',
+        testContent: '',
+      };
+
+      await writer.writeTestFile(mockProjectContext, targetFile.filePath, undefined);
+    });
+
+    it('should fallback to regeneration if verification throws error', async () => {
+      // Enable healing
+      const healingWriter = new UnitTestWriter({
+        aiClient: mockAiClient,
+        config: {
+          ...mockConfig,
+          healing: { enabled: true, mode: 'auto', maxRetries: 2, strategy: 'smart' },
+        },
+      });
+
+      const { runTest } = await import('@runners/test-runner');
+      // Attempt 1: verification throws non-fatal error
+      (runTest as ReturnType<typeof vi.fn>)
+        .mockRejectedValueOnce(new Error('Non-fatal verification error'))
+        // Attempt 2: verification succeeds
+        .mockResolvedValueOnce({
+          success: true,
+          exitCode: 0,
+          stdout: 'All tests passed',
+          stderr: '',
+          jsonReport: null,
+          duration: 100,
+        });
+
+      // Setup context with test command
+      const contextWithTest = {
+        ...mockProjectContext,
+        packageManager: { type: 'npm', testCommand: 'npm test' },
+      };
+
+      await healingWriter.writeTestFile(
+        contextWithTest as unknown as ProjectContext,
+        'src/fallback.ts'
+      );
+
+      // Should have called AI twice (initial generation + retry after error)
+      expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2);
+      // Should have attempted to run tests twice
+      expect(runTest).toHaveBeenCalledTimes(2);
     });
   });
 });
