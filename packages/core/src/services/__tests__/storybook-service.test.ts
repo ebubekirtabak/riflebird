@@ -1,133 +1,307 @@
 import { StorybookService } from '../storybook-service';
-import { ProjectContext, ProjectConfigFiles, ConfigFile, FrameworkInfo } from '@models';
+import { ProjectConfigFiles } from '@models/project-config-files';
+import { ProjectContext, PackageManager, FrameworkInfo } from '@models';
 import { join } from 'node:path';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock ProjectFileWalker
-vi.mock('@utils', () => ({
-  ProjectFileWalker: vi.fn().mockImplementation(() => ({
-    readFileFromProject: vi.fn(),
-  })),
+// Define mocks first
+const mocks = vi.hoisted(() => ({
+  readFileFromProject: vi.fn(),
+  executeProcessCommand: vi.fn(),
+  existsSync: vi.fn(),
   debug: vi.fn(),
   info: vi.fn(),
-  executeProcessCommand: vi.fn(),
 }));
 
-// --- Helper Functions for Mocks ---
-
-const createMockConfigFile = (overrides?: Partial<ConfigFile>): ConfigFile => ({
-  type: 'mock-type',
-  configFile: 'mock.config.js',
-  configFilePath: '/mock/path/mock.config.js',
-  ...overrides,
+// Mock dependencies
+vi.mock('@utils', async (_) => {
+  return {
+    ProjectFileWalker: vi.fn().mockImplementation(() => ({
+      readFileFromProject: mocks.readFileFromProject,
+    })),
+    debug: mocks.debug,
+    info: mocks.info,
+  };
 });
 
-const createMockFrameworkInfo = (overrides?: Partial<FrameworkInfo>): FrameworkInfo => ({
-  name: 'mock-framework',
-  version: '1.0.0',
-  ...overrides,
+vi.mock('@runners/process-execution', () => ({
+  executeProcessCommand: mocks.executeProcessCommand,
+}));
+
+vi.mock('node:fs', async (importOriginal) => {
+  return {
+    ...(await importOriginal<typeof import('node:fs')>()),
+    existsSync: mocks.existsSync,
+  };
 });
 
-const createMockProjectConfigFiles = (
-  overrides?: Partial<ProjectConfigFiles>
-): ProjectConfigFiles => ({
-  framework: createMockConfigFile({ type: 'react' }),
-  language: 'typescript',
-  packageManager: 'npm',
-  libs: {
-    core: [],
-    testing: [],
-    styling: [],
-  },
-  testFrameworks: {
-    unit: createMockConfigFile({ type: 'vitest' }),
-  },
-  linting: createMockConfigFile({ type: 'eslint' }),
-  formatting: createMockConfigFile({ type: 'prettier' }),
-  languageConfig: createMockConfigFile({ type: 'typescript' }),
-  importantConfigFiles: {},
-  ...overrides,
-});
+// Helper to create context
+const createMockProjectContext = (overrides: Partial<ProjectContext> = {}): ProjectContext => {
+  const defaultConfigFiles: ProjectConfigFiles = {
+    framework: { type: 'react', configFile: '', configFilePath: '' },
+    language: 'typescript',
+    packageManager: 'npm',
+    libs: { core: [], testing: [], styling: [] },
+    testFrameworks: {},
+    linting: { type: 'eslint', configFile: '', configFilePath: '' },
+    formatting: { type: 'prettier', configFile: '', configFilePath: '' },
+    languageConfig: { type: 'typescript', configFile: '', configFilePath: '' },
+    importantConfigFiles: {},
+  };
 
-const createMockProjectContext = (overrides?: Partial<ProjectContext>): ProjectContext => ({
-  projectRoot: '/test/project/root',
-  configFiles: createMockProjectConfigFiles(),
-  languageConfig: createMockFrameworkInfo({ name: 'typescript' }),
-  linterConfig: createMockFrameworkInfo({ name: 'eslint' }),
-  formatterConfig: createMockFrameworkInfo({ name: 'prettier' }),
-  testFrameworks: {},
-  packageManager: {
-    type: 'npm',
-    version: '8.0.0',
-    packageInfo: {
-      dependencies: {},
-      devDependencies: {},
-    },
-  },
-  ...overrides,
-});
+  const defaultPackageManager: PackageManager = {
+    type: 'unknown',
+    packageInfo: { dependencies: {}, devDependencies: {} },
+  };
 
-// --- Tests ---
+  const defaultFrameworkInfo: FrameworkInfo = {
+    name: 'typescript',
+    fileLang: 'ts',
+    configFilePath: '',
+  };
+
+  return {
+    projectRoot: '/root',
+    configFiles: defaultConfigFiles,
+    packageManager: defaultPackageManager,
+    languageConfig: defaultFrameworkInfo,
+    linterConfig: {},
+    formatterConfig: {},
+    ...overrides,
+  } as ProjectContext;
+};
 
 describe('StorybookService', () => {
-  const mockProjectRoot = '/test/project/root';
+  const mockProjectRoot = '/root';
+  let service: StorybookService;
 
-  it('should detect Storybook from ProjectContext (optimized path)', async () => {
-    const mockContext = createMockProjectContext({
-      projectRoot: mockProjectRoot,
-      testFrameworks: {
-        documentation: {
-          name: 'react',
-          version: '7.6.0',
-          configFilePath: '/test/project/root/.storybook',
-        },
-      },
-      packageManager: {
-        type: 'npm',
-        version: '8.0.0',
-        packageInfo: {
-          dependencies: {},
-          devDependencies: {},
-        },
-      },
-    });
-
-    const service = new StorybookService(mockProjectRoot, mockContext);
-    const config = await service.detect();
-
-    expect(config).toEqual({
-      version: '7.6.0',
-      framework: 'react',
-      configPath: '/test/project/root/.storybook',
-    });
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it('should fallback to dependencies from ProjectContext if documentation framework is missing', async () => {
-    const mockContext = createMockProjectContext({
-      projectRoot: mockProjectRoot,
-      testFrameworks: {}, // No documentation framework detected explicitly
-      packageManager: {
-        type: 'npm',
-        version: '8.0.0',
-        packageInfo: {
-          dependencies: {
-            storybook: '^7.0.0',
-            '@storybook/react': '^7.0.0',
+  describe('detect', () => {
+    it('should use context documentation config if available (optimized path)', async () => {
+      const context = createMockProjectContext({
+        testFrameworks: {
+          documentation: {
+            version: '7.0',
+            name: 'react',
+            configFilePath: '/root/.storybook',
           },
-          devDependencies: {},
         },
-      },
+      });
+      service = new StorybookService(mockProjectRoot, context);
+
+      const config = await service.detect();
+      expect(config).toEqual({
+        version: '7.0',
+        framework: 'react',
+        configPath: '/root/.storybook',
+      });
     });
 
-    const service = new StorybookService(mockProjectRoot, mockContext);
-    const config = await service.detect();
+    it('should handle partial documentation config with defaults', async () => {
+      const context = createMockProjectContext({
+        testFrameworks: {
+          documentation: {
+            // Missing details
+          },
+        },
+      });
+      service = new StorybookService(mockProjectRoot, context);
 
-    expect(config).toEqual({
-      version: '7.0.0',
-      framework: 'react',
-      configPath: join(mockProjectRoot, '.storybook'),
+      const config = await service.detect();
+      expect(config).toEqual({
+        version: 'unknown',
+        framework: 'unknown',
+        configPath: join(mockProjectRoot, '.storybook'),
+      });
+    });
+
+    it('should detect from context dependencies if documentation config missing', async () => {
+      const context = createMockProjectContext({
+        packageManager: {
+          packageInfo: {
+            dependencies: { '@storybook/react': '^7.0.0' },
+            devDependencies: {},
+          },
+        },
+      });
+      service = new StorybookService(mockProjectRoot, context);
+
+      const config = await service.detect();
+      expect(config).toEqual({
+        version: '7.0.0',
+        framework: 'react',
+        configPath: '/root/.storybook',
+      });
+    });
+
+    it('should fallback to filesystem if context is missing', async () => {
+      service = new StorybookService(mockProjectRoot);
+      mocks.existsSync.mockReturnValue(true); // .storybook exists
+      mocks.readFileFromProject.mockResolvedValue(
+        JSON.stringify({
+          devDependencies: { storybook: '7.5.0', '@storybook/vue3': '7.5.0' },
+        })
+      );
+
+      const config = await service.detect();
+      expect(config).toEqual({
+        version: '7.5.0',
+        framework: 'vue3',
+        configPath: '/root/.storybook',
+      });
+      expect(mocks.existsSync).toHaveBeenCalledWith(join(mockProjectRoot, '.storybook'));
+    });
+
+    it('should return null if filesystem detection finds no storybook dir', async () => {
+      service = new StorybookService(mockProjectRoot);
+      mocks.existsSync.mockImplementation((path: string) => !path.endsWith('.storybook')); // .storybook missing
+
+      const config = await service.detect();
+      expect(config).toBeNull();
+    });
+
+    it('should return null if package.json parse fails', async () => {
+      service = new StorybookService(mockProjectRoot);
+      mocks.existsSync.mockReturnValue(true);
+      mocks.readFileFromProject.mockRejectedValue(new Error('Read error'));
+
+      const config = await service.detect();
+      expect(config).toBeNull();
+      expect(mocks.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Error parsing'),
+        expect.any(Error)
+      );
+    });
+
+    it('should return null if no storybook dependency found in package.json', async () => {
+      service = new StorybookService(mockProjectRoot);
+      mocks.existsSync.mockReturnValue(true);
+      mocks.readFileFromProject.mockResolvedValue(
+        JSON.stringify({
+          dependencies: { react: '18.0' },
+        })
+      );
+
+      const config = await service.detect();
+      expect(config).toBeNull();
+    });
+
+    it('should identify various frameworks correctly', async () => {
+      service = new StorybookService(mockProjectRoot);
+      mocks.existsSync.mockReturnValue(true);
+
+      // Angular
+      mocks.readFileFromProject.mockResolvedValueOnce(
+        JSON.stringify({
+          dependencies: { storybook: '7.0', '@storybook/angular': '7.0' },
+        })
+      );
+      expect((await service.detect())?.framework).toBe('angular');
+
+      // Svelte
+      mocks.readFileFromProject.mockResolvedValueOnce(
+        JSON.stringify({
+          dependencies: { storybook: '7.0', '@storybook/svelte': '7.0' },
+        })
+      );
+      expect((await service.detect())?.framework).toBe('svelte');
     });
   });
 
-  // Additional tests can be added here for fallback to fs, but those require mocking fs
+  describe('install', () => {
+    beforeEach(() => {
+      service = new StorybookService(mockProjectRoot);
+    });
+
+    it('should run storybook init command successfully', async () => {
+      mocks.executeProcessCommand.mockResolvedValue({ exitCode: 0 });
+
+      const result = await service.install();
+
+      expect(result).toBe(true);
+      expect(mocks.executeProcessCommand).toHaveBeenCalledWith(
+        'npx',
+        ['storybook@latest', 'init', '--yes'],
+        expect.objectContaining({ cwd: mockProjectRoot })
+      );
+    });
+
+    it('should return false if init command fails', async () => {
+      mocks.executeProcessCommand.mockResolvedValue({ exitCode: 1 });
+
+      const result = await service.install();
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle execution errors exception', async () => {
+      mocks.executeProcessCommand.mockRejectedValue(new Error('Exec failed'));
+
+      const result = await service.install();
+
+      expect(result).toBe(false);
+      expect(mocks.debug).toHaveBeenCalledWith(
+        expect.stringContaining('installation error'),
+        expect.any(Error)
+      );
+    });
+  });
+
+  describe('verify', () => {
+    beforeEach(() => {
+      service = new StorybookService(mockProjectRoot);
+    });
+
+    it('should return true if storybook configured and script exists', async () => {
+      // Setup detection success
+      mocks.existsSync.mockReturnValue(true);
+      mocks.readFileFromProject.mockResolvedValue(
+        JSON.stringify({
+          dependencies: { storybook: '7.0' },
+          scripts: { storybook: 'start-storybook' },
+        })
+      );
+
+      const result = await service.verify();
+      expect(result).toBe(true);
+    });
+
+    it('should return false if detection fails', async () => {
+      // Setup detection failure
+      mocks.existsSync.mockReturnValue(false); // No .storybook dir
+
+      const result = await service.verify();
+      expect(result).toBe(false);
+    });
+
+    it('should return false if scripts missing', async () => {
+      // Setup detection success but no scripts
+      mocks.existsSync.mockReturnValue(true);
+      mocks.readFileFromProject.mockResolvedValue(
+        JSON.stringify({
+          dependencies: { storybook: '7.0' },
+          scripts: { test: 'jest' },
+        })
+      );
+
+      const result = await service.verify();
+      expect(result).toBe(false);
+    });
+
+    it('should accept build-storybook script', async () => {
+      mocks.existsSync.mockReturnValue(true);
+      mocks.readFileFromProject.mockResolvedValue(
+        JSON.stringify({
+          dependencies: { storybook: '7.0' },
+          scripts: { 'build-storybook': 'build' },
+        })
+      );
+
+      const result = await service.verify();
+      expect(result).toBe(true);
+    });
+  });
 });
