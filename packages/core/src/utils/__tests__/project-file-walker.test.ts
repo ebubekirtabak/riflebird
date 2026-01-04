@@ -1,15 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ProjectFileWalker } from '../project-file-walker';
+import { ProjectFileWalker, FileContentWithStats } from '../project-file-walker';
 import path from 'path';
-import fs from 'fs/promises';
-import { sanitizationLogger } from '@security';
+import fs, { FileHandle } from 'fs/promises';
+import { sanitizationLogger, SecretScanner, type SanitizationResult } from '@security';
 import { Stats } from 'node:fs';
 
 // Mock fs
 vi.mock('fs/promises');
 
-// Spy on logger
-vi.spyOn(sanitizationLogger, 'logSanitization').mockImplementation(() => {});
+// Mock security module
+vi.mock('@security', () => ({
+  SecretScanner: {
+    sanitize: vi.fn(),
+  },
+  sanitizationLogger: {
+    logSanitization: vi.fn(),
+  },
+}));
 
 describe('ProjectFileWalker', () => {
   const mockProjectRoot = '/tmp/mock-project';
@@ -18,6 +25,19 @@ describe('ProjectFileWalker', () => {
   beforeEach(() => {
     walker = new ProjectFileWalker({ projectRoot: mockProjectRoot });
     vi.clearAllMocks();
+
+    // Default mock implementation for SecretScanner
+    vi.mocked(SecretScanner.sanitize).mockImplementation(
+      (code) =>
+        ({
+          sanitizedCode: code,
+          secretsDetected: 0,
+          results: [],
+          secrets: [],
+          originalLength: 0,
+          sanitizedLength: 0,
+        }) as SanitizationResult
+    );
   });
 
   describe('resolveAndValidatePath', () => {
@@ -106,6 +126,104 @@ describe('ProjectFileWalker', () => {
       await expect(walker.getFileLastModified(filePath)).rejects.toThrow(
         'Failed to get last modified time'
       );
+    });
+  });
+
+  describe('readWithStats', () => {
+    it('should read file content and stats successfully', async () => {
+      const filePath = 'test.ts';
+      const fullPath = path.resolve(mockProjectRoot, filePath);
+      const mockContent = 'file content';
+      const mockStats = { size: 100 } as Stats;
+
+      const mockFileHandle = {
+        stat: vi.fn().mockResolvedValue(mockStats),
+        readFile: vi.fn().mockResolvedValue(mockContent),
+        close: vi.fn().mockResolvedValue(undefined),
+      } as unknown as FileHandle;
+
+      vi.mocked(fs.open).mockResolvedValue(mockFileHandle);
+      vi.mocked(SecretScanner.sanitize).mockReturnValue({
+        sanitizedCode: mockContent,
+        secretsDetected: 0,
+        results: [],
+        secrets: [],
+        originalLength: 0,
+        sanitizedLength: 0,
+      } as SanitizationResult);
+
+      const result: FileContentWithStats = await walker.readWithStats(filePath);
+
+      expect(fs.open).toHaveBeenCalledWith(fullPath, 'r');
+      expect(mockFileHandle.stat).toHaveBeenCalled();
+      expect(mockFileHandle.readFile).toHaveBeenCalledWith({ encoding: 'utf-8' });
+      expect(mockFileHandle.close).toHaveBeenCalled();
+      expect(result).toEqual({ content: mockContent, stats: mockStats });
+    });
+
+    it('should fail if path is unsafe', async () => {
+      const filePath = '../secret.key';
+      await expect(walker.readWithStats(filePath)).rejects.toThrow('Security Error');
+      expect(fs.open).not.toHaveBeenCalled();
+    });
+
+    it('should sanitize content and log secrets if detected', async () => {
+      const filePath = 'config.ts';
+      const secretContent = 'apiKey = "12345";';
+      const sanitizedContent = 'apiKey = "[REDACTED]";';
+      const mockStats = { size: 100 } as Stats;
+
+      const mockFileHandle = {
+        stat: vi.fn().mockResolvedValue(mockStats),
+        readFile: vi.fn().mockResolvedValue(secretContent),
+        close: vi.fn().mockResolvedValue(undefined),
+      } as unknown as FileHandle;
+
+      vi.mocked(fs.open).mockResolvedValue(mockFileHandle);
+      vi.mocked(SecretScanner.sanitize).mockReturnValue({
+        sanitizedCode: sanitizedContent,
+        secretsDetected: 1,
+        results: [],
+        secrets: [],
+        originalLength: 0,
+        sanitizedLength: 0,
+      } as SanitizationResult);
+
+      await walker.readWithStats(filePath);
+
+      expect(sanitizationLogger.logSanitization).toHaveBeenCalledWith(
+        expect.objectContaining({
+          secretsDetected: 1,
+          sanitizedCode: sanitizedContent,
+        }),
+        filePath
+      );
+    });
+
+    it('should throw error if fs.open fails', async () => {
+      const filePath = 'missing.ts';
+      vi.mocked(fs.open).mockRejectedValue(new Error('ENOENT'));
+
+      await expect(walker.readWithStats(filePath)).rejects.toThrow(
+        'Failed to read file with stats'
+      );
+    });
+
+    it('should close file handle even if reading fails', async () => {
+      const filePath = 'broken.ts';
+      const mockFileHandle = {
+        stat: vi.fn().mockRejectedValue(new Error('Read error')),
+        readFile: vi.fn(),
+        close: vi.fn().mockResolvedValue(undefined),
+      } as unknown as FileHandle;
+
+      vi.mocked(fs.open).mockResolvedValue(mockFileHandle);
+
+      await expect(walker.readWithStats(filePath)).rejects.toThrow(
+        'Failed to read file with stats'
+      );
+
+      expect(mockFileHandle.close).toHaveBeenCalled();
     });
   });
 });

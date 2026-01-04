@@ -1,5 +1,6 @@
 import { ProjectContext, FrameworkInfo } from '@models/project-context';
-import { debug, error as errorLog } from '@utils';
+import { ProjectFileWalker } from '@utils';
+import { debug, error as errorLog, info } from '@utils';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -9,10 +10,13 @@ export const CACHE_FILE = 'cache.json';
 export class ProjectCacheManager {
   private projectRoot: string;
   private cacheDir: string;
+  private projectFileWalker: ProjectFileWalker;
+  private currentVersion = process.env.RIFLEBIRD_VERSION || '0.0.0';
 
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.cacheDir = path.join(this.projectRoot, CACHE_FOLDER);
+    this.projectFileWalker = new ProjectFileWalker({ projectRoot });
   }
 
   async hasCache(): Promise<boolean> {
@@ -42,15 +46,23 @@ export class ProjectCacheManager {
         throw error;
       }
 
+      // Version Check
+      if (cache.riflebirdVersion !== this.currentVersion) {
+        info(
+          `Riflebird version changed (${cache.riflebirdVersion} -> ${this.currentVersion}), invalidating cache...`
+        );
+        return null;
+      }
+
       const { isValid, wasUpdated, reconciledCache } = await this.reconcileCache(cache);
 
-      if (isValid) {
-        if (wasUpdated && reconciledCache) {
+      if (isValid && reconciledCache) {
+        if (wasUpdated) {
           debug('Cache was stale but repairable, updating...');
           await this.save(reconciledCache);
-          return reconciledCache;
         }
-        return cache;
+
+        return reconciledCache;
       }
 
       return null;
@@ -69,8 +81,15 @@ export class ProjectCacheManager {
     try {
       const cachePath = path.join(this.cacheDir, CACHE_FILE);
 
-      await fs.mkdir(this.cacheDir, { recursive: true });
-      await fs.writeFile(cachePath, JSON.stringify(context, null, 2), 'utf-8');
+      // Inject current version
+      const cacheToSave: ProjectContext = {
+        ...context,
+        riflebirdVersion: this.currentVersion,
+      };
+      await this.projectFileWalker.writeFileToProject(
+        cachePath,
+        JSON.stringify(cacheToSave, null, 2)
+      );
       debug('Project context cached successfully');
     } catch (error) {
       errorLog('Error saving cache:', error);
@@ -98,32 +117,24 @@ export class ProjectCacheManager {
           continue;
         }
 
-        const filePath = path.join(this.projectRoot, framework.configFilePath);
-
         try {
-          // Use file descriptor to avoid TOCTOU race condition
-          const fileHandle = await fs.open(filePath, 'r');
+          const { content, stats } = await this.projectFileWalker.readWithStats(
+            framework.configFilePath
+          );
 
-          try {
-            const stats = await fileHandle.stat();
-            // Check if file was modified based on mtime
-            if (!framework.lastModified || stats.mtimeMs !== framework.lastModified) {
-              const content = await fileHandle.readFile({ encoding: 'utf-8' });
-
-              if (content.trim() !== (framework.configContent || '').trim()) {
-                debug(`Config file changed, updating cache: ${framework.configFilePath}`);
-                framework.configContent = content;
-              } else {
-                debug(
-                  `Config file touched (mtime changed), updating timestamp: ${framework.configFilePath}`
-                );
-              }
-
-              framework.lastModified = stats.mtimeMs;
-              wasUpdated = true;
+          // Check if file was modified based on mtime
+          if (!framework.lastModified || stats.mtimeMs !== framework.lastModified) {
+            if (content.trim() !== (framework.configContent || '').trim()) {
+              debug(`Config file changed, updating cache: ${framework.configFilePath}`);
+              framework.configContent = content;
+            } else {
+              debug(
+                `Config file touched (mtime changed), updating timestamp: ${framework.configFilePath}`
+              );
             }
-          } finally {
-            await fileHandle.close();
+
+            framework.lastModified = stats.mtimeMs;
+            wasUpdated = true;
           }
         } catch {
           debug(`Cache invalid: Config file missing ${framework.configFilePath}`);
@@ -134,16 +145,11 @@ export class ProjectCacheManager {
       // Check package file content if it was tracked
       const packageFile = reconciledCache.packageManager?.packageFilePath;
       if (packageFile) {
-        const packageFilePath = path.join(this.projectRoot, packageFile);
-        let fileHandle: fs.FileHandle | undefined;
-
         try {
-          fileHandle = await fs.open(packageFilePath, 'r');
-          const stats = await fileHandle.stat();
+          const { content, stats } = await this.projectFileWalker.readWithStats(packageFile);
           const cachedMtime = reconciledCache.packageManager?.packageFileLastModified;
 
           if (!cachedMtime || stats.mtimeMs !== cachedMtime) {
-            const content = await fileHandle.readFile({ encoding: 'utf-8' });
             const previousContent = reconciledCache.packageManager?.packageFileContent;
 
             if (content.trim() !== (previousContent || '').trim()) {
@@ -163,8 +169,6 @@ export class ProjectCacheManager {
         } catch {
           debug(`Cache invalid: Package file missing or unreadable ${packageFile}`);
           return { isValid: false, wasUpdated: false };
-        } finally {
-          await fileHandle?.close();
         }
       }
 

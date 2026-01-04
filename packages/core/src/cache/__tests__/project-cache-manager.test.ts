@@ -1,10 +1,11 @@
 import { ProjectCacheManager, CACHE_FILE, CACHE_FOLDER } from '../project-cache-manager';
 import { ProjectContext } from '@models/project-context';
+import { ProjectFileWalker, FileContentWithStats } from '@utils';
 import { ProjectConfigFiles, ConfigFile } from '@models/project-config-files';
 import * as fs from 'fs/promises';
 import { Stats } from 'fs';
 import * as path from 'path';
-import { describe, it, expect, beforeEach, vi, type Mocked } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mocked, type Mock } from 'vitest';
 
 // Mock fs/promises
 vi.mock('fs/promises');
@@ -14,6 +15,11 @@ const mockedFs = fs as unknown as Mocked<typeof fs>;
 vi.mock('@utils', () => ({
   debug: vi.fn(),
   error: vi.fn(),
+  info: vi.fn(),
+  ProjectFileWalker: vi.fn().mockImplementation(() => ({
+    readWithStats: vi.fn(),
+    writeFileToProject: vi.fn(),
+  })),
 }));
 
 const createMockProjectConfigFiles = (): ProjectConfigFiles => {
@@ -46,9 +52,20 @@ describe('ProjectCacheManager', () => {
   const mockCachePath = path.join(mockCacheDir, CACHE_FILE);
   let cacheManager: ProjectCacheManager;
   let mockContext: ProjectContext;
+  let defaultWalkerMock: { readWithStats: Mock; writeFileToProject: Mock };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv('RIFLEBIRD_VERSION', '0.1.4');
+
+    defaultWalkerMock = {
+      readWithStats: vi.fn(),
+      writeFileToProject: vi.fn(),
+    };
+    vi.mocked(ProjectFileWalker).mockReturnValue(
+      defaultWalkerMock as unknown as Mocked<ProjectFileWalker>
+    );
+
     cacheManager = new ProjectCacheManager(mockProjectRoot);
 
     // Default valid context
@@ -103,52 +120,89 @@ describe('ProjectCacheManager', () => {
 
       await cacheManager.save(mockContext);
 
-      expect(mockedFs.mkdir).toHaveBeenCalledWith(mockCacheDir, { recursive: true });
-      expect(mockedFs.writeFile).toHaveBeenCalledWith(
+      // expect(mockedFs.mkdir).toHaveBeenCalledWith(mockCacheDir, { recursive: true }); // optimize: walker handles mkdir
+      // Since we can't easily access the walker instance created inside cacheManager constructor without a getter or exposing it,
+      // we might need to spy on it or trust that if it didn't throw, it called the mock.
+      // But wait, we mocked the class constructor.
+
+      // Actually, we can spy on the mock instance.
+      expect(defaultWalkerMock.writeFileToProject).toHaveBeenCalledWith(
         mockCachePath,
-        expect.stringContaining('"projectRoot": "/test/project"'),
-        'utf-8'
+        expect.stringContaining('"projectRoot": "/test/project"')
       );
     });
 
     it('should handle errors gracefully', async () => {
-      mockedFs.mkdir.mockRejectedValue(new Error('Write error'));
+      defaultWalkerMock.writeFileToProject.mockRejectedValue(new Error('Write error'));
 
       await expect(cacheManager.save(mockContext)).resolves.not.toThrow();
     });
   });
 
   describe('load (Reconciliation Logic)', () => {
-    beforeEach(() => {
-      // Setup default successful calls
+    let mockReadWithStats: Mock;
+    let mockWriteFileToProject: Mock;
+
+    beforeEach(async () => {
+      // Setup ProjectFileWalker mock
+      const { ProjectFileWalker } = await import('@utils');
+      mockReadWithStats = vi.fn();
+      mockWriteFileToProject = vi.fn();
+
+      vi.mocked(ProjectFileWalker).mockImplementation(
+        () =>
+          ({
+            readWithStats: mockReadWithStats,
+            writeFileToProject: mockWriteFileToProject,
+          }) as unknown as Mocked<ProjectFileWalker>
+      );
+
+      // Re-instantiate cacheManager to use the new mock
+      cacheManager = new ProjectCacheManager(mockProjectRoot);
+
+      // Default mock behaviors
       mockedFs.access.mockResolvedValue(undefined); // cache exists
+      mockedFs.stat.mockResolvedValue({ mtimeMs: 1000 } as unknown as Stats); // default stat
+      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.writeFile.mockResolvedValue(undefined);
 
-      // Default stat implementation (returns same mtime as verifying "unchanged")
-      mockedFs.stat.mockResolvedValue({
-        mtimeMs: 1000,
-      } as unknown as Stats);
+      // Default readWithStats behavior (valid files)
+      mockReadWithStats.mockImplementation(
+        async (filePath: string): Promise<FileContentWithStats> => {
+          const pathStr = filePath.toString();
+          // Return default content matching the mockContext for configs
+          if (pathStr.endsWith('tsconfig.json'))
+            return {
+              content: mockContext.languageConfig.configContent!,
+              stats: { mtimeMs: 1000 } as Stats,
+            };
+          if (pathStr.endsWith('.eslintrc.json'))
+            return {
+              content: mockContext.linterConfig.configContent!,
+              stats: { mtimeMs: 1000 } as Stats,
+            };
+          if (pathStr.endsWith('.prettierrc'))
+            return {
+              content: mockContext.formatterConfig.configContent!,
+              stats: { mtimeMs: 1000 } as Stats,
+            };
+          if (pathStr.endsWith('package.json'))
+            return { content: '{}', stats: { mtimeMs: 1000 } as Stats };
 
-      // Implement open to return a handle that delegates to existing stat/readFile mocks
-      mockedFs.open.mockImplementation(async (filePath) => {
-        // Check if file exists by calling stat (which might throw ENOENT based on other mocks)
-        await mockedFs.stat(filePath);
+          // For custom files
+          if (pathStr.endsWith('custom.json'))
+            return { content: '{}', stats: { mtimeMs: 1000 } as Stats };
 
-        return {
-          stat: async () => mockedFs.stat(filePath),
-          readFile: async (options: unknown) =>
-            mockedFs.readFile(filePath, options as Parameters<typeof mockedFs.readFile>[1]),
-          close: vi.fn().mockResolvedValue(undefined),
-          fd: 1,
-        } as unknown as fs.FileHandle;
-      });
+          throw new Error(`File not found: ${filePath}`);
+        }
+      );
 
+      // Default fs.readFile behavior (ONLY for cache.json)
       mockedFs.readFile.mockImplementation((filePath) => {
-        const pathStr = filePath.toString();
-
-        if (pathStr === mockCachePath) {
-          // Return cache with lastModified set to match default stat
+        if (filePath.toString() === mockCachePath) {
           const contextWithMtime = {
             ...mockContext,
+            riflebirdVersion: '0.1.4',
             languageConfig: { ...mockContext.languageConfig, lastModified: 1000 },
             linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
             formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
@@ -156,24 +210,8 @@ describe('ProjectCacheManager', () => {
           };
           return Promise.resolve(JSON.stringify(contextWithMtime));
         }
-
-        // Return exact content from mockContext for validity
-        if (pathStr.endsWith('tsconfig.json'))
-          return Promise.resolve(mockContext.languageConfig.configContent!);
-        if (pathStr.endsWith('.eslintrc.json'))
-          return Promise.resolve(mockContext.linterConfig.configContent!);
-        if (pathStr.endsWith('.prettierrc'))
-          return Promise.resolve(mockContext.formatterConfig.configContent!);
-
-        // Return simple content for other files (like custom package files if read)
-        if (pathStr.endsWith('custom.json')) return Promise.resolve('{}');
-        if (pathStr.endsWith('package.json')) return Promise.resolve('{}');
-
         return Promise.reject(new Error(`File not found: ${filePath}`));
       });
-
-      mockedFs.mkdir.mockResolvedValue(undefined);
-      mockedFs.writeFile.mockResolvedValue(undefined);
     });
 
     it('should return null if cache file does not exist', async () => {
@@ -182,186 +220,204 @@ describe('ProjectCacheManager', () => {
       expect(result).toBeNull();
     });
 
+    it('should return null if cache file read fails with generic error', async () => {
+      mockedFs.readFile.mockRejectedValue(new Error('Generic failure'));
+      const result = await cacheManager.load();
+      expect(result).toBeNull();
+      const debugMock = (await import('@utils')).debug;
+      expect(debugMock).toHaveBeenCalledWith('Error loading cache:', expect.any(Error));
+    });
+
+    it('should return null if JSON parsing throws non-SyntaxError', async () => {
+      const originParse = JSON.parse;
+      JSON.parse = vi.fn().mockImplementationOnce(() => {
+        throw new Error('General Error');
+      });
+
+      try {
+        const result = await cacheManager.load();
+        expect(result).toBeNull();
+        const debugMock = (await import('@utils')).debug;
+        expect(debugMock).toHaveBeenCalledWith('Error loading cache:', expect.any(Error));
+      } finally {
+        JSON.parse = originParse;
+      }
+    });
+
     it('should return null and log invalidation message if cache file is corrupted', async () => {
       mockedFs.readFile.mockResolvedValue('{ invalid json }');
-
       const result = await cacheManager.load();
 
       expect(result).toBeNull();
-      // Use expect.stringContaining to match the message since there might be other debug calls
       const debugMock = (await import('@utils')).debug;
       expect(debugMock).toHaveBeenCalledWith('Cache file corrupted, invalidating...');
     });
 
-    it('should return context calling stat but NOT reading files if mtime matches', async () => {
+    it('should invalidate cache if version mismatches', async () => {
+      mockedFs.readFile.mockImplementation((filePath) => {
+        if (filePath.toString() === mockCachePath) {
+          const contextOld = {
+            ...mockContext,
+            riflebirdVersion: '0.0.0', // Mismatch
+          };
+          return Promise.resolve(JSON.stringify(contextOld));
+        }
+        return Promise.resolve('{}');
+      });
+
+      const result = await cacheManager.load();
+      expect(result).toBeNull();
+      const infoMock = (await import('@utils')).info;
+      expect(infoMock).toHaveBeenCalledWith(expect.stringContaining('Riflebird version changed'));
+    });
+
+    it('should return context calling readWithStats checking mtime matches', async () => {
       const result = await cacheManager.load();
 
-      const expectedContext = {
+      // Should be identical to saved context (+ valid mtimes)
+      expect(result).toEqual({
         ...mockContext,
+        riflebirdVersion: '0.1.4',
         languageConfig: { ...mockContext.languageConfig, lastModified: 1000 },
         linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
         formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
         packageManager: { ...mockContext.packageManager, packageFileLastModified: 1000 },
-      };
+      });
 
-      expect(result).toEqual(expectedContext);
+      // Should call readWithStats for all configs
+      expect(mockReadWithStats).toHaveBeenCalledTimes(4); // tsconfig, eslintrc, prettierrc, package.json
 
-      // Should call stat for checking
-      expect(mockedFs.stat).toHaveBeenCalled();
-
-      // Should NOT call readFile for configs because mtime matched
-      // Only readFile for cache.json should happen
-      expect(mockedFs.readFile).toHaveBeenCalledTimes(1);
-      expect(mockedFs.readFile).toHaveBeenCalledWith(mockCachePath, 'utf-8');
-
-      expect(mockedFs.writeFile).not.toHaveBeenCalled(); // No update needed
+      // Should NOT update cache
+      // Should NOT update cache
+      // Should NOT update cache
+      expect(mockWriteFileToProject).not.toHaveBeenCalled();
     });
 
     it('should READ file and UPDATE cache if mtime changed', async () => {
-      // Setup stat to return NEW mtime for tsconfig
-      mockedFs.stat.mockImplementation((filePath) => {
-        if (filePath.toString().endsWith('tsconfig.json')) {
-          return Promise.resolve({ mtimeMs: 2000 } as unknown as Stats); // CHANGED for tsconfig
-        }
-        return Promise.resolve({ mtimeMs: 1000 } as unknown as Stats); // Unchanged for others
-      });
-
       const newTsConfig = '{ "compilerOptions": { "strict": true } }';
 
-      mockedFs.readFile.mockImplementation((filePath) => {
-        const pathStr = filePath.toString();
-        // Cache has old mtime (1000)
-        if (pathStr === mockCachePath) {
-          const contextWithMtime = {
-            ...mockContext,
-            languageConfig: { ...mockContext.languageConfig, lastModified: 1000 }, // Old mtime
-            linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
-            formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
-            packageManager: { ...mockContext.packageManager, packageFileLastModified: 1000 },
-          };
-          return Promise.resolve(JSON.stringify(contextWithMtime));
+      // Mock ONLY tsconfig to have changed mtime and content
+      mockReadWithStats.mockImplementation(async (filePath: string) => {
+        if (filePath.toString().endsWith('tsconfig.json')) {
+          return { content: newTsConfig, stats: { mtimeMs: 2000 } };
         }
-
-        if (pathStr.endsWith('tsconfig.json')) return Promise.resolve(newTsConfig); // New content
-        if (pathStr.endsWith('.eslintrc.json'))
-          return Promise.resolve(mockContext.linterConfig.configContent!);
-        if (pathStr.endsWith('.prettierrc'))
-          return Promise.resolve(mockContext.formatterConfig.configContent!);
-        if (pathStr.endsWith('package.json')) return Promise.resolve('{}');
-        return Promise.reject(new Error(`File not found: ${filePath}`));
+        // Others default
+        return { content: '{}', stats: { mtimeMs: 1000 } };
       });
 
       const result = await cacheManager.load();
 
       expect(result).not.toBeNull();
       expect(result?.languageConfig.configContent).toBe(newTsConfig);
-      expect(result?.languageConfig.lastModified).toBe(2000); // Should be updated
+      expect(result?.languageConfig.lastModified).toBe(2000); // Updated
 
-      // Should read cache AND tsconfig (because mtime changed)
-      expect(mockedFs.readFile).toHaveBeenCalledWith(expect.stringContaining('tsconfig.json'), {
-        encoding: 'utf-8',
-      });
-
-      expect(mockedFs.writeFile).toHaveBeenCalled(); // Should trigger save
+      expect(mockWriteFileToProject).toHaveBeenCalled(); // Should trigger save
     });
 
     it('should UPDATE cache mtime if mtime changed but content is same (touch)', async () => {
-      // Setup stat to return NEW mtime for tsconfig calls
-      mockedFs.stat.mockImplementation((filePath) => {
+      // Content same but mtime changed
+      mockReadWithStats.mockImplementation(async (filePath: string) => {
         if (filePath.toString().endsWith('tsconfig.json')) {
-          return Promise.resolve({ mtimeMs: 2000 } as unknown as Stats); // CHANGED mtime
+          return { content: mockContext.languageConfig.configContent!, stats: { mtimeMs: 2000 } };
         }
-        return Promise.resolve({ mtimeMs: 1000 } as unknown as Stats);
-      });
-
-      // Content remains SAME
-      mockedFs.readFile.mockImplementation((filePath) => {
-        const pathStr = filePath.toString();
-        if (pathStr === mockCachePath) {
-          const contextWithMtime = {
-            ...mockContext,
-            languageConfig: { ...mockContext.languageConfig, lastModified: 1000 }, // Old mtime
-            linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
-            formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
-            packageManager: { ...mockContext.packageManager, packageFileLastModified: 1000 },
-          };
-          return Promise.resolve(JSON.stringify(contextWithMtime));
-        }
-        // SAME content as cache
-        if (pathStr.endsWith('tsconfig.json'))
-          return Promise.resolve(mockContext.languageConfig.configContent!);
-
-        if (pathStr.endsWith('.eslintrc.json'))
-          return Promise.resolve(mockContext.linterConfig.configContent!);
-        if (pathStr.endsWith('.prettierrc'))
-          return Promise.resolve(mockContext.formatterConfig.configContent!);
-        if (pathStr.endsWith('package.json')) return Promise.resolve('{}');
-        return Promise.reject(new Error(`File not found: ${filePath}`));
+        // Others default
+        return { content: '{}', stats: { mtimeMs: 1000 } };
       });
 
       const result = await cacheManager.load();
 
       expect(result).not.toBeNull();
-      expect(result?.languageConfig.lastModified).toBe(2000); // Updated mtime
-
-      // Should still save to persist new mtime
-      expect(mockedFs.writeFile).toHaveBeenCalled();
+      expect(result?.languageConfig.lastModified).toBe(2000);
+      expect(mockWriteFileToProject).toHaveBeenCalled();
     });
 
-    it('should INVALIDATE cache if a config file is missing check via stat', async () => {
-      mockedFs.stat.mockImplementation((filePath) => {
-        if (filePath.toString().endsWith('tsconfig.json')) {
-          return Promise.reject(new Error('ENOENT')); // Missing file
-        }
-        return Promise.resolve({ mtimeMs: 1000 } as unknown as Stats);
-      });
-
+    it('should skip validation for framework with missing configFilePath', async () => {
       mockedFs.readFile.mockImplementation((filePath) => {
-        if (filePath === mockCachePath) {
-          const contextWithMtime = {
+        if (filePath.toString() === mockCachePath) {
+          const contextMissingPath = {
             ...mockContext,
-            languageConfig: { ...mockContext.languageConfig, lastModified: 1000 },
+            riflebirdVersion: '0.1.4',
+            languageConfig: {
+              ...mockContext.languageConfig,
+              configFilePath: undefined,
+              lastModified: 1000,
+            },
+            // Ensure others are valid to pass
+            linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
+            formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
+            packageManager: { ...mockContext.packageManager, packageFileLastModified: 1000 },
           };
-          return Promise.resolve(JSON.stringify(contextWithMtime));
+          return Promise.resolve(JSON.stringify(contextMissingPath));
         }
-        return Promise.resolve('some content');
+        return Promise.reject(new Error('ENOENT'));
       });
 
       const result = await cacheManager.load();
+      expect(result).not.toBeNull();
+      // Should NOT call readWithStats for tsconfig (undefined path)
+      expect(mockReadWithStats).not.toHaveBeenCalledWith(expect.stringContaining('tsconfig.json'));
+    });
 
+    it('should INVALIDATE cache if a config file is missing check via readWithStats', async () => {
+      mockReadWithStats.mockImplementation(async (filePath: string) => {
+        if (filePath.toString().endsWith('tsconfig.json')) {
+          throw new Error('ENOENT');
+        }
+        return { content: '{}', stats: { mtimeMs: 1000 } };
+      });
+
+      const result = await cacheManager.load();
       expect(result).toBeNull();
     });
 
-    it('should INVALIDATE cache if default package.json is missing check via stat', async () => {
-      const contextWithPkg = {
-        ...mockContext,
-        packageManager: {
-          ...mockContext.packageManager!,
-          packageFilePath: 'package.json',
-          packageFileLastModified: 1000,
-        },
-      };
-
-      mockedFs.readFile.mockImplementation((filePath) => {
-        if (filePath.toString() === mockCachePath)
-          return Promise.resolve(JSON.stringify(contextWithPkg));
-        return Promise.resolve('{}');
-      });
-
-      mockedFs.stat.mockImplementation((filePath) => {
+    it('should INVALIDATE cache if default package.json is missing check via readWithStats', async () => {
+      mockReadWithStats.mockImplementation(async (filePath: string) => {
         if (filePath.toString().endsWith('package.json')) {
-          return Promise.reject(new Error('ENOENT'));
+          throw new Error('ENOENT');
         }
-        return Promise.resolve({ mtimeMs: 1000 } as unknown as Stats);
+        return { content: '{}', stats: { mtimeMs: 1000 } };
       });
 
       const result = await cacheManager.load();
       expect(result).toBeNull();
+    });
+
+    it('should UPDATE cache if package file touched (mtime changed) but content same', async () => {
+      mockReadWithStats.mockImplementation(async (filePath: string) => {
+        if (filePath.toString().endsWith('package.json')) {
+          return { content: '{}', stats: { mtimeMs: 2000 } };
+        }
+        return { content: '{}', stats: { mtimeMs: 1000 } };
+      });
+
+      const result = await cacheManager.load();
+      expect(result?.packageManager?.packageFileLastModified).toBe(2000);
+      expect(mockWriteFileToProject).toHaveBeenCalled();
+    });
+
+    it('should return invalid status if reconciliation process throws', async () => {
+      const originParse = JSON.parse;
+      let callCount = 0;
+      JSON.parse = vi.fn().mockImplementation((arg) => {
+        callCount++;
+        if (callCount === 2) throw new Error('Reconciliation Error');
+        return originParse(arg);
+      });
+
+      try {
+        const result = await cacheManager.load();
+        expect(result).toBeNull();
+        const debugMock = (await import('@utils')).debug;
+        expect(debugMock).toHaveBeenCalledWith('Cache validation error:', expect.any(Error));
+      } finally {
+        JSON.parse = originParse;
+      }
     });
 
     it('should VALIDATE dynamic package file if present in cache checking mtime', async () => {
       const customPkgContext = {
         ...mockContext,
+        riflebirdVersion: '0.1.4',
         packageManager: {
           ...mockContext.packageManager!,
           packageFilePath: 'custom.json',
@@ -373,58 +429,36 @@ describe('ProjectCacheManager', () => {
         formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
       };
 
-      mockedFs.readFile.mockImplementation((filePath) => {
-        if (filePath.toString() === mockCachePath)
-          return Promise.resolve(JSON.stringify(customPkgContext));
-        return Promise.resolve('{}');
-      });
+      mockedFs.readFile.mockResolvedValue(JSON.stringify(customPkgContext));
 
-      mockedFs.stat.mockResolvedValue({ mtimeMs: 1000 } as unknown as Stats);
+      // mock custom.json existence
+      mockReadWithStats.mockImplementation(async (filePath: string) => {
+        if (filePath.endsWith('custom.json')) return { content: '{}', stats: { mtimeMs: 1000 } };
+        // default configs
+        return { content: '{}', stats: { mtimeMs: 1000 } };
+      });
 
       const result = await cacheManager.load();
       expect(result).toEqual(customPkgContext);
 
-      // Should call stat but not read files since mtime matches
-      expect(mockedFs.readFile).toHaveBeenCalledTimes(1);
+      expect(mockReadWithStats).toHaveBeenCalledWith(expect.stringContaining('custom.json'));
     });
 
     it('should UPDATE cache if package.json mtime changed', async () => {
       const newPackageJson = '{ "name": "updated-package", "version": "1.0.1" }';
 
-      mockedFs.stat.mockImplementation((filePath) => {
-        if (filePath.toString().endsWith('package.json')) {
-          return Promise.resolve({ mtimeMs: 2000 } as unknown as Stats); // CHANGED
-        }
-        return Promise.resolve({ mtimeMs: 1000 } as unknown as Stats);
-      });
-
-      mockedFs.readFile.mockImplementation((filePath) => {
-        const pathStr = filePath.toString();
-        if (pathStr === mockCachePath) {
-          const contextWithMtime = {
-            ...mockContext,
-            languageConfig: { ...mockContext.languageConfig, lastModified: 1000 },
-            linterConfig: { ...mockContext.linterConfig, lastModified: 1000 },
-            formatterConfig: { ...mockContext.formatterConfig, lastModified: 1000 },
-            packageManager: {
-              ...mockContext.packageManager,
-              packageFileLastModified: 1000,
-              packageFilePath: 'package.json',
-            },
-          };
-          return Promise.resolve(JSON.stringify(contextWithMtime));
-        }
-        if (pathStr.endsWith('package.json')) return Promise.resolve(newPackageJson); // CHANGED
-        return Promise.resolve('{}');
+      mockReadWithStats.mockImplementation(async (filePath: string) => {
+        if (filePath.endsWith('package.json'))
+          return { content: newPackageJson, stats: { mtimeMs: 2000 } };
+        return { content: '{}', stats: { mtimeMs: 1000 } };
       });
 
       const result = await cacheManager.load();
 
       expect(result).not.toBeNull();
       expect(result?.packageManager?.packageFileContent).toBe(newPackageJson);
-      expect(result?.packageManager?.packageFilePath).toBe('package.json');
       expect(result?.packageManager?.packageFileLastModified).toBe(2000);
-      expect(mockedFs.writeFile).toHaveBeenCalled(); // Should trigger save
+      expect(mockWriteFileToProject).toHaveBeenCalled();
     });
   });
 });
