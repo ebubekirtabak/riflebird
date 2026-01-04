@@ -23,13 +23,17 @@
 
 Closes #(issue number)
 
+## Jira Ticket
+
+<!-- Link to the Jira ticket (e.g., RF-123) or write "None" -->
+
 ## Changes Made
 
 <!-- List the main changes in this PR -->
 
-- 
-- 
-- 
+-
+-
+-
 
 ## Testing
 

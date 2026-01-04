@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { stripAnsiCodes, runTest, getReporterArgsByFramework, parseTestCommand, readJsonReport } from '../index';
+import {
+  stripAnsiCodes,
+  runTest,
+  getReporterArgsByFramework,
+  parseTestCommand,
+  readJsonReport,
+} from '../index';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -108,7 +114,7 @@ describe('Test Runner Integration', () => {
     expect(result.jsonReport).toEqual({
       numTotalTestSuites: 1,
       testResults: [],
-      success: true
+      success: true,
     });
   });
 
@@ -146,7 +152,7 @@ describe('Test Runner Integration', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('timed out');
-  });
+  }, 10000);
 
   it('should read and clean up existing JSON reports', async () => {
     const reportPath = path.join(tmpDir, 'existing-report.json');

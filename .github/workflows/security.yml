@@ -2,9 +2,45 @@ name: Security
 
 on:
   push:
-    branches: [master]
+    branches:
+      [
+        master,
+        dev,
+        feat/*,
+        fix/*,
+        docs/*,
+        style/*,
+        refactor/*,
+        perf/*,
+        test/*,
+        build/*,
+        ci/*,
+        chore/*,
+        revert/*,
+        hotfix/*,
+        release/*,
+        experiment/*,
+      ]
   pull_request:
-    branches: [master, feat/*]
+    branches:
+      [
+        master,
+        dev,
+        feat/*,
+        fix/*,
+        docs/*,
+        style/*,
+        refactor/*,
+        perf/*,
+        test/*,
+        build/*,
+        ci/*,
+        chore/*,
+        revert/*,
+        hotfix/*,
+        release/*,
+        experiment/*,
+      ]
   schedule:
     - cron: '0 0 * * 1' # Weekly on Monday at midnight UTC
 

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createGeminiClient, ensureGeminiLoggedIn } from '../gemini-cli-client';
-import { executeProcessCommand } from '@runners/process-execution';
+import { executeProcessCommand } from '../../runners/process-execution';
 import { ensureCommandExists } from '@utils/process/command.util';
 import { ChatMessage } from '@models/chat';
 
 // Mock dependencies
-vi.mock('@runners/process-execution', () => ({
+vi.mock('../../runners/process-execution', () => ({
   executeProcessCommand: vi.fn(),
 }));
 
@@ -75,13 +75,16 @@ describe('gemini-cli-client', () => {
 
       expect(response.choices[0].message.content).toBe('Hello from Gemini');
 
-      const expectedArgs = ['-p', 'Hello', '--output-format', 'json'];
+      const expectedArgs = ['-p', 'Hello', '--model', 'gemini-pro', '--output-format', 'json'];
       expect(executeProcessCommand).toHaveBeenCalledTimes(2); // 1 for login, 1 for chat
       expect(executeProcessCommand).toHaveBeenLastCalledWith(
         'gemini',
         expectedArgs,
-        expect.any(String), // cwd
-        300000 // timeout
+        expect.objectContaining({
+          cwd: expect.any(String), // cwd
+          timeout: 300000, // timeout
+          shell: false,
+        })
       );
     });
 
@@ -228,12 +231,22 @@ describe('gemini-cli-client', () => {
         model: 'gemini-pro',
       });
 
-      const expectedArgs = ['-p', 'Part 1\nPart 2', '--output-format', 'json'];
+      const expectedArgs = [
+        '-p',
+        'Part 1\nPart 2',
+        '--model',
+        'gemini-pro',
+        '--output-format',
+        'json',
+      ];
       expect(executeProcessCommand).toHaveBeenLastCalledWith(
         'gemini',
         expectedArgs,
-        expect.any(String), // cwd
-        300000 // timeout
+        expect.objectContaining({
+          cwd: expect.any(String),
+          timeout: 300000,
+          shell: false,
+        })
       );
     });
 
@@ -290,8 +303,11 @@ describe('gemini-cli-client', () => {
       expect(executeProcessCommand).toHaveBeenCalledWith(
         'gemini',
         ['--list-sessions'],
-        expect.any(String),
-        10000
+        expect.objectContaining({
+          cwd: expect.any(String),
+          timeout: 10000,
+          shell: false,
+        })
       );
     });
 

@@ -40,6 +40,8 @@ export default defineConfig({
       '@runners': resolve(__dirname, './src/runners'),
       '@types': resolve(__dirname, './src/types'),
       '@agentic': resolve(__dirname, './src/agentic'),
+      '@handlers': resolve(__dirname, './src/handlers'),
+      '@services': resolve(__dirname, './src/services'),
     },
   },
 });

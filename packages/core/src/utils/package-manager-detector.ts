@@ -21,6 +21,7 @@ const TEST_FRAMEWORKS = [
   'qunit',
   'lab',
   'tap',
+  'storybook',
 ] as const;
 
 export const DEFAULT_PACKAGE_MANAGER_FILE = 'package.json';
@@ -109,6 +110,7 @@ export async function detectPackageManagerInfo(
       testScript,
       packageInfo,
       packageFilePath: DEFAULT_PACKAGE_MANAGER_FILE,
+      packageFileLastModified: await walker.getFileLastModified(DEFAULT_PACKAGE_MANAGER_FILE),
     };
   } catch {
     // If package.json doesn't exist or can't be read, return defaults

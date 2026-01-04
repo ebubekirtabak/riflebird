@@ -1,0 +1,227 @@
+name: PR Automation
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  decorate-title:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' || github.event.action == 'synchronize'
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const currentTitle = pr.title;
+
+            // Get changed files
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100
+            });
+
+            const fileNames = files.map(f => f.filename);
+
+            let newTitle = currentTitle;
+
+            // ---------------------------------------------------------
+            // Attempt to auto-fix title from branch name if it looks like default
+            // Branch format: type/ticket-description (e.g., chore/RF-21-add-stuff)
+            // Target format: type(ticket): description
+            // ---------------------------------------------------------
+            const branchName = pr.head.ref;
+            const branchRegex = /^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)\/([A-Z]+-\d+)-(.*)$/;
+            const branchMatch = branchName.match(branchRegex);
+
+            if (branchMatch) {
+              const type = branchMatch[1];
+              const scope = branchMatch[2];
+              const rawDesc = branchMatch[3];
+              const desc = rawDesc.replace(/-/g, ' '); // replace dashes with spaces
+
+              const conventionalTitle = `${type}(${scope}): ${desc}`;
+
+              // If the current title seems to be just the "humanized" branch name (illegal)
+              // or if it fails conventional commits check, we replace it.
+              // GitHub defaults: "Chore/rf 21 implement..." (Capitalized, slashes may remain or spaces)
+
+              // Simple heuristic: If title doesn't start with a valid type and colon
+              // (Using relaxed regex to match validation logic)
+              const conventionalRegex = /^([^a-zA-Z0-9]+\s+)?(feat|fix|docs|refactor|test|chore|perf|style|build|ci|revert)(\([a-zA-Z0-9-]+\))?!?: .+$/;
+
+              if (!conventionalRegex.test(currentTitle)) {
+                 console.log(`Detected invalid title: "${currentTitle}". Auto-fixing based on branch "${branchName}".`);
+                 newTitle = conventionalTitle;
+              }
+            }
+
+            let icon = '';
+
+            // Check for tests
+            const hasTests = fileNames.some(f =>
+              f.includes('.test.') ||
+              f.includes('.spec.') ||
+              f.includes('/tests/') ||
+              f.includes('/__tests__/')
+            );
+
+            // Check for docs
+            const isDocsOnly = fileNames.every(f =>
+              f.endsWith('.md') ||
+              f.includes('docs/') ||
+              f.includes('LICENSE')
+            );
+
+            if (hasTests) {
+              icon = '🟢';
+            } else if (isDocsOnly) {
+              icon = '📝';
+            } else {
+              icon = '🟥';
+            }
+
+            // Strip existing icons to allow updates (e.g., 🟥 → 🟢)
+            const sourceTitle = newTitle || currentTitle;
+            const cleanTitle = sourceTitle.replace(/^(🟢|📝|🟥)\s+/, '');
+
+            if (icon) {
+              newTitle = `${icon} ${cleanTitle}`;
+            }
+
+            // Update title if changed
+            if (newTitle !== currentTitle) {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                title: newTitle
+              });
+              console.log(`Updated title to: ${newTitle}`);
+            } else {
+              console.log('Title already decorated or no decoration needed.');
+            }
+
+  validate-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+            // Relaxed Regex:
+            // 1. Allows any non-alphanumeric chars at the start (for icons like 🟥, 🟢, 📝)
+            // 2. Allows UpperCase in scope (e.g., (RF-123))
+            const regex = /^([^a-zA-Z0-9]+\s+)?(feat|fix|docs|refactor|test|chore|perf|style|build|ci|revert)(\([a-zA-Z0-9-]+\))?!?: .+$/;
+
+            if (!regex.test(title)) {
+              core.setFailed(`
+                ❌ Invalid PR Title key: "${title}"
+
+                Format should follow Conventional Commits:
+                <type>(<scope>): <description>
+
+                Examples:
+                - feat(RF-123): add new feature
+                - fix: resolve crash
+                - docs: update readme
+
+                Allowed types: feat, fix, docs, refactor, test, chore, perf, style, build, ci, revert
+                (Icons 🟥, 🟢, 📝 at the start are allowed)
+              `);
+            } else {
+              console.log('✅ PR Title is valid.');
+            }
+
+  add-jira-link:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' || github.event.action == 'edited' || github.event.action == 'synchronize'
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const branchName = pr.head.ref;
+            const jiraRegex = /([A-Z]+-\d+)/;
+            const match = branchName.match(jiraRegex);
+
+            if (!match) {
+              console.log('No Jira ticket found in branch name.');
+              return;
+            }
+
+            const ticketId = match[1];
+            const body = pr.body || '';
+
+            // 1. Safety Check: If ticket ID is already in body (and formatted as a link?), skip.
+            // basic check:
+            if (body.includes(ticketId) && body.includes('](')) {
+               console.log(`Ticket ${ticketId} already seems to be linked. Skipping.`);
+               return;
+            }
+
+            const { JIRA_BASE_URL, JIRA_USER_EMAIL, JIRA_API_TOKEN } = process.env;
+            let linkText = ticketId;
+
+            if (JIRA_BASE_URL && JIRA_USER_EMAIL && JIRA_API_TOKEN) {
+              try {
+                // Fetch ticket details
+                const response = await fetch(`${JIRA_BASE_URL}/rest/api/3/issue/${ticketId}`, {
+                  headers: {
+                    'Authorization': `Basic ${Buffer.from(JIRA_USER_EMAIL + ':' + JIRA_API_TOKEN).toString('base64')}`,
+                    'Accept': 'application/json'
+                  }
+                });
+
+                if (response.ok) {
+                  const data = await response.json();
+                  const summary = data.fields.summary;
+                  const status = data.fields.status.name;
+                  const browsingUrl = `${JIRA_BASE_URL}/browse/${ticketId}`;
+
+                  // Format: [RF-123](url): Summary (Status)
+                  linkText = `[${ticketId}](${browsingUrl}): ${summary} (Status: ${status})`;
+                } else {
+                  console.log(`Failed to fetch from Jira: ${response.status} ${response.statusText}`);
+                }
+              } catch (error) {
+                console.error('Error fetching from Jira:', error);
+              }
+            } else {
+               console.log('Missing Jira secrets. Falling back to simple ticket ID.');
+            }
+
+            // 2. Robust Replacement Logic
+            const placeholderRegex = /<!--\s*Link to the Jira ticket \(e\.g\., RF-123\) or write "None"\s*-->/i;
+            let newBody = body;
+
+            if (placeholderRegex.test(body)) {
+               newBody = body.replace(placeholderRegex, linkText);
+            } else if (body.includes('## Jira Ticket')) {
+               // Fallback: Append after header if placeholder is missing
+               newBody = body.replace('## Jira Ticket', `## Jira Ticket\n\n${linkText}`);
+            } else {
+               // Fallback: Append to end
+               newBody = `${body}\n\n## Jira Ticket\n\n${linkText}`;
+            }
+
+            if (newBody !== body) {
+               await github.rest.pulls.update({
+                 owner: context.repo.owner,
+                 repo: context.repo.repo,
+                 pull_number: pr.number,
+                 body: newBody
+               });
+               console.log(`Updated PR body with: ${linkText}`);
+            } else {
+               console.log('No changes needed for PR body.');
+            }

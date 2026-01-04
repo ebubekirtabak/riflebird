@@ -6,4 +6,5 @@ export type PackageManagerInfo = {
   testScript?: string;
   packageInfo?: PackageInfo;
   packageFilePath?: string;
+  packageFileLastModified?: number;
 };
