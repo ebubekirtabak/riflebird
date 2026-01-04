@@ -761,7 +761,7 @@ describe('Calculator', () => {
     });
   });
 
-  describe('writeTestByPattern', () => {
+  describe('writeTestByMatchedFiles', () => {
     let mockProvider: ProjectContextProvider;
     let getFileTreeMock: ReturnType<typeof vi.fn>;
     let findFilesByPatternInFileTreeMock: ReturnType<typeof vi.fn>;
@@ -799,24 +799,8 @@ describe('Calculator', () => {
       });
     });
 
-    it('should normalize patterns by removing leading ./', async () => {
-      const patterns = ['./src/**/*.ts', './lib/**/*.js'];
-
-      await writer.writeTestByPattern(mockProvider, patterns);
-
-      expect(findFilesByPatternInFileTreeMock).toHaveBeenCalledWith(expect.anything(), [
-        'src/**/*.ts',
-        'lib/**/*.js',
-      ]);
-    });
-
-    it('should accept single pattern string', async () => {
-      await writer.writeTestByPattern(mockProvider, 'src/**/*.ts');
-
-      expect(findFilesByPatternInFileTreeMock).toHaveBeenCalledWith(expect.anything(), [
-        'src/**/*.ts',
-      ]);
-    });
+    // Tests for pattern normalization and single string are no longer relevant
+    // as we pass FileNode[] directly
 
     it('should filter out excluded files using matchesPattern', async () => {
       const mockFiles = [
@@ -824,19 +808,13 @@ describe('Calculator', () => {
         { name: 'file2.spec.ts', path: '/test/project/src/file2.spec.ts', type: 'file' as const }, // Should be excluded
       ];
 
-      findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
-
       // matchesPattern mock implementation: return true if filename ends with .spec.ts
       matchesPatternMock.mockImplementation((name, _path) => name.endsWith('.spec.ts'));
 
-      await writer.writeTestByPattern(mockProvider, 'src/**/*.ts');
+      await writer.writeTestByMatchedFiles(mockProvider, mockFiles);
 
       // Only file1.ts should be processed (file2 is excluded)
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(1);
-
-      // We can't easily inspect which file was processed inside generateTest from here without spying on writeTestFile
-      // But we know if generateTest was called only once, and matchesPattern returned true for one file,
-      // then filtering worked.
     });
 
     it('should call onProgress callback for each file', async () => {
@@ -845,12 +823,9 @@ describe('Calculator', () => {
         { name: 'file2.ts', path: '/test/project/src/file2.ts', type: 'file' as const },
       ];
 
-      findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
-      matchesPatternMock.mockReturnValue(false); // No exclusions
-
       const onProgress = vi.fn();
 
-      await writer.writeTestByPattern(mockProvider, 'src/**/*.ts', undefined, onProgress);
+      await writer.writeTestByMatchedFiles(mockProvider, mockFiles, undefined, onProgress);
 
       expect(onProgress).toHaveBeenCalledTimes(2);
       expect(onProgress).toHaveBeenNthCalledWith(
@@ -874,12 +849,9 @@ describe('Calculator', () => {
         { name: 'file.ts', path: '/test/project/src/file.ts', type: 'file' as const },
       ];
 
-      findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
-      matchesPatternMock.mockReturnValue(false);
-
       const onProgress = vi.fn();
 
-      await writer.writeTestByPattern(mockProvider, 'src/**/*.ts', undefined, onProgress);
+      await writer.writeTestByMatchedFiles(mockProvider, mockFiles, undefined, onProgress);
 
       const elapsedMs = onProgress.mock.calls[0][3];
       expect(typeof elapsedMs).toBe('number');
@@ -893,7 +865,6 @@ describe('Calculator', () => {
           { name: 'file2.ts', path: '/test/project/src/file2.ts', type: 'file' as const },
         ];
 
-        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
         matchesPatternMock.mockReturnValue(false);
 
         // Make AI client fail for first call only
@@ -909,7 +880,7 @@ describe('Calculator', () => {
             ],
           });
 
-        const result = await writer.writeTestByPattern(mockProvider, 'src/**/*.ts');
+        const result = await writer.writeTestByMatchedFiles(mockProvider, mockFiles);
 
         expect(result.failures).toHaveLength(1);
         expect(result.failures[0]).toMatchObject({
@@ -925,9 +896,6 @@ describe('Calculator', () => {
           { name: 'file2.ts', path: '/test/project/src/file2.ts', type: 'file' as const },
         ];
 
-        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
-        matchesPatternMock.mockReturnValue(false);
-
         // First file succeeds, second hits rate limit
         (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>)
           .mockResolvedValueOnce({
@@ -938,7 +906,7 @@ describe('Calculator', () => {
             message: 'Rate limit exceeded',
           });
 
-        await expect(writer.writeTestByPattern(mockProvider, 'src/**/*.ts')).rejects.toThrow(
+        await expect(writer.writeTestByMatchedFiles(mockProvider, mockFiles)).rejects.toThrow(
           /Rate Limit Exceeded/
         );
       });
@@ -948,15 +916,12 @@ describe('Calculator', () => {
           { name: 'file.ts', path: '/test/project/src/file.ts', type: 'file' as const },
         ];
 
-        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
-        matchesPatternMock.mockReturnValue(false);
-
         (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockRejectedValue({
           status: 401,
           message: 'Invalid API key',
         });
 
-        await expect(writer.writeTestByPattern(mockProvider, 'src/**/*.ts')).rejects.toThrow(
+        await expect(writer.writeTestByMatchedFiles(mockProvider, mockFiles)).rejects.toThrow(
           /Authentication Error/
         );
       });
@@ -968,9 +933,6 @@ describe('Calculator', () => {
           { name: 'file3.ts', path: '/test/project/src/file3.ts', type: 'file' as const },
         ];
 
-        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
-        matchesPatternMock.mockReturnValue(false);
-
         // Fail first and third with generic errors, succeed second
         (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>)
           .mockRejectedValueOnce(new Error('Network timeout'))
@@ -979,7 +941,7 @@ describe('Calculator', () => {
           })
           .mockRejectedValueOnce(new Error('Parse error'));
 
-        const result = await writer.writeTestByPattern(mockProvider, 'src/**/*.ts');
+        const result = await writer.writeTestByMatchedFiles(mockProvider, mockFiles);
 
         expect(result.failures).toHaveLength(2);
         expect(result.files).toHaveLength(1);
@@ -992,15 +954,12 @@ describe('Calculator', () => {
           { name: 'file.ts', path: '/test/project/src/file.ts', type: 'file' as const },
         ];
 
-        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
-        matchesPatternMock.mockReturnValue(false);
-
         // Throw a string error instead of Error object
         (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockRejectedValue(
           'String error message from AI'
         );
 
-        const result = await writer.writeTestByPattern(mockProvider, 'src/**/*.ts');
+        const result = await writer.writeTestByMatchedFiles(mockProvider, mockFiles);
 
         expect(result.failures).toHaveLength(1);
         expect(result.failures[0].error).toContain('String error message from AI');
@@ -1012,16 +971,13 @@ describe('Calculator', () => {
           { name: 'file2.ts', path: '/test/project/src/file2.ts', type: 'file' as const },
         ];
 
-        findFilesByPatternInFileTreeMock.mockReturnValue(mockFiles);
-        matchesPatternMock.mockReturnValue(false);
-
         (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mockRejectedValue(
           new Error('Test error')
         );
 
         const onProgress = vi.fn();
 
-        await writer.writeTestByPattern(mockProvider, 'src/**/*.ts', undefined, onProgress);
+        await writer.writeTestByMatchedFiles(mockProvider, mockFiles, undefined, onProgress);
 
         expect(onProgress).toHaveBeenCalledTimes(2);
         expect(onProgress).toHaveBeenNthCalledWith(
@@ -1040,10 +996,8 @@ describe('Calculator', () => {
         );
       });
 
-      it('should return empty results when no files match patterns', async () => {
-        findFilesByPatternInFileTreeMock.mockReturnValue([]);
-
-        const result = await writer.writeTestByPattern(mockProvider, 'nonexistent/**/*.ts');
+      it('should return empty results when no files provided', async () => {
+        const result = await writer.writeTestByMatchedFiles(mockProvider, []);
 
         expect(result.files).toHaveLength(0);
         expect(result.failures).toHaveLength(0);
@@ -1085,7 +1039,7 @@ describe('Calculator', () => {
           aiClient: mockAiClient,
           config: {
             ...mockConfig,
-            healing: { enabled: true, mode: 'auto', maxRetries: 1 },
+            healing: { enabled: true, mode: 'auto', maxRetries: 1, strategy: 'smart' },
           },
         });
 
@@ -1105,7 +1059,7 @@ describe('Calculator', () => {
           aiClient: mockAiClient,
           config: {
             ...mockConfig,
-            healing: { enabled: true, mode: 'auto', maxRetries: 1 },
+            healing: { enabled: true, mode: 'auto', maxRetries: 1, strategy: 'smart' },
           },
         });
 
@@ -1136,7 +1090,7 @@ describe('Calculator', () => {
           aiClient: mockAiClient,
           config: {
             ...mockConfig,
-            healing: { enabled: true, mode: 'auto', maxRetries: 2 },
+            healing: { enabled: true, mode: 'auto', maxRetries: 2, strategy: 'smart' },
           },
         });
 

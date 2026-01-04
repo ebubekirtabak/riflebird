@@ -16,6 +16,7 @@ export type TestFrameworks = {
   e2e?: FrameworkInfo;
   visual?: FrameworkInfo;
   performance?: FrameworkInfo;
+  documentation?: FrameworkInfo;
 };
 
 export type FrameworkInfo = {

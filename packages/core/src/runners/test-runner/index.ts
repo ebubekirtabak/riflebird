@@ -1,26 +1,18 @@
-
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { ProjectFileWalker } from '@utils';
-import {
-  TestRunOptions,
-  TestRunResult,
-  VitestJsonReport,
-  ReporterArgsParams,
-} from './types';
+import { TestRunOptions, TestRunResult, VitestJsonReport, ReporterArgsParams } from './types';
+import { executeProcessCommand } from '@runners/process-execution';
 
 export * from './types';
 export * from './test-output-extractor';
-import { executeProcessCommand } from '@runners';
-
 
 const cleanTempFiles = async (path: string) => {
   await fs.unlink(path).catch(() => {
     /* ignore cleanup errors */
   });
-}
-
+};
 
 /**
  * Get framework-specific arguments for JSON reporting
@@ -40,12 +32,7 @@ export function getReporterArgsByFramework(
   const argsByFramework: Record<string, string[]> = {
     vitest: ['--reporter=json', `--outputFile=${params.jsonReportPath}`],
     jest: ['--json', `--outputFile=${params.jsonReportPath}`],
-    mocha: [
-      '--reporter',
-      'json',
-      '--reporter-option',
-      `output=${params.jsonReportPath}`,
-    ],
+    mocha: ['--reporter', 'json', '--reporter-option', `output=${params.jsonReportPath}`],
   };
 
   return argsByFramework[normalizedFramework] || [];
@@ -86,7 +73,6 @@ export async function readJsonReport(
   }
 }
 
-
 /**
  * Parse test command string into executable and arguments
  * @param testCommand - Raw test command (e.g., "npm test", "pnpm run test")
@@ -104,7 +90,6 @@ export function parseTestCommand(testCommand: string): { command: string; args: 
 
   return { command, args };
 }
-
 
 /**
  * Run a test file using the specified package manager and test command with JSON reporter
@@ -128,12 +113,10 @@ export async function runTest(
   args.push(relativeTestPath);
 
   try {
-    const { stdout, stderr, exitCode, timedOut } = await executeProcessCommand(
-      command,
-      args,
+    const { stdout, stderr, exitCode, timedOut } = await executeProcessCommand(command, args, {
       cwd,
-      timeout
-    );
+      timeout,
+    });
 
     const duration = Date.now() - startTime;
 
@@ -175,5 +158,3 @@ export async function runTest(
     };
   }
 }
-
-

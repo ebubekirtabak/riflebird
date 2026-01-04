@@ -64,4 +64,15 @@ export class ProjectFileWalker {
       throw new Error(`Failed to get stats for file ${filePath}: ${(error as Error).message}`);
     }
   }
+
+  async getFileLastModified(filePath: string): Promise<number> {
+    try {
+      const stats = await this.getFileStats(filePath);
+      return stats.mtimeMs;
+    } catch (error) {
+      throw new Error(
+        `Failed to get last modified time for file ${filePath}: ${(error as Error).message}`
+      );
+    }
+  }
 }
