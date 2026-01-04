@@ -24,8 +24,8 @@ describe('StorybookRunner', () => {
   let mockInput: FireInput;
 
   // Mock implementations
-  const mockStorybookService = StorybookService as unknown as MockedClass<typeof StorybookService>;
-  const mockDocumentWriter = DocumentWriter as unknown as MockedClass<typeof DocumentWriter>;
+  const mockStorybookService = StorybookService as MockedClass<typeof StorybookService>;
+  const mockDocumentWriter = DocumentWriter as MockedClass<typeof DocumentWriter>;
   // Removed unused mockStorybookDocumentHandler
 
   beforeEach(() => {
@@ -37,6 +37,8 @@ describe('StorybookRunner', () => {
       },
       aiClient: {},
     } as unknown as CommandContext;
+
+    mockProvider = {} as ProjectContextProvider;
 
     mockProjectContext = {
       configFiles: {
@@ -144,7 +146,6 @@ describe('StorybookRunner', () => {
     expect(mockDocumentWriter.prototype.writeDocumentByMatchedFiles).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      'vue', // It should be passed here
       expect.anything()
     );
   });
@@ -158,7 +159,6 @@ describe('StorybookRunner', () => {
     expect(mockDocumentWriter.prototype.writeDocumentByMatchedFiles).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      'vue',
       expect.anything()
     );
 

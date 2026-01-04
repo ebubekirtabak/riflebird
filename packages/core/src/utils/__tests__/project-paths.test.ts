@@ -11,6 +11,7 @@ import {
   readCustomPrompt,
   writeCustomPrompt,
 } from '../project-paths';
+import { RIFLEBIRD_DIR } from '@commons';
 
 describe('project-paths utilities', () => {
   let tempDir: string;
@@ -50,9 +51,7 @@ describe('project-paths utilities', () => {
     });
 
     it('should return start path when no package.json found', async () => {
-      const noPackageDir = await fs.mkdtemp(
-        path.join(os.tmpdir(), 'no-package-')
-      );
+      const noPackageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'no-package-'));
 
       try {
         const root = await findProjectRoot(noPackageDir);
@@ -69,12 +68,10 @@ describe('project-paths utilities', () => {
       const paths = await getProjectPaths(tempDir);
 
       expect(paths.root).toBe(tempDir);
-      expect(paths.riflebirdDir).toBe(path.join(tempDir, '.riflebird'));
-      expect(paths.promptsDir).toBe(path.join(tempDir, '.riflebird', 'prompts'));
-      expect(paths.templatesDir).toBe(
-        path.join(tempDir, '.riflebird', 'templates')
-      );
-      expect(paths.configDir).toBe(path.join(tempDir, '.riflebird', 'config'));
+      expect(paths.riflebirdDir).toBe(path.join(tempDir, RIFLEBIRD_DIR));
+      expect(paths.promptsDir).toBe(path.join(tempDir, RIFLEBIRD_DIR, 'prompts'));
+      expect(paths.templatesDir).toBe(path.join(tempDir, RIFLEBIRD_DIR, 'templates'));
+      expect(paths.configDir).toBe(path.join(tempDir, RIFLEBIRD_DIR, 'config'));
     });
 
     it('should work from nested directory', async () => {
@@ -84,7 +81,7 @@ describe('project-paths utilities', () => {
       const paths = await getProjectPaths(nestedDir);
 
       expect(paths.root).toBe(tempDir);
-      expect(paths.riflebirdDir).toBe(path.join(tempDir, '.riflebird'));
+      expect(paths.riflebirdDir).toBe(path.join(tempDir, RIFLEBIRD_DIR));
     });
   });
 
@@ -170,9 +167,9 @@ describe('project-paths utilities', () => {
     });
 
     it('should throw error when prompt file does not exist', async () => {
-      await expect(
-        readCustomPrompt('nonexistent.md', tempDir)
-      ).rejects.toThrow('Failed to read custom prompt');
+      await expect(readCustomPrompt('nonexistent.md', tempDir)).rejects.toThrow(
+        'Failed to read custom prompt'
+      );
     });
   });
 
@@ -182,10 +179,7 @@ describe('project-paths utilities', () => {
       await writeCustomPrompt('new-prompt.md', content, tempDir);
 
       const paths = await getProjectPaths(tempDir);
-      const saved = await fs.readFile(
-        path.join(paths.promptsDir, 'new-prompt.md'),
-        'utf-8'
-      );
+      const saved = await fs.readFile(path.join(paths.promptsDir, 'new-prompt.md'), 'utf-8');
 
       expect(saved).toBe(content);
     });

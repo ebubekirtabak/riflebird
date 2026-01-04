@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   stripAnsiCodes,
   runTest,
@@ -116,6 +116,21 @@ describe('Test Runner Integration', () => {
       testResults: [],
       success: true,
     });
+  });
+
+  it('should ensure the report directory exists', async () => {
+    const mkdirSpy = vi.spyOn(fs, 'mkdir');
+
+    await runTest(`node ${dummyRunnerPath}`, {
+      cwd: tmpDir,
+      testFilePath: path.join(tmpDir, 'test.spec.js'),
+      framework: 'vitest',
+    });
+
+    expect(mkdirSpy).toHaveBeenCalledWith(expect.stringContaining('.riflebird'), {
+      recursive: true,
+    });
+    mkdirSpy.mockRestore();
   });
 
   it('should handle test failures', async () => {

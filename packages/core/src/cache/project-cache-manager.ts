@@ -3,9 +3,7 @@ import { ProjectFileWalker } from '@utils';
 import { debug, error as errorLog, info } from '@utils';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-
-export const CACHE_FOLDER = '.riflebird';
-export const CACHE_FILE = 'cache.json';
+import { RIFLEBIRD_DIR, RIFLEBIRD_CACHE_FILE } from '@commons';
 
 export class ProjectCacheManager {
   private projectRoot: string;
@@ -15,13 +13,13 @@ export class ProjectCacheManager {
 
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
-    this.cacheDir = path.join(this.projectRoot, CACHE_FOLDER);
+    this.cacheDir = path.join(this.projectRoot, RIFLEBIRD_DIR);
     this.projectFileWalker = new ProjectFileWalker({ projectRoot });
   }
 
   async hasCache(): Promise<boolean> {
     try {
-      const cachePath = path.join(this.cacheDir, CACHE_FILE);
+      const cachePath = path.join(this.cacheDir, RIFLEBIRD_CACHE_FILE);
       await fs.access(cachePath);
       return true;
     } catch {
@@ -31,7 +29,7 @@ export class ProjectCacheManager {
 
   async load(): Promise<ProjectContext | null> {
     try {
-      const cachePath = path.join(this.cacheDir, CACHE_FILE);
+      const cachePath = path.join(this.cacheDir, RIFLEBIRD_CACHE_FILE);
 
       const content = await fs.readFile(cachePath, 'utf-8');
 
@@ -79,7 +77,7 @@ export class ProjectCacheManager {
 
   async save(context: ProjectContext): Promise<void> {
     try {
-      const cachePath = path.join(this.cacheDir, CACHE_FILE);
+      const cachePath = path.join(this.cacheDir, RIFLEBIRD_CACHE_FILE);
 
       // Inject current version
       const cacheToSave: ProjectContext = {

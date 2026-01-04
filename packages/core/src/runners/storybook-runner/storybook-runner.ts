@@ -66,7 +66,6 @@ export class StorybookRunner {
       const { files, failures } = await documentWriter.writeDocumentByMatchedFiles(
         projectContext,
         matchedFiles,
-        storybookConfig.framework,
         input.onProgress
       );
       results.push(...files);
