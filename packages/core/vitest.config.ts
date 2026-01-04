@@ -18,10 +18,10 @@ export default defineConfig({
         '**/types/**',
       ],
       thresholds: {
-        lines: 85,
-        functions: 78,
+        lines: 91,
+        functions: 80,
         branches: 85,
-        statements: 85,
+        statements: 91,
       },
     },
     env: {
