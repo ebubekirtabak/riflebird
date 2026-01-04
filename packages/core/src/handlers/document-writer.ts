@@ -31,7 +31,6 @@ export class DocumentWriter {
   async writeDocumentByMatchedFiles(
     projectContext: ProjectContext,
     matchedFiles: FileNode[],
-    framework: string,
     onProgress?: (current: number, total: number, file: string, elapsedMs: number) => void
   ): Promise<DocumentPatternResult> {
     const exclusionPatterns = this.options.handler.getExclusionPatterns();

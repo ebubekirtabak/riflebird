@@ -38,6 +38,8 @@ describe('StorybookRunner', () => {
       aiClient: {},
     } as unknown as CommandContext;
 
+    mockProvider = {} as unknown as ProjectContextProvider;
+
     mockProjectContext = {
       configFiles: {
         framework: { name: 'react' },
@@ -144,7 +146,6 @@ describe('StorybookRunner', () => {
     expect(mockDocumentWriter.prototype.writeDocumentByMatchedFiles).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      'vue', // It should be passed here
       expect.anything()
     );
   });
@@ -158,7 +159,6 @@ describe('StorybookRunner', () => {
     expect(mockDocumentWriter.prototype.writeDocumentByMatchedFiles).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      'vue',
       expect.anything()
     );
 

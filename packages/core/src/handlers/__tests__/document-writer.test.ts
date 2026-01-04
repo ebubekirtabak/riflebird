@@ -86,11 +86,9 @@ describe('DocumentWriter', () => {
 
   it('should find files and delegate generation to handler', async () => {
     const mockContext = { projectRoot: '/root' } as ProjectContext;
-    const result = await writer.writeDocumentByMatchedFiles(
-      mockContext,
-      [{ name: 'Button.tsx', path: 'src/components/Button.tsx', type: 'file' }],
-      'react'
-    );
+    const result = await writer.writeDocumentByMatchedFiles(mockContext, [
+      { name: 'Button.tsx', path: 'src/components/Button.tsx', type: 'file' },
+    ]);
 
     expect(result.files).toHaveLength(1);
     expect(result.files[0]).toBe('Generated Document for: src/components/Button.tsx');
@@ -133,11 +131,9 @@ describe('DocumentWriter', () => {
     );
 
     const mockContext = { projectRoot: '/root' } as ProjectContext;
-    const result = await writer.writeDocumentByMatchedFiles(
-      mockContext,
-      [{ name: 'Button.tsx', path: 'src/components/Button.tsx', type: 'file' }],
-      'react'
-    );
+    const result = await writer.writeDocumentByMatchedFiles(mockContext, [
+      { name: 'Button.tsx', path: 'src/components/Button.tsx', type: 'file' },
+    ]);
 
     expect(result.files).toHaveLength(1);
     expect(result.files[0]).toBe('Generated Document for: src/components/Button.tsx');
@@ -176,11 +172,9 @@ describe('DocumentWriter', () => {
       .mockResolvedValueOnce(null); // Check loop 2 (after fix)
 
     const mockContext = { projectRoot: '/root' } as ProjectContext;
-    const result = await writer.writeDocumentByMatchedFiles(
-      mockContext,
-      [{ name: 'Button.tsx', path: 'src/components/Button.tsx', type: 'file' }],
-      'react'
-    );
+    const result = await writer.writeDocumentByMatchedFiles(mockContext, [
+      { name: 'Button.tsx', path: 'src/components/Button.tsx', type: 'file' },
+    ]);
 
     expect(result.files).toHaveLength(1);
     expect(result.failures).toHaveLength(0);
@@ -205,11 +199,9 @@ describe('DocumentWriter', () => {
     vi.mocked(mockHandler.validateDocument).mockResolvedValue('Validation Error');
 
     const mockContext = { projectRoot: '/root' } as ProjectContext;
-    const result = await writer.writeDocumentByMatchedFiles(
-      mockContext,
-      [{ name: 'Button.tsx', path: 'src/components/Button.tsx', type: 'file' }],
-      'react'
-    );
+    const result = await writer.writeDocumentByMatchedFiles(mockContext, [
+      { name: 'Button.tsx', path: 'src/components/Button.tsx', type: 'file' },
+    ]);
 
     expect(result.files).toHaveLength(0); // Should fail to add to results
     expect(result.failures).toHaveLength(0); // No implementation error, just failure
@@ -233,11 +225,9 @@ describe('DocumentWriter', () => {
       .mockResolvedValueOnce(null);
 
     const mockContext = { projectRoot: '/root' } as ProjectContext;
-    const result = await writer.writeDocumentByMatchedFiles(
-      mockContext,
-      [{ name: 'Button.tsx', path: 'src/components/Button.tsx', type: 'file' }],
-      'react'
-    );
+    const result = await writer.writeDocumentByMatchedFiles(mockContext, [
+      { name: 'Button.tsx', path: 'src/components/Button.tsx', type: 'file' },
+    ]);
 
     expect(result.files).toHaveLength(1);
     expect(result.files[0]).toBe('Generated Document for: src/components/Button.tsx');
