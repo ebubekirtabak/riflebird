@@ -446,15 +446,13 @@ describe('StorybookDocumentHandler', () => {
       'error'
     );
 
-    // Should proceed with empty source content
     expect(result).toBe('Fixed');
     expect(mocks.agenticRun).toHaveBeenCalledWith(
       expect.stringContaining('"FAILING_TESTS_DETAIL":"error"')
     );
-    // Source content in prompt will be empty string if read failed?
-    // Implementation: let sourceContent = ''; try { sourceContent = await ... } catch ...
-    // So sourceContent remains ''
-    // We can verify prompt doesn't contain 'Read failed' but contains empty source placeholder if any
+
+    const prompt = String(mocks.agenticRun.mock.calls[0]?.[0] ?? '');
+    expect(prompt).not.toContain('Read failed');
   });
 
   it('should return content immediately if initial validation in fixDocument passes', async () => {
