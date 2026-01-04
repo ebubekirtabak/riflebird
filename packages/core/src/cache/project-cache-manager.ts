@@ -82,10 +82,14 @@ export class ProjectCacheManager {
       const cachePath = path.join(this.cacheDir, CACHE_FILE);
 
       // Inject current version
-      context.riflebirdVersion = this.currentVersion;
-
-      await fs.mkdir(this.cacheDir, { recursive: true });
-      await fs.writeFile(cachePath, JSON.stringify(context, null, 2), 'utf-8');
+      const cacheToSave: ProjectContext = {
+        ...context,
+        riflebirdVersion: this.currentVersion,
+      };
+      await this.projectFileWalker.writeFileToProject(
+        cachePath,
+        JSON.stringify(cacheToSave, null, 2)
+      );
       debug('Project context cached successfully');
     } catch (error) {
       errorLog('Error saving cache:', error);

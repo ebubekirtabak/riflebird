@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ProjectFileWalker } from '../project-file-walker';
+import { ProjectFileWalker, FileContentWithStats } from '../project-file-walker';
 import path from 'path';
 import fs, { FileHandle } from 'fs/promises';
 import { sanitizationLogger, SecretScanner, type SanitizationResult } from '@security';
@@ -152,7 +152,7 @@ describe('ProjectFileWalker', () => {
         sanitizedLength: 0,
       } as SanitizationResult);
 
-      const result = await walker.readWithStats(filePath);
+      const result: FileContentWithStats = await walker.readWithStats(filePath);
 
       expect(fs.open).toHaveBeenCalledWith(fullPath, 'r');
       expect(mockFileHandle.stat).toHaveBeenCalled();

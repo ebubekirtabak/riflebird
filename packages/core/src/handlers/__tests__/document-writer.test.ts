@@ -4,7 +4,7 @@ import { DocumentWriter } from '../document-writer';
 import type { RiflebirdConfig } from '@config/schema';
 import type { ProjectContext } from '@models';
 
-import { ProjectFileWalker } from '@utils';
+import { ProjectFileWalker, FileContentWithStats } from '@utils';
 import { DocumentFrameworkHandler } from '../document-framework';
 import { existsSync } from 'node:fs';
 
@@ -40,7 +40,7 @@ vi.mock('@utils', () => {
           readWithStats: vi.fn().mockResolvedValue({
             content: 'const Button = () => <button>Click me</button>;',
             stats: { mtimeMs: 1000 },
-          }),
+          } as FileContentWithStats),
           resolvePath: vi.fn((p) => p),
           generateFileStats: vi.fn(),
           getFileStats: vi.fn(),

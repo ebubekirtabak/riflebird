@@ -1,6 +1,6 @@
 import { ProjectCacheManager, CACHE_FILE, CACHE_FOLDER } from '../project-cache-manager';
 import { ProjectContext } from '@models/project-context';
-import { ProjectFileWalker } from '@utils';
+import { ProjectFileWalker, FileContentWithStats } from '@utils';
 import { ProjectConfigFiles, ConfigFile } from '@models/project-config-files';
 import * as fs from 'fs/promises';
 import { Stats } from 'fs';
@@ -18,6 +18,7 @@ vi.mock('@utils', () => ({
   info: vi.fn(),
   ProjectFileWalker: vi.fn().mockImplementation(() => ({
     readWithStats: vi.fn(),
+    writeFileToProject: vi.fn(),
   })),
 }));
 
@@ -51,10 +52,20 @@ describe('ProjectCacheManager', () => {
   const mockCachePath = path.join(mockCacheDir, CACHE_FILE);
   let cacheManager: ProjectCacheManager;
   let mockContext: ProjectContext;
+  let defaultWalkerMock: { readWithStats: Mock; writeFileToProject: Mock };
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv('RIFLEBIRD_VERSION', '0.1.4');
+
+    defaultWalkerMock = {
+      readWithStats: vi.fn(),
+      writeFileToProject: vi.fn(),
+    };
+    vi.mocked(ProjectFileWalker).mockReturnValue(
+      defaultWalkerMock as unknown as Mocked<ProjectFileWalker>
+    );
+
     cacheManager = new ProjectCacheManager(mockProjectRoot);
 
     // Default valid context
@@ -109,16 +120,20 @@ describe('ProjectCacheManager', () => {
 
       await cacheManager.save(mockContext);
 
-      expect(mockedFs.mkdir).toHaveBeenCalledWith(mockCacheDir, { recursive: true });
-      expect(mockedFs.writeFile).toHaveBeenCalledWith(
+      // expect(mockedFs.mkdir).toHaveBeenCalledWith(mockCacheDir, { recursive: true }); // optimize: walker handles mkdir
+      // Since we can't easily access the walker instance created inside cacheManager constructor without a getter or exposing it,
+      // we might need to spy on it or trust that if it didn't throw, it called the mock.
+      // But wait, we mocked the class constructor.
+
+      // Actually, we can spy on the mock instance.
+      expect(defaultWalkerMock.writeFileToProject).toHaveBeenCalledWith(
         mockCachePath,
-        expect.stringContaining('"projectRoot": "/test/project"'),
-        'utf-8'
+        expect.stringContaining('"projectRoot": "/test/project"')
       );
     });
 
     it('should handle errors gracefully', async () => {
-      mockedFs.mkdir.mockRejectedValue(new Error('Write error'));
+      defaultWalkerMock.writeFileToProject.mockRejectedValue(new Error('Write error'));
 
       await expect(cacheManager.save(mockContext)).resolves.not.toThrow();
     });
@@ -126,16 +141,19 @@ describe('ProjectCacheManager', () => {
 
   describe('load (Reconciliation Logic)', () => {
     let mockReadWithStats: Mock;
+    let mockWriteFileToProject: Mock;
 
     beforeEach(async () => {
       // Setup ProjectFileWalker mock
       const { ProjectFileWalker } = await import('@utils');
       mockReadWithStats = vi.fn();
+      mockWriteFileToProject = vi.fn();
 
       vi.mocked(ProjectFileWalker).mockImplementation(
         () =>
           ({
             readWithStats: mockReadWithStats,
+            writeFileToProject: mockWriteFileToProject,
           }) as unknown as Mocked<ProjectFileWalker>
       );
 
@@ -149,22 +167,35 @@ describe('ProjectCacheManager', () => {
       mockedFs.writeFile.mockResolvedValue(undefined);
 
       // Default readWithStats behavior (valid files)
-      mockReadWithStats.mockImplementation(async (filePath: string) => {
-        const pathStr = filePath.toString();
-        // Return default content matching the mockContext for configs
-        if (pathStr.endsWith('tsconfig.json'))
-          return { content: mockContext.languageConfig.configContent!, stats: { mtimeMs: 1000 } };
-        if (pathStr.endsWith('.eslintrc.json'))
-          return { content: mockContext.linterConfig.configContent!, stats: { mtimeMs: 1000 } };
-        if (pathStr.endsWith('.prettierrc'))
-          return { content: mockContext.formatterConfig.configContent!, stats: { mtimeMs: 1000 } };
-        if (pathStr.endsWith('package.json')) return { content: '{}', stats: { mtimeMs: 1000 } };
+      mockReadWithStats.mockImplementation(
+        async (filePath: string): Promise<FileContentWithStats> => {
+          const pathStr = filePath.toString();
+          // Return default content matching the mockContext for configs
+          if (pathStr.endsWith('tsconfig.json'))
+            return {
+              content: mockContext.languageConfig.configContent!,
+              stats: { mtimeMs: 1000 } as Stats,
+            };
+          if (pathStr.endsWith('.eslintrc.json'))
+            return {
+              content: mockContext.linterConfig.configContent!,
+              stats: { mtimeMs: 1000 } as Stats,
+            };
+          if (pathStr.endsWith('.prettierrc'))
+            return {
+              content: mockContext.formatterConfig.configContent!,
+              stats: { mtimeMs: 1000 } as Stats,
+            };
+          if (pathStr.endsWith('package.json'))
+            return { content: '{}', stats: { mtimeMs: 1000 } as Stats };
 
-        // For custom files
-        if (pathStr.endsWith('custom.json')) return { content: '{}', stats: { mtimeMs: 1000 } };
+          // For custom files
+          if (pathStr.endsWith('custom.json'))
+            return { content: '{}', stats: { mtimeMs: 1000 } as Stats };
 
-        throw new Error(`File not found: ${filePath}`);
-      });
+          throw new Error(`File not found: ${filePath}`);
+        }
+      );
 
       // Default fs.readFile behavior (ONLY for cache.json)
       mockedFs.readFile.mockImplementation((filePath) => {
@@ -257,7 +288,9 @@ describe('ProjectCacheManager', () => {
       expect(mockReadWithStats).toHaveBeenCalledTimes(4); // tsconfig, eslintrc, prettierrc, package.json
 
       // Should NOT update cache
-      expect(mockedFs.writeFile).not.toHaveBeenCalled();
+      // Should NOT update cache
+      // Should NOT update cache
+      expect(mockWriteFileToProject).not.toHaveBeenCalled();
     });
 
     it('should READ file and UPDATE cache if mtime changed', async () => {
@@ -278,7 +311,7 @@ describe('ProjectCacheManager', () => {
       expect(result?.languageConfig.configContent).toBe(newTsConfig);
       expect(result?.languageConfig.lastModified).toBe(2000); // Updated
 
-      expect(mockedFs.writeFile).toHaveBeenCalled(); // Should trigger save
+      expect(mockWriteFileToProject).toHaveBeenCalled(); // Should trigger save
     });
 
     it('should UPDATE cache mtime if mtime changed but content is same (touch)', async () => {
@@ -295,8 +328,7 @@ describe('ProjectCacheManager', () => {
 
       expect(result).not.toBeNull();
       expect(result?.languageConfig.lastModified).toBe(2000);
-
-      expect(mockedFs.writeFile).toHaveBeenCalled();
+      expect(mockWriteFileToProject).toHaveBeenCalled();
     });
 
     it('should skip validation for framework with missing configFilePath', async () => {
@@ -360,7 +392,7 @@ describe('ProjectCacheManager', () => {
 
       const result = await cacheManager.load();
       expect(result?.packageManager?.packageFileLastModified).toBe(2000);
-      expect(mockedFs.writeFile).toHaveBeenCalled();
+      expect(mockWriteFileToProject).toHaveBeenCalled();
     });
 
     it('should return invalid status if reconciliation process throws', async () => {
@@ -426,7 +458,7 @@ describe('ProjectCacheManager', () => {
       expect(result).not.toBeNull();
       expect(result?.packageManager?.packageFileContent).toBe(newPackageJson);
       expect(result?.packageManager?.packageFileLastModified).toBe(2000);
-      expect(mockedFs.writeFile).toHaveBeenCalled();
+      expect(mockWriteFileToProject).toHaveBeenCalled();
     });
   });
 });

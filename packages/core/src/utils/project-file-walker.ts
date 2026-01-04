@@ -8,6 +8,11 @@ export type ProjectFileWalkerContext = {
   projectRoot: string;
 };
 
+export type FileContentWithStats = {
+  content: string;
+  stats: Stats;
+};
+
 export class ProjectFileWalker {
   constructor(private context: ProjectFileWalkerContext) {}
 
@@ -76,7 +81,7 @@ export class ProjectFileWalker {
     }
   }
 
-  async readWithStats(filePath: string): Promise<{ content: string; stats: Stats }> {
+  async readWithStats(filePath: string): Promise<FileContentWithStats> {
     try {
       const fullPath = await this.resolveAndValidatePath(filePath);
       const fileHandle = await fs.open(fullPath, 'r');
