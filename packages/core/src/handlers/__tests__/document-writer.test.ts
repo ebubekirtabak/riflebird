@@ -10,29 +10,44 @@ import { existsSync } from 'node:fs';
 
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
   writeFileSync: vi.fn(),
-  readFileSync: vi.fn(),
-  promises: {
-    writeFile: vi.fn(),
-    unlink: vi.fn(),
-  },
 }));
 
-vi.mock('@utils', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@utils')>();
+vi.mock('@utils', () => {
   return {
-    ...actual,
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    matchesPattern: vi.fn(),
+    checkAndThrowFatalError: vi.fn(),
+    generateFilePathWithConfig: vi.fn((filePath, config) => {
+      // Simple mock implementation to return a path
+      const baseName = filePath.replace(/\.tsx$/, '');
+      if (config.outputDir) return `${config.outputDir}/${baseName}.doc`;
+      return `${baseName}.doc`;
+    }),
     getFileTree: vi.fn(),
     findFilesByPatternInFileTree: vi.fn(),
-    checkAndThrowFatalError: vi.fn(),
     executeProcessCommand: vi.fn(),
-    ProjectFileWalker: vi.fn().mockImplementation(() => ({
-      readFileFromProject: vi
-        .fn()
-        .mockResolvedValue('const Button = () => <button>Click me</button>;'),
-      resolvePath: vi.fn((p) => p),
-      writeFileToProject: vi.fn(),
-    })),
+    ProjectFileWalker: vi.fn().mockImplementation(
+      () =>
+        ({
+          readFileFromProject: vi
+            .fn()
+            .mockResolvedValue('const Button = () => <button>Click me</button>;'),
+          readWithStats: vi.fn().mockResolvedValue({
+            content: 'const Button = () => <button>Click me</button>;',
+            stats: { mtimeMs: 1000 },
+          }),
+          resolvePath: vi.fn((p) => p),
+          generateFileStats: vi.fn(),
+          getFileStats: vi.fn(),
+          getFileLastModified: vi.fn(),
+          writeFileToProject: vi.fn(),
+        }) as unknown as Mocked<ProjectFileWalker>
+    ),
   };
 });
 
@@ -105,11 +120,17 @@ describe('DocumentWriter', () => {
     // Mock file existing
     vi.mocked(existsSync).mockReturnValue(true);
     // Mock walker reading existing file
-    vi.mocked(ProjectFileWalker).mockImplementation(() => ({
-      readFileFromProject: vi.fn().mockResolvedValue('Existing Valid Content'),
-      resolvePath: vi.fn((p) => p),
-      writeFileToProject: vi.fn(),
-    }));
+    vi.mocked(ProjectFileWalker).mockImplementation(
+      () =>
+        ({
+          readFileFromProject: vi.fn().mockResolvedValue('Existing Valid Content'),
+          readWithStats: vi
+            .fn()
+            .mockResolvedValue({ content: 'Existing Valid Content', stats: { mtimeMs: 1000 } }),
+          resolvePath: vi.fn((p) => p),
+          writeFileToProject: vi.fn(),
+        }) as unknown as Mocked<ProjectFileWalker>
+    );
 
     const mockContext = { projectRoot: '/root' } as ProjectContext;
     const result = await writer.writeDocumentByMatchedFiles(
@@ -136,11 +157,17 @@ describe('DocumentWriter', () => {
     // Mock file existing
     vi.mocked(existsSync).mockReturnValue(true);
     // Mock walker reading existing file
-    vi.mocked(ProjectFileWalker).mockImplementation(() => ({
-      readFileFromProject: vi.fn().mockResolvedValue('Existing Invalid Content'),
-      resolvePath: vi.fn((p) => p),
-      writeFileToProject: vi.fn(),
-    }));
+    vi.mocked(ProjectFileWalker).mockImplementation(
+      () =>
+        ({
+          readFileFromProject: vi.fn().mockResolvedValue('Existing Invalid Content'),
+          readWithStats: vi
+            .fn()
+            .mockResolvedValue({ content: 'Existing Invalid Content', stats: { mtimeMs: 1000 } }),
+          resolvePath: vi.fn((p) => p),
+          writeFileToProject: vi.fn(),
+        }) as unknown as Mocked<ProjectFileWalker>
+    );
 
     // Mock validation to fail first (for existing), then fail again (in loop), then succeed (after fix)
     vi.mocked(mockHandler.validateDocument)

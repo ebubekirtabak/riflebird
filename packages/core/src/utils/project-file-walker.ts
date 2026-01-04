@@ -75,4 +75,30 @@ export class ProjectFileWalker {
       );
     }
   }
+
+  async readWithStats(filePath: string): Promise<{ content: string; stats: Stats }> {
+    try {
+      const fullPath = await this.resolveAndValidatePath(filePath);
+      const fileHandle = await fs.open(fullPath, 'r');
+
+      try {
+        const stats = await fileHandle.stat();
+        const content = await fileHandle.readFile({ encoding: 'utf-8' });
+
+        // Sanitize the file content
+        const result = SecretScanner.sanitize(content, { filePath });
+
+        // Log if secrets were detected
+        if (result.secretsDetected > 0) {
+          sanitizationLogger.logSanitization(result, filePath);
+        }
+
+        return { content: result.sanitizedCode, stats };
+      } finally {
+        await fileHandle.close();
+      }
+    } catch (error) {
+      throw new Error(`Failed to read file with stats ${filePath}: ${(error as Error).message}`);
+    }
+  }
 }
