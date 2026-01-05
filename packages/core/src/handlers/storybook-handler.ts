@@ -205,7 +205,7 @@ Visual Testing Best Practices (CRITICAL):
       } as TestFile & { [key: string]: unknown },
       EXTENSION: extension,
       FAILED_TEST_CODE: content,
-      FAILING_TESTS_DETAIL: errors || 'Validation failed with unknown error',
+      FAILING_TESTS_DETAIL: errors,
       FILE_PATH: filePath,
       CODE_SNIPPET: sourceContent,
     });
