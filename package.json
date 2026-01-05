@@ -67,6 +67,6 @@
   },
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@toon-format/toon": "^2.0.1"
+    "@toon-format/toon": "^2.1.0"
   }
 }
