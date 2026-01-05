@@ -1,6 +1,6 @@
 {
   "name": "riflebird",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "AI-powered E2E testing framework - CLI",
   "type": "module",
   "types": "./dist/index.d.ts",

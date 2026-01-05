@@ -1,5 +1,11 @@
 # riflebird
 
+## 0.2.0
+
+### Minor Changes
+
+- 8d90b63: Initial release setup
+
 ## 0.1.4
 
 ### Patch Changes
