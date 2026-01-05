@@ -43,7 +43,7 @@ describe('executeProcessCommand', () => {
     expect(mockSpawn).toHaveBeenCalledWith('echo', ['hello'], {
       cwd: '/tmp',
       stdio: 'pipe', // Default
-      shell: true,
+      shell: false,
       env: expect.anything(),
     });
   });
@@ -60,7 +60,7 @@ describe('executeProcessCommand', () => {
     expect(mockSpawn).toHaveBeenCalledWith('echo', ['hello'], {
       cwd: '/tmp',
       stdio: 'pipe',
-      shell: true,
+      shell: false,
       env: expect.objectContaining({ CI: 'true' }),
     });
   });
