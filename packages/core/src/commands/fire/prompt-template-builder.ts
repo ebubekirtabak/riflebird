@@ -32,16 +32,36 @@ export class PromptTemplateBuilder {
    * @returns Processed template with all placeholders replaced
    */
   build(template: string, context: PromptTemplateContext): string {
-    const { testFramework, languageConfig, linterConfig, formatterConfig, targetFile, packageManager, ...customVars } = context;
+    const {
+      testFramework,
+      languageConfig,
+      linterConfig,
+      formatterConfig,
+      targetFile,
+      packageManager,
+      ...customVars
+    } = context;
     const { filePath, content, testFilePath } = targetFile;
 
     // Apply standard replacements
     let result = template
       .replace(/\{\{TEST_FRAMEWORK\}\}/g, testFramework?.name || 'unknown framework')
-      .replace(/\{\{TEST_FRAMEWORK_CONFIG\}\}/g, this.formatConfig(testFramework, 'No specific configuration'))
-      .replace(/\{\{LANGUAGE_CONFIGURATIONS\}\}/g, this.formatConfig(languageConfig, 'No specific language configuration'))
-      .replace(/\{\{FORMATTING_RULES\}\}/g, this.formatConfig(formatterConfig, 'Follow project conventions'))
-      .replace(/\{\{LINTING_RULES\}\}/g, this.formatConfig(linterConfig, 'Follow project linting rules'))
+      .replace(
+        /\{\{TEST_FRAMEWORK_CONFIG\}\}/g,
+        this.formatConfig(testFramework, 'No specific configuration')
+      )
+      .replace(
+        /\{\{LANGUAGE_CONFIGURATIONS\}\}/g,
+        this.formatConfig(languageConfig, 'No specific language configuration')
+      )
+      .replace(
+        /\{\{FORMATTING_RULES\}\}/g,
+        this.formatConfig(formatterConfig, 'Follow project conventions')
+      )
+      .replace(
+        /\{\{LINTING_RULES\}\}/g,
+        this.formatConfig(linterConfig, 'Follow project linting rules')
+      )
       .replace(/\{\{FILE_PATH\}\}/g, filePath)
       .replace(/\{\{TEST_FILE_PATH\}\}/g, testFilePath)
       .replace(/\{\{CODE_SNIPPET\}\}/g, content)
@@ -54,7 +74,8 @@ export class PromptTemplateBuilder {
     for (const [key, value] of Object.entries(customVars)) {
       if (value !== undefined) {
         const placeholder = new RegExp(`\\{\\{${key.toUpperCase()}\\}\\}`, 'g');
-        const formattedValue = typeof value === 'string' ? value : this.formatConfig(value as FrameworkInfo);
+        const formattedValue =
+          typeof value === 'string' ? value : this.formatConfig(value as FrameworkInfo);
         result = result.replace(placeholder, formattedValue);
       }
     }
@@ -163,7 +184,15 @@ export class PromptTemplateBuilder {
 
     // Useful scripts
     if (packageInfo.scripts) {
-      const relevantScripts = ['test', 'test:unit', 'test:watch', 'test:coverage', 'build', 'dev', 'lint'];
+      const relevantScripts = [
+        'test',
+        'test:unit',
+        'test:watch',
+        'test:coverage',
+        'build',
+        'dev',
+        'lint',
+      ];
       const foundScripts = Object.entries(packageInfo.scripts)
         .filter(([name]) => relevantScripts.includes(name))
         .map(([name, script]) => `- ${name}: ${script}`)

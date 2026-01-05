@@ -17,6 +17,7 @@ The JSON should have this structure:
     "e2e": { "name": "string", "configFile": "string", "configFilePath": "string", "fileLang": "string" },
     "visual": { "name": "string", "configFile": "string", "configFilePath": "string", "fileLang": "string" },
     "performance": { "name": "string", "configFile": "string", "configFilePath": "string", "fileLang": "string" }
+    "documentation": { "name": "string", "configFile": "string", "configFilePath": "string", "fileLang": "string" }
   },
   "linting": {
     "type": 'eslint',

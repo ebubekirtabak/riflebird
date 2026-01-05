@@ -1,9 +1,10 @@
 import chalk from 'chalk';
 import fs from 'fs/promises';
 import path from 'path';
+import { RIFLEBIRD_DIR } from '@riflebird/core';
 
 export async function cleanCommand() {
-  const cacheDir = path.join(process.cwd(), '.riflebird');
+  const cacheDir = path.join(process.cwd(), RIFLEBIRD_DIR);
 
   try {
     try {

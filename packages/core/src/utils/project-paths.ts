@@ -5,7 +5,7 @@ import {
   RIFLEBIRD_PROMPTS_DIR,
   RIFLEBIRD_TEMPLATES_DIR,
   RIFLEBIRD_CONFIG_DIR,
-} from './constants';
+} from '@commons';
 
 export type ProjectPaths = {
   root: string;
@@ -102,10 +102,7 @@ export async function listCustomPrompts(startPath?: string): Promise<string[]> {
 /**
  * Read a custom prompt file
  */
-export async function readCustomPrompt(
-  filename: string,
-  startPath?: string
-): Promise<string> {
+export async function readCustomPrompt(filename: string, startPath?: string): Promise<string> {
   const paths = await getProjectPaths(startPath);
   const promptPath = path.join(paths.promptsDir, filename);
 

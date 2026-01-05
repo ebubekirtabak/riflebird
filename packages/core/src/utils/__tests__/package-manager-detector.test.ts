@@ -1,11 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { detectPackageManagerInfo } from '../package-manager-detector';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 
-describe('package-manager-detector', () => {
+vi.mock('@security', () => ({
+  SecretScanner: {
+    sanitize: vi.fn((content) => ({ secretsDetected: 0, sanitizedCode: content })),
+  },
+  sanitizationLogger: {
+    logSanitization: vi.fn(),
+  },
+}));
 
+describe('package-manager-detector', () => {
   let projectRoot: string;
 
   beforeEach(async () => {
@@ -109,12 +117,24 @@ describe('package-manager-detector', () => {
     });
 
     it('should handle missing package.json gracefully', async () => {
-        // No file written
+      // No file written
       const result = await detectPackageManagerInfo(projectRoot, 'pnpm');
 
       expect(result.type).toBe('pnpm');
       expect(result.testCommand).toBe('pnpm test');
       expect(result.packageInfo).toBeUndefined();
+    });
+
+    it('should use detected type as fallback when package.json is missing', async () => {
+      // No file written
+      const pnpmResult = await detectPackageManagerInfo(projectRoot, 'pnpm');
+      expect(pnpmResult.type).toBe('pnpm');
+
+      const yarnResult = await detectPackageManagerInfo(projectRoot, 'yarn');
+      expect(yarnResult.type).toBe('yarn');
+
+      const bunResult = await detectPackageManagerInfo(projectRoot, 'bun');
+      expect(bunResult.type).toBe('bun');
     });
 
     it('should detect package manager from detectedType parameter', async () => {
@@ -263,6 +283,82 @@ describe('package-manager-detector', () => {
 
       const result = await detectPackageManagerInfo(projectRoot, 'npm');
       expect(result.testScript).toBe('test');
+    });
+
+    it('should prioritize test-unit script over standard test script', async () => {
+      const packageJson = {
+        name: 'test-project',
+        scripts: {
+          test: 'vitest',
+          'test-unit': 'vitest run',
+        },
+      };
+      await fs.writeFile(path.join(projectRoot, 'package.json'), JSON.stringify(packageJson));
+
+      const result = await detectPackageManagerInfo(projectRoot, 'npm');
+      expect(result.testScript).toBe('test-unit');
+    });
+
+    it('should prioritize framework specific test script', async () => {
+      const packageJson = {
+        name: 'test-project',
+        scripts: {
+          'test:vitest': 'vitest',
+          build: 'tsc',
+        },
+        devDependencies: {
+          vitest: '^1.0.0',
+        },
+      };
+      await fs.writeFile(path.join(projectRoot, 'package.json'), JSON.stringify(packageJson));
+
+      // Frameworks must be detected for this heuristic to work
+      const result = await detectPackageManagerInfo(projectRoot, 'npm');
+      expect(result.testScript).toBe('test:vitest');
+    });
+
+    it('should use framework name as script if available', async () => {
+      const packageJson = {
+        name: 'test-project',
+        scripts: {
+          vitest: 'vitest',
+          build: 'tsc',
+        },
+        devDependencies: {
+          vitest: '^1.0.0',
+        },
+      };
+      await fs.writeFile(path.join(projectRoot, 'package.json'), JSON.stringify(packageJson));
+
+      const result = await detectPackageManagerInfo(projectRoot, 'npm');
+      expect(result.testScript).toBe('vitest');
+    });
+
+    it('should fallback to any script starting with test:', async () => {
+      const packageJson = {
+        name: 'test-project',
+        scripts: {
+          'test:something': 'echo test',
+          build: 'tsc',
+        },
+      };
+      await fs.writeFile(path.join(projectRoot, 'package.json'), JSON.stringify(packageJson));
+
+      const result = await detectPackageManagerInfo(projectRoot, 'npm');
+      expect(result.testScript).toBe('test:something');
+    });
+
+    it('should fallback to npm when package manager type is unknown', async () => {
+      const packageJson = {
+        name: 'test-project',
+        scripts: { test: 'echo test' },
+      };
+      await fs.writeFile(path.join(projectRoot, 'package.json'), JSON.stringify(packageJson));
+
+      const result = await detectPackageManagerInfo(projectRoot, undefined);
+
+      expect(result.type).toBe('unknown');
+      expect(result.testCommand).toBe('npm run test');
     });
   });
 });

@@ -1,16 +1,14 @@
-import type { TestFile, AIClient, ProjectContext, FrameworkInfo } from '@models';
+import type { TestFile, AIClient, ProjectContext, FrameworkInfo, FileNode } from '@models';
 import {
-  generateTestFilePathWithConfig,
+  generateFilePathWithConfig,
   info,
   ProjectFileWalker,
   matchesPattern,
   debug,
   checkAndThrowFatalError,
-  getFileTree,
-  findFilesByPatternInFileTree,
   cleanCodeContent,
+  fileExists,
 } from '@utils';
-import { ProjectContextProvider } from '@providers/project-context-provider';
 import type { RiflebirdConfig } from '@config/schema';
 import { DEFAULT_FILE_EXCLUDE_PATTERNS, DEFAULT_UNIT_TEST_PATTERNS } from '@config/constants';
 import { PromptTemplateBuilder } from './prompt-template-builder';
@@ -55,36 +53,21 @@ export class UnitTestWriter {
   }
 
   /**
-   * Write tests for one or more patterns efficiently
-   * When multiple patterns are provided, pulls the file tree only once for optimal performance
+   * Write tests for provided matched files
    *
    * @param provider - Project context provider
-   * @param patterns - Single pattern string or array of glob patterns to match files
+   * @param matchedFiles - Array of matched files
    * @param testFramework - Test framework configuration
    * @param onProgress - Progress callback
    * @returns Aggregated results from all patterns
    */
-  async writeTestByPattern(
-    provider: ProjectContextProvider,
-    patterns: string | string[],
+  async writeTestByMatchedFiles(
+    projectContext: ProjectContext,
+    matchedFiles: FileNode[],
     testFramework?: FrameworkInfo,
     onProgress?: (current: number, total: number, file: string, elapsedMs: number) => void
   ): Promise<PatternResult> {
-    const projectContext = await provider.getContext();
-    const { projectRoot } = projectContext;
     const exclusionPatterns = this.getExclusionPatternsForUnitTesting();
-
-    // Normalize patterns: remove leading ./ and convert to array
-    const patternArray = (Array.isArray(patterns) ? patterns : [patterns]).map((p) =>
-      p.replace(/^\.\//, '')
-    );
-
-    info(`Searching for files with pattern(s): ${patternArray.join(', ')}`);
-
-    const fileTree = await getFileTree(projectRoot);
-
-    const matchedFiles = findFilesByPatternInFileTree(fileTree, patternArray);
-    info(`Found ${matchedFiles.length} files matching pattern(s)`);
 
     // Filter out excluded files (test files, storybook files, etc.)
     const filesToProcess = matchedFiles.filter((file) => {
@@ -95,7 +78,8 @@ export class UnitTestWriter {
       }
       return true;
     });
-    info(`After exclusions: ${filesToProcess.length} files to process`);
+
+    info(`After exclusions: ${filesToProcess.length} files to process for ${testFramework?.name}`);
 
     const results: string[] = [];
     const failures: Array<{ file: string; error: string }> = [];
@@ -138,14 +122,45 @@ export class UnitTestWriter {
 
     debug(`Test file content:\n${fileContent}`);
 
-    const testFilePath = generateTestFilePathWithConfig(testPath, {
-      testOutputDir: this.options.config.unitTesting?.testOutputDir,
+    const testFilePath = generateFilePathWithConfig(testPath, {
+      outputDir: this.options.config.unitTesting?.testOutputDir,
       projectRoot: projectRoot,
       strategy: unitTestOutputStrategy,
+      suffix: '.test',
     });
+
+    let testCodeContent: string | undefined;
+    if (fileExists(testFilePath)) {
+      try {
+        testCodeContent = await fileWalker.readFileFromProject(testFilePath, true);
+      } catch (error) {
+        debug(`Could not read existing test file: ${testFilePath}`, error);
+      }
+    }
 
     let lastTestCode: string | undefined;
     let lastTestResult: Awaited<ReturnType<typeof runTest>> | undefined;
+
+    if (testCodeContent) {
+      if (!isHealingEnabled) {
+        info(
+          `Test already exists and auto-healing is disabled for ${testFilePath}. Skipping verification and regeneration.`
+        );
+        return;
+      }
+
+      info(`Verifying existing test file: ${testFilePath}`);
+      const { passed, result } = await this.verifyTest(projectContext, testFilePath, 1, maxRetries);
+
+      if (passed) {
+        info(`Existing test passed for ${testFilePath}. Skipping regeneration.`);
+        return;
+      }
+
+      info(`Existing test failed. Will attempt to fix...`);
+      lastTestCode = testCodeContent;
+      lastTestResult = result;
+    }
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -157,7 +172,6 @@ export class UnitTestWriter {
             testFilePath,
           },
           testFramework,
-          attempt,
           lastTestCode,
           lastTestResult
         );
@@ -228,24 +242,9 @@ export class UnitTestWriter {
       testFilePath: string;
     },
     testFramework: FrameworkInfo | undefined,
-    attempt: number,
     lastTestCode?: string,
     lastTestResult?: Awaited<ReturnType<typeof runTest>>
   ): Promise<string | null> {
-    if (attempt === 1) {
-      // First attempt: generate new test
-      return this.generateTest(
-        projectContext,
-        {
-          filePath: params.testPath,
-          content: params.fileContent,
-          testFilePath: params.testFilePath,
-          testContent: '',
-        },
-        testFramework
-      );
-    }
-
     if (lastTestResult && lastTestCode) {
       const failingTests = parseFailingTestsFromJson(lastTestResult);
       const errorContext = {

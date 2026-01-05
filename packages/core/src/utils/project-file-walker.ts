@@ -8,6 +8,11 @@ export type ProjectFileWalkerContext = {
   projectRoot: string;
 };
 
+export type FileContentWithStats = {
+  content: string;
+  stats: Stats;
+};
+
 export class ProjectFileWalker {
   constructor(private context: ProjectFileWalkerContext) {}
 
@@ -62,6 +67,43 @@ export class ProjectFileWalker {
       return await fs.stat(fullPath);
     } catch (error) {
       throw new Error(`Failed to get stats for file ${filePath}: ${(error as Error).message}`);
+    }
+  }
+
+  async getFileLastModified(filePath: string): Promise<number> {
+    try {
+      const stats = await this.getFileStats(filePath);
+      return stats.mtimeMs;
+    } catch (error) {
+      throw new Error(
+        `Failed to get last modified time for file ${filePath}: ${(error as Error).message}`
+      );
+    }
+  }
+
+  async readWithStats(filePath: string): Promise<FileContentWithStats> {
+    try {
+      const fullPath = await this.resolveAndValidatePath(filePath);
+      const fileHandle = await fs.open(fullPath, 'r');
+
+      try {
+        const stats = await fileHandle.stat();
+        const content = await fileHandle.readFile({ encoding: 'utf-8' });
+
+        // Sanitize the file content
+        const result = SecretScanner.sanitize(content, { filePath });
+
+        // Log if secrets were detected
+        if (result.secretsDetected > 0) {
+          sanitizationLogger.logSanitization(result, filePath);
+        }
+
+        return { content: result.sanitizedCode, stats };
+      } finally {
+        await fileHandle.close();
+      }
+    } catch (error) {
+      throw new Error(`Failed to read file with stats ${filePath}: ${(error as Error).message}`);
     }
   }
 }

@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import type { StdioOptions } from 'node:child_process';
 
 export type ProcessExecutionResult = {
   stdout: string;
@@ -7,72 +8,80 @@ export type ProcessExecutionResult = {
   timedOut: boolean;
 };
 
+export type ProcessExecutionOptions = {
+  cwd?: string;
+  timeout?: number;
+  stdio?: StdioOptions;
+  env?: NodeJS.ProcessEnv;
+  shell?: boolean | string;
+};
+
 /**
- * Execute a test process with timeout handling
- * @param command - Command to execute (e.g., "npm", "pnpm")
- * @param args - Arguments for the command
- * @param cwd - Current working directory
- * @param timeout - Timeout in milliseconds
- * @returns Process execution result
+ * Execute a process with timeout handling and detailed result
  */
 export async function executeProcessCommand(
   command: string,
   args: string[],
-  cwd: string,
-  timeout: number,
-  CI?: boolean
+  options: ProcessExecutionOptions = {}
 ): Promise<ProcessExecutionResult> {
-  const proc = spawn(command, args, {
-    cwd,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, CI: CI ? 'true' : 'false' },
-  });
+  const {
+    cwd = process.cwd(),
+    timeout = 0,
+    stdio = 'pipe',
+    env = process.env,
+    shell = false,
+  } = options;
 
-  let stdout = '';
-  let stderr = '';
-  let timedOut = false;
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd,
+      stdio,
+      shell,
+      env,
+    });
 
-  proc.stdout.setEncoding('utf8');
-  proc.stderr.setEncoding('utf8');
-  proc.stdout.on('data', (data: string) => {
-    stdout += data;
-  });
-  proc.stderr.on('data', (data: string) => {
-    stderr += data;
-  });
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let timeoutHandle: NodeJS.Timeout | undefined;
 
-  // Set up timeout
-  const timeoutHandle = setTimeout(() => {
-    timedOut = true;
-    proc.kill('SIGTERM');
-  }, timeout);
+    if (child.stdout) {
+      child.stdout.setEncoding('utf8');
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+    }
 
-  // Wait for process to exit or error
-  const [exitCode] = await new Promise<[number | null, string | null]>((resolve, reject) => {
-    const cleanup = () => {
-      proc.off('exit', onExit);
-      proc.off('error', onError);
+    if (child.stderr) {
+      child.stderr.setEncoding('utf8');
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+    }
+
+    if (timeout > 0) {
+      timeoutHandle = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+      }, timeout);
+    }
+
+    const onExit = (code: number | null) => {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+      resolve({
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        exitCode: code,
+        timedOut,
+      });
     };
 
-    const onExit = (code: number | null, signal: string | null) => {
-      cleanup();
-      resolve([code, signal]);
+    const onError = (error: Error) => {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+      reject(error);
     };
 
-    const onError = (err: Error) => {
-      cleanup();
-      reject(err);
-    };
-
-    proc.once('exit', onExit);
-    proc.once('error', onError);
+    child.on('close', onExit);
+    child.on('error', onError);
   });
-  clearTimeout(timeoutHandle);
-
-  return {
-    stdout,
-    stderr,
-    exitCode,
-    timedOut,
-  };
 }

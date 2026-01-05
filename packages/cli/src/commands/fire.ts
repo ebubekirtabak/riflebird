@@ -11,6 +11,7 @@ export type FireOptions = {
   unit?: boolean;
   visual?: boolean;
   performance?: boolean;
+  document?: boolean;
   scope?: string;
 };
 
@@ -29,13 +30,22 @@ export async function fireCommand(testPath?: string, options?: FireOptions) {
     if (options?.unit) testTypes.push('unit');
     if (options?.visual) testTypes.push('visual');
     if (options?.performance) testTypes.push('performance');
+    if (options?.document) testTypes.push('document');
 
     // Execute test(s)
     const result = await riflebird.fire({
       testPath,
       all: options?.all,
       testTypes,
-      scope: options?.scope as 'component' | 'layout' | 'page' | 'service' | 'util' | 'hook' | 'store' | undefined,
+      scope: options?.scope as
+        | 'component'
+        | 'layout'
+        | 'page'
+        | 'service'
+        | 'util'
+        | 'hook'
+        | 'store'
+        | undefined,
       onProgress: createProgressHandler(spinner, progressState, timerRef),
     });
 
