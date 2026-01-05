@@ -60,6 +60,11 @@ vi.mock('@prompts/unit-test-prompt.txt', () => ({
     'Generate unit test for {{TEST_FRAMEWORK}}.\n\nFramework Config:\n{{TEST_FRAMEWORK_CONFIG}}\n\nLanguage Config:\n{{LANGUAGE_CONFIGURATIONS}}\n\nFormatting:\n{{FORMATTING_RULES}}\n\nLinting:\n{{LINTING_RULES}}\n\nCode:\n{{CODE_SNIPPET}}',
 }));
 
+vi.mock('@prompts/unit-test-fix-prompt.txt', () => ({
+  default:
+    'Fix unit test for {{TEST_FRAMEWORK}}.\n\nCode:\n{{CODE_SNIPPET}}\n\nFailed Test:\n{{FAILED_TEST_CODE}}\n\nError:\n{{FAILING_TESTS_DETAIL}}',
+}));
+
 vi.mock('@config/constants', () => ({
   DEFAULT_FILE_EXCLUDE_PATTERNS: ['**/node_modules/**', '**/dist/**', '**/build/**'],
   DEFAULT_UNIT_TEST_PATTERNS: ['**/*.test.ts', '**/*.spec.ts', '**/__tests__/**'],
@@ -1122,7 +1127,8 @@ describe('Calculator', () => {
           .mockResolvedValueOnce('// existing failing test');
 
         // Mock runTest: first call fails (existing test), second call passes (after fix)
-        const { runTest } = await import('@runners/test-runner');
+        const { runTest, getFailingTestsDetail } = await import('@runners/test-runner');
+        (getFailingTestsDetail as ReturnType<typeof vi.fn>).mockReturnValue('Error: failed');
         (runTest as ReturnType<typeof vi.fn>)
           .mockResolvedValueOnce({
             success: false,
@@ -1463,6 +1469,90 @@ describe('Calculator', () => {
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(2);
       // Should have attempted to run tests twice
       expect(runTest).toHaveBeenCalledTimes(2);
+    });
+
+    it('should proceed with fresh generation if reading the existing test file fails', async () => {
+      // Setup
+      const { fileExists } = await import('@utils');
+      (fileExists as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+      mockWalkerInstance.readFileFromProject
+        .mockResolvedValueOnce('// source code') // First read (source)
+        .mockRejectedValueOnce(new Error('Permission denied')); // Second read (existing test) - throws
+
+      // Act
+      await writer.writeTestFile(mockProjectContext, 'src/read-error.ts');
+
+      // Assert
+      // 1. Should have tried to read the test file
+      expect(mockWalkerInstance.readFileFromProject).toHaveBeenCalledTimes(2);
+
+      // 2. Should skip verification (since read failed)
+      const { runTest } = await import('@runners/test-runner');
+      expect(runTest).not.toHaveBeenCalled();
+
+      // 3. Should proceed to generate fresh test (not fix)
+      const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
+        .calls[0][0];
+      const promptContent = callArgs.messages[0].content;
+      expect(promptContent).toContain('Generate unit test for');
+
+      // 4. Should write the result
+      expect(mockWalkerInstance.writeFileToProject).toHaveBeenCalled();
+    });
+
+    it('should attempt to fix existing failing test even if healing is disabled, but stop after one attempt', async () => {
+      // Disable healing
+      const noHealingWriter = new UnitTestWriter({
+        aiClient: mockAiClient,
+        config: {
+          ...mockConfig,
+          healing: { enabled: false, mode: 'auto', maxRetries: 3, strategy: 'smart' },
+        },
+      });
+
+      const { fileExists } = await import('@utils');
+      (fileExists as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+      mockWalkerInstance.readFileFromProject
+        .mockResolvedValueOnce('// source code')
+        .mockResolvedValueOnce('// existing failing test');
+
+      const { runTest, getFailingTestsDetail } = await import('@runners/test-runner');
+      (getFailingTestsDetail as ReturnType<typeof vi.fn>).mockReturnValue('Assertion failed');
+      (runTest as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        success: false,
+        stdout: '',
+        stderr: 'Assertion failed',
+        jsonReport: null,
+      });
+
+      const contextWithTest = {
+        ...mockProjectContext,
+        packageManager: { type: 'npm', testCommand: 'npm test' },
+      };
+
+      await noHealingWriter.writeTestFile(
+        contextWithTest as unknown as ProjectContext,
+        'src/fail-no-heal.ts'
+      );
+
+      // Assert
+      // 1. Verification was run (initial check)
+      expect(runTest).toHaveBeenCalledTimes(1);
+
+      // 2. AI called to FIX (not generate from scratch)
+      const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
+        .calls[0][0];
+      const promptContent = callArgs.messages[0].content;
+      expect(promptContent).toContain('Assertion failed');
+      expect(promptContent).toContain('// existing failing test');
+
+      // 3. Wrote the file
+      expect(mockWalkerInstance.writeFileToProject).toHaveBeenCalled();
+
+      // 4. Did NOT run verification again (because healing is disabled)
+      expect(runTest).toHaveBeenCalledTimes(1);
     });
   });
 });
