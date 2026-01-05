@@ -144,6 +144,13 @@ export class UnitTestWriter {
     let lastTestResult: Awaited<ReturnType<typeof runTest>> | undefined;
 
     if (testCodeContent) {
+      if (!isHealingEnabled) {
+        info(
+          `Test already exists and auto-healing is disabled for ${testFilePath}. Skipping verification and regeneration.`
+        );
+        return;
+      }
+
       info(`Verifying existing test file: ${testFilePath}`);
       const { passed, result } = await this.verifyTest(projectContext, testFilePath, 1, maxRetries);
 

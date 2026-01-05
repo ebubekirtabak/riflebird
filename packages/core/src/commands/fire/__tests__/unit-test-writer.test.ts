@@ -1501,7 +1501,7 @@ describe('Calculator', () => {
       expect(mockWalkerInstance.writeFileToProject).toHaveBeenCalled();
     });
 
-    it('should attempt to fix existing failing test even if healing is disabled, but stop after one attempt', async () => {
+    it('should skip existing test if healing is disabled', async () => {
       // Disable healing
       const noHealingWriter = new UnitTestWriter({
         aiClient: mockAiClient,
@@ -1518,14 +1518,7 @@ describe('Calculator', () => {
         .mockResolvedValueOnce('// source code')
         .mockResolvedValueOnce('// existing failing test');
 
-      const { runTest, getFailingTestsDetail } = await import('@runners/test-runner');
-      (getFailingTestsDetail as ReturnType<typeof vi.fn>).mockReturnValue('Assertion failed');
-      (runTest as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        success: false,
-        stdout: '',
-        stderr: 'Assertion failed',
-        jsonReport: null,
-      });
+      const { runTest } = await import('@runners/test-runner');
 
       const contextWithTest = {
         ...mockProjectContext,
@@ -1534,25 +1527,16 @@ describe('Calculator', () => {
 
       await noHealingWriter.writeTestFile(
         contextWithTest as unknown as ProjectContext,
-        'src/fail-no-heal.ts'
+        'src/skip-no-heal.ts'
       );
 
       // Assert
-      // 1. Verification was run (initial check)
-      expect(runTest).toHaveBeenCalledTimes(1);
-
-      // 2. AI called to FIX (not generate from scratch)
-      const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
-        .calls[0][0];
-      const promptContent = callArgs.messages[0].content;
-      expect(promptContent).toContain('Assertion failed');
-      expect(promptContent).toContain('// existing failing test');
-
-      // 3. Wrote the file
-      expect(mockWalkerInstance.writeFileToProject).toHaveBeenCalled();
-
-      // 4. Did NOT run verification again (because healing is disabled)
-      expect(runTest).toHaveBeenCalledTimes(1);
+      // 1. Verification was NOT run
+      expect(runTest).not.toHaveBeenCalled();
+      // 2. AI NOT called
+      expect(mockAiClient.createChatCompletion).not.toHaveBeenCalled();
+      // 3. Write file NOT called
+      expect(mockWalkerInstance.writeFileToProject).not.toHaveBeenCalled();
     });
   });
 });
