@@ -1101,6 +1101,7 @@ describe('Calculator', () => {
         expect(runTest).toHaveBeenCalled();
         // Should NOT call AI generation because existing test passed
         expect(mockAiClient.createChatCompletion).not.toHaveBeenCalled();
+        expect(mockWalkerInstance.writeFileToProject).not.toHaveBeenCalled();
       });
 
       it('should attempt to fix existing test if it fails', async () => {
