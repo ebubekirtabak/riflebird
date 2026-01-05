@@ -115,7 +115,7 @@ export async function ensureGeminiLoggedIn(): Promise<void> {
   try {
     result = await executeProcessCommand(GEMINI_CLI_CMD, args, {
       cwd: process.cwd(),
-      timeout: 10000,
+      timeout: 60000,
       shell: false,
     });
   } catch (err) {
@@ -128,7 +128,9 @@ export async function ensureGeminiLoggedIn(): Promise<void> {
   // Heuristic: check for "Available sessions" or "Loaded cached credentials" presence
   if (
     result.exitCode === 0 &&
-    (fullOutput.includes('Available sessions') || fullOutput.includes('Loaded cached credentials.'))
+    (fullOutput.includes('Available sessions') ||
+      fullOutput.includes('Available sessions for this project') ||
+      fullOutput.includes('Loaded cached credentials.'))
   ) {
     return;
   } else {

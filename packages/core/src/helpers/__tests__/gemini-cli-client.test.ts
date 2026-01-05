@@ -304,7 +304,7 @@ describe('gemini-cli-client', () => {
         ['--list-sessions'],
         expect.objectContaining({
           cwd: expect.any(String),
-          timeout: 10000,
+          timeout: 60000,
           shell: false,
         })
       );
