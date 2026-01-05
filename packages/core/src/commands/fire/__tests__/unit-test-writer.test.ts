@@ -115,6 +115,7 @@ vi.mock('@utils', async () => {
     getFileTree: vi.fn(),
     findFilesByPatternInFileTree: vi.fn(),
     matchesPattern: vi.fn(),
+    fileExists: vi.fn(),
   };
 });
 
@@ -1054,8 +1055,105 @@ describe('Calculator', () => {
     });
 
     describe('verifyTest logic (via integration or spying)', () => {
-      // We test this via writeTestFile with healing enabled
-      // To test verifyTest logic, we need to mock runTest return values
+      // NOTE: We are testing verifyTest logic via writeTestFile which now calls verifyTest early
+
+      it('should check existing test file and skip generation if it passes', async () => {
+        const healingWriter = new UnitTestWriter({
+          aiClient: mockAiClient,
+          config: {
+            ...mockConfig,
+            healing: { enabled: true, mode: 'auto', maxRetries: 1, strategy: 'smart' },
+          },
+        });
+
+        // Mock fileExists to return true for test file
+        const { fileExists } = await import('@utils');
+        (fileExists as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+        // Mock walker to return valid test content
+        // First call is source file, second call is existing test file
+        mockWalkerInstance.readFileFromProject
+          .mockResolvedValueOnce('// source code')
+          .mockResolvedValueOnce('// existing valid test code');
+
+        // Mock runTest to pass
+        const { runTest } = await import('@runners/test-runner');
+        (runTest as ReturnType<typeof vi.fn>).mockResolvedValue({
+          success: true,
+          stdout: 'passed',
+          stderr: '',
+          jsonReport: null,
+          duration: 100,
+        });
+
+        // Setup context with test command
+        const contextWithTest = {
+          ...mockProjectContext,
+          packageManager: { type: 'npm', testCommand: 'npm test' },
+        };
+
+        await healingWriter.writeTestFile(
+          contextWithTest as unknown as ProjectContext,
+          'src/existing-pass.ts'
+        );
+
+        // Should verify existing test
+        expect(runTest).toHaveBeenCalled();
+        // Should NOT call AI generation because existing test passed
+        expect(mockAiClient.createChatCompletion).not.toHaveBeenCalled();
+      });
+
+      it('should attempt to fix existing test if it fails', async () => {
+        const healingWriter = new UnitTestWriter({
+          aiClient: mockAiClient,
+          config: {
+            ...mockConfig,
+            healing: { enabled: true, mode: 'auto', maxRetries: 1, strategy: 'smart' },
+          },
+        });
+
+        // Mock fileExists to return true
+        const { fileExists } = await import('@utils');
+        (fileExists as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+        mockWalkerInstance.readFileFromProject
+          .mockResolvedValueOnce('// source code')
+          .mockResolvedValueOnce('// existing failing test');
+
+        // Mock runTest: first call fails (existing test), second call passes (after fix)
+        const { runTest } = await import('@runners/test-runner');
+        (runTest as ReturnType<typeof vi.fn>)
+          .mockResolvedValueOnce({
+            success: false,
+            stdout: '',
+            stderr: 'Error: failed',
+            jsonReport: null,
+          }) // Initial check
+          .mockResolvedValueOnce({
+            success: true,
+            stdout: 'passed',
+          }); // After fix
+
+        const contextWithTest = {
+          ...mockProjectContext,
+          packageManager: { type: 'npm', testCommand: 'npm test' },
+        };
+
+        await healingWriter.writeTestFile(
+          contextWithTest as unknown as ProjectContext,
+          'src/existing-fail.ts'
+        );
+
+        // Should have called AI to fix
+        expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(1);
+        // Should call fixTest prompt (we check prompt content to verify it's a fix)
+        const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
+          .calls[0][0];
+        const promptContent = callArgs.messages[0].content;
+
+        // The prompt should contain evidence of the fix prompt usage (path or content)
+        expect(promptContent).toContain('unit-test-fix-prompt');
+      });
 
       it('should skip verification if no test command is present', async () => {
         // Create context without test command
@@ -1064,8 +1162,9 @@ describe('Calculator', () => {
           packageManager: { type: 'npm' }, // failed test command
         };
 
-        // Mock readFile to return content
-        mockWalkerInstance.readFileFromProject.mockResolvedValue('code');
+        // Mock fileExists false so we hit normal generation path
+        const { fileExists } = await import('@utils');
+        (fileExists as unknown as ReturnType<typeof vi.fn>).mockReturnValue(false);
 
         // We need to enable healing to trigger verifyTest
         const healingWriter = new UnitTestWriter({
@@ -1096,12 +1195,17 @@ describe('Calculator', () => {
           },
         });
 
+        // Mock fileExists FALSE so we generate fresh
+        const { fileExists } = await import('@utils');
+        (fileExists as unknown as ReturnType<typeof vi.fn>).mockReturnValue(false);
+
         const { runTest } = await import('@runners/test-runner');
         (runTest as ReturnType<typeof vi.fn>).mockResolvedValue({
           success: true,
           stdout: 'passed',
           stderr: '',
           jsonReport: null,
+          duration: 100,
         });
 
         // Ensure package manager has test command
@@ -1127,15 +1231,11 @@ describe('Calculator', () => {
           },
         });
 
-        const { runTest, extractTestErrors } = await import('@runners/test-runner');
+        // fileExists FALSE
+        const { fileExists } = await import('@utils');
+        (fileExists as unknown as ReturnType<typeof vi.fn>).mockReturnValue(false);
 
-        // First run fails, second run passes (requires generateOrFixTest to be called twice)
-        // Mock runTest to fail first time, then pass?
-        // writeTestFile loop:
-        // 1. generateOrFixTest (attempt 1)
-        // 2. verifyTest -> fails
-        // 3. generateOrFixTest (attempt 2, fix mode) -> requires lastTestResult to be passed
-        // 4. verifyTest -> passes or fails
+        const { runTest, extractTestErrors } = await import('@runners/test-runner');
 
         // Mock runTest sequences
         (runTest as ReturnType<typeof vi.fn>)
