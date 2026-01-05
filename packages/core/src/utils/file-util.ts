@@ -1,33 +1,120 @@
 import path from 'node:path';
+import fs from 'node:fs';
 
-export type GenerateTestFilePathOptions = {
-  testOutputDir?: string;
+/**
+ * Configuration for generating file paths
+ */
+export type GenerateFilePathOptions = {
+  outputDir?: string;
   projectRoot?: string;
   strategy?: 'root' | 'colocated';
+  /**
+   * Suffix to insert before extension (e.g., '.test', '.stories')
+   * Required if filenameTransformer is not provided.
+   */
+  suffix?: string;
+  /**
+   * Custom transformer for the filename
+   * If provided, suffix is ignored.
+   */
+  filenameTransformer?: (filePath: string) => string;
 };
 
 /**
- * Detect test output strategy from testOutputDir path pattern
- * @param testOutputDir - Test output directory path
+ * Generic helper to generate related file paths (tests, stories, etc)
+ * Replaces specific helpers like generateTestFilePathWithConfig
+ */
+export const generateFilePathWithConfig = (
+  filePath: string,
+  options: GenerateFilePathOptions
+): string => {
+  const { outputDir, projectRoot, strategy, suffix, filenameTransformer } = options;
+
+  const effectiveStrategy = strategy || (outputDir ? detectOutputStrategy(outputDir) : 'root');
+
+  let relatedFileName: string;
+  if (suffix) {
+    relatedFileName = insertSuffix(filePath, suffix);
+  } else if (filenameTransformer) {
+    relatedFileName = filenameTransformer(filePath);
+  } else {
+    throw new Error(
+      'Either suffix or filenameTransformer must be provided to generateFilePathWithConfig'
+    );
+  }
+
+  if (!outputDir) {
+    return relatedFileName;
+  }
+
+  if (effectiveStrategy === 'colocated') {
+    const dir = path.dirname(filePath);
+    const filename = path.basename(relatedFileName);
+    return path.join(dir, outputDir, filename);
+  }
+
+  let relativePath = filePath;
+  if (projectRoot && path.isAbsolute(filePath)) {
+    relativePath = path.relative(projectRoot, filePath);
+  }
+
+  const relativeRelatedPath = suffix
+    ? insertSuffix(relativePath, suffix)
+    : filenameTransformer!(relativePath);
+
+  return path.join(outputDir, relativeRelatedPath);
+};
+
+/**
+ * Detect output strategy from outputDir path pattern
+ * @param outputDir - Output directory path
  * @returns Detected strategy ('root' or 'colocated')
  * @example
- * detectTestOutputStrategy('./__tests__') // 'colocated'
- * detectTestOutputStrategy('__tests__') // 'colocated'
- * detectTestOutputStrategy('tests/unit') // 'root'
+ * detectOutputStrategy('./__tests__') // 'colocated'
+ * detectOutputStrategy('__tests__') // 'colocated'
+ * detectOutputStrategy('tests/unit') // 'root'
  */
-export const detectTestOutputStrategy = (testOutputDir: string): 'root' | 'colocated' => {
+export const detectOutputStrategy = (outputDir: string): 'root' | 'colocated' => {
   // Common test directory names that suggest colocated strategy
-  const colocatedPatterns = ['__tests__', '__test__', 'tests', 'test', '__specs__', '__spec__', 'specs', 'spec'];
+  const colocatedPatterns = [
+    '__tests__',
+    '__test__',
+    'tests',
+    'test',
+    '__specs__',
+    '__spec__',
+    'specs',
+    'spec',
+  ];
 
-  if (testOutputDir.startsWith('./')) {
+  if (outputDir.startsWith('./')) {
     return 'colocated';
   }
 
-  if (!testOutputDir.includes('/') && colocatedPatterns.includes(testOutputDir)) {
+  if (!outputDir.includes('/') && colocatedPatterns.includes(outputDir)) {
     return 'colocated';
   }
 
   return 'root';
+};
+
+/**
+ * Insert a suffix before the file extension
+ * @param filePath - Original file path
+ * @param suffix - Suffix to insert (e.g., '.test', '.stories')
+ * @returns Path with suffix inserted
+ */
+export const insertSuffix = (filePath: string, suffix: string): string => {
+  const lastDotIndex = filePath.lastIndexOf('.');
+
+  if (lastDotIndex === -1) {
+    return `${filePath}${suffix}`;
+  }
+
+  const pathWithoutExt = filePath.substring(0, lastDotIndex);
+  const extension = filePath.substring(lastDotIndex);
+
+  return `${pathWithoutExt}${suffix}${extension}`;
 };
 
 /**
@@ -39,53 +126,7 @@ export const detectTestOutputStrategy = (testOutputDir: string): 'root' | 'coloc
  * generateTestFilePath('file.ts') // 'file.test.ts'
  */
 export const generateTestFilePath = (filePath: string): string => {
-  const lastDotIndex = filePath.lastIndexOf('.');
-
-  if (lastDotIndex === -1) {
-    // No extension found, append .test
-    return `${filePath}.test`;
-  }
-
-  const pathWithoutExt = filePath.substring(0, lastDotIndex);
-  const extension = filePath.substring(lastDotIndex);
-
-  return `${pathWithoutExt}.test${extension}`;
-};
-
-/**
- * Generate test file path with configurable output directory
- * @param filePath - Original file path (can be absolute or relative)
- * @param options - Configuration options
- * @returns Test file path, either co-located or in testOutputDir
- */
-export const generateTestFilePathWithConfig = (
-  filePath: string,
-  options?: GenerateTestFilePathOptions
-): string => {
-  const { testOutputDir, projectRoot, strategy } = options || {};
-
-  const effectiveStrategy = strategy || (testOutputDir ? detectTestOutputStrategy(testOutputDir) : 'root');
-
-  const testFileName = generateTestFilePath(filePath);
-
-  if (!testOutputDir) {
-    return testFileName;
-  }
-
-  if (effectiveStrategy === 'colocated') {
-    const dir = path.dirname(filePath);
-    const filename = path.basename(testFileName);
-    return path.join(dir, testOutputDir, filename);
-  }
-
-  let relativePath = filePath;
-  if (projectRoot && path.isAbsolute(filePath)) {
-    relativePath = path.relative(projectRoot, filePath);
-  }
-
-  const relativeTestPath = generateTestFilePath(relativePath);
-
-  return path.join(testOutputDir, relativeTestPath);
+  return insertSuffix(filePath, '.test');
 };
 
 /**
@@ -102,7 +143,7 @@ export const generateTestFilePathWithConfig = (
  */
 export const isTestFile = (filePath: string): boolean => {
   const testPatterns = ['.test.', '.spec.', '__tests__/', '__test__/', 'tests/'];
-  return testPatterns.some(pattern => filePath.includes(pattern));
+  return testPatterns.some((pattern) => filePath.includes(pattern));
 };
 
 /**
@@ -114,11 +155,8 @@ export const isTestFile = (filePath: string): boolean => {
  * getSourceFilePath('component.spec.ts') // 'component.ts'
  */
 export const getSourceFilePath = (filePath: string): string => {
-  return filePath
-    .replace(/\.test\./, '.')
-    .replace(/\.spec\./, '.');
+  return filePath.replace(/\.test\./, '.').replace(/\.spec\./, '.');
 };
-
 
 const JS_TS_FAMILY = ['.tsx', '.ts', '.jsx', '.js', '.d.ts', '.mjs', '.cjs'];
 const STYLES_FAMILY = ['.css', '.scss', '.less', '.sass'];
@@ -156,4 +194,59 @@ export const getRelatedExtensions = (extension: string): string[] => {
 
   // Default: return just the input extension to be safe, or empty if we want to rely on the caller's fallback
   return [extension];
+};
+/*
+ * Generate story file path by inserting .stories before the file extension
+ * @param filePath - Original file path
+ * @returns Story file path with .stories inserted before extension
+ * @example
+ * generateStoryFilePath('src/component.tsx') // 'src/component.stories.tsx'
+ * generateStoryFilePath('file.ts') // 'file.stories.ts'
+ */
+export const generateStoryFilePath = (filePath: string): string => {
+  return insertSuffix(filePath, '.stories');
+};
+
+/**
+ * Check if a file or directory exists at the given path.
+ * This is a synchronous operation that checks the filesystem.
+ *
+ * @param filePath - Absolute or relative path to check for existence
+ * @returns `true` if the file/directory exists and is accessible, `false` otherwise
+ *
+ * @remarks
+ * - Returns `false` for empty or whitespace-only paths instead of throwing
+ * - Returns `false` for paths with null bytes instead of throwing
+ * - Catches any filesystem errors and returns `false` (e.g., permission issues)
+ * - Works with both files and directories
+ * - For relative paths, resolves relative to current working directory
+ *
+ * @example
+ * ```typescript
+ * // Check if a file exists
+ * fileExists('/path/to/file.ts') // true or false
+ *
+ * // Check relative path
+ * fileExists('./package.json') // true or false
+ *
+ * // Invalid paths return false instead of throwing
+ * fileExists('') // false
+ * fileExists('   ') // false
+ * fileExists('path\x00with\x00nulls') // false
+ * ```
+ */
+export const fileExists = (filePath: string): boolean => {
+  if (!filePath || filePath.trim().length === 0) {
+    return false;
+  }
+
+  if (filePath.includes('\0')) {
+    return false;
+  }
+
+  try {
+    return fs.existsSync(filePath);
+  } catch {
+    return false;
+  }
 };

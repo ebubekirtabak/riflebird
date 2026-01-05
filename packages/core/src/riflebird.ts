@@ -93,7 +93,7 @@ export class Riflebird {
   async fire(input: {
     testPath?: string;
     all?: boolean;
-    testTypes?: Array<'e2e' | 'unit' | 'visual' | 'performance'>;
+    testTypes?: Array<'e2e' | 'unit' | 'visual' | 'performance' | 'document'>;
     scope?: 'component' | 'layout' | 'page' | 'service' | 'util' | 'hook' | 'store';
     onProgress?: (current: number, total: number, file: string, elapsedMs: number) => void;
   }): Promise<string | undefined> {

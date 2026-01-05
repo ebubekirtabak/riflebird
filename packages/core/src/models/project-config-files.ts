@@ -4,7 +4,7 @@ export type ConfigFile = {
   fileLang?: string;
   version?: string;
   configFile: string;
-  configFilePath: string
+  configFilePath: string;
 };
 
 export type ProjectConfigFiles = {
@@ -12,11 +12,11 @@ export type ProjectConfigFiles = {
   language: string;
   packageManager: string;
   libs: {
-    core: string[],
-    testing: string[],
-    styling: string[],
-  },
-  testFrameworks: TestFrameworksConfig,
+    core: string[];
+    testing: string[];
+    styling: string[];
+  };
+  testFrameworks: TestFrameworksConfig;
   linting: ConfigFile;
   formatting: ConfigFile;
   languageConfig: ConfigFile;
@@ -28,4 +28,5 @@ export type TestFrameworksConfig = {
   e2e?: ConfigFile;
   visual?: ConfigFile;
   performance?: ConfigFile;
+  documentation?: ConfigFile;
 };

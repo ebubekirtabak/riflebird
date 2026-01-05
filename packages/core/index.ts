@@ -14,6 +14,7 @@ export {
   CoverageProviderSchema,
   CoverageReporterSchema,
   TestEnvironmentSchema,
+  DocumentationFrameworkSchema,
 } from './src/config/schema';
 
 // Export constants
@@ -37,21 +38,9 @@ export { getFileTree, formatFileTree, flattenFileTree } from './src/utils/file-t
 export type { FileNode, FileTreeOptions } from './src/models/file-tree';
 
 // Export file finder utilities
-export {
-  findFilesByType,
-  findFilesByPattern,
-  findFilesByTypes,
-} from './src/utils/file-finder';
-export {
-  getFileStats,
-  FILE_PATTERNS,
-} from './src/utils/file';
-export type {
-  FilePattern,
-  FileType,
-  FindFilesByPatternOptions,
-  FileStats,
-} from './src/utils/file';
+export { findFilesByType, findFilesByPattern, findFilesByTypes } from './src/utils/file-finder';
+export { getFileStats, FILE_PATTERNS } from './src/utils/file';
+export type { FilePattern, FileType, FindFilesByPatternOptions, FileStats } from './src/utils/file';
 
 // Export common constants
 export {
@@ -59,11 +48,14 @@ export {
   COMPONENT_EXTENSIONS,
   TEST_FILE_PATTERNS,
   CONFIG_FILE_PATTERNS,
+} from './src/utils/constants';
+
+export {
   RIFLEBIRD_DIR,
   RIFLEBIRD_PROMPTS_DIR,
   RIFLEBIRD_TEMPLATES_DIR,
   RIFLEBIRD_CONFIG_DIR,
-} from './src/utils/constants';
+} from './src/commons/constants';
 
 // Export project path utilities
 export {
@@ -86,13 +78,7 @@ export type { AIClient, AIClientResult } from './src/models/ai-client';
 export type { FetchResponse } from './src/models/fetch';
 
 // Export commands
-export {
-  Command,
-  AimCommand,
-  FireCommand,
-  TargetCommand,
-  ReloadCommand,
-} from './src/commands';
+export { Command, AimCommand, FireCommand, TargetCommand, ReloadCommand } from './src/commands';
 export type {
   CommandContext,
   AimInput,

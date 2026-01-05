@@ -24,9 +24,11 @@ describe('cli/commands/init', () => {
         apiKey: 'test-key',
         outputDir: 'tests/e2e',
         healing: true,
-        visual: true,
         unitTesting: true,
         unitTestFramework: 'vitest',
+        documentation: true,
+        documentationFramework: 'storybook',
+        visualDocumentation: true,
       };
 
       expect(answers.unitTesting).toBe(true);
@@ -39,8 +41,8 @@ describe('cli/commands/init', () => {
         aiProvider: 'local',
         outputDir: 'tests/e2e',
         healing: false,
-        visual: false,
         unitTesting: false,
+        documentation: false,
       };
 
       expect(answers.unitTesting).toBe(false);
@@ -61,9 +63,9 @@ describe('cli/commands/init', () => {
         apiKey: 'test-key',
         outputDir: 'tests/e2e',
         healing: true,
-        visual: true,
         unitTesting: true,
         unitTestFramework: 'jest',
+        documentation: false,
       };
 
       expect(answers.unitTestFramework).toBe('jest');
@@ -83,9 +85,9 @@ describe('cli/commands/init', () => {
           aiProvider: 'openai',
           outputDir: 'tests/e2e',
           healing: true,
-          visual: true,
           unitTesting: true,
           unitTestFramework: framework,
+          documentation: false,
         };
 
         expect(answers.unitTestFramework).toBe(framework);
@@ -115,9 +117,11 @@ describe('cli/commands/init', () => {
         apiKey: 'test-key',
         outputDir: 'tests/e2e',
         healing: true,
-        visual: true,
         unitTesting: true,
         unitTestFramework: 'vitest',
+        documentation: true,
+        documentationFramework: 'storybook',
+        visualDocumentation: true,
       };
 
       mockPrompt.mockResolvedValue(mockAnswers);
@@ -134,6 +138,14 @@ describe('cli/commands/init', () => {
         'riflebird.config.ts',
         expect.stringContaining('unitTesting:')
       );
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        'riflebird.config.ts',
+        expect.stringContaining('documentation:')
+      );
+      // It should check for visual inside documentation
+      const [[, configContent]] = mockWriteFile.mock.calls;
+      expect(configContent).toContain('visual: {');
+      expect(configContent).toContain('enabled: true'); // checks visual.enabled
     });
 
     it('should handle unit testing config when enabled', async () => {
@@ -145,9 +157,9 @@ describe('cli/commands/init', () => {
         aiProvider: 'openai',
         outputDir: 'tests/e2e',
         healing: true,
-        visual: true,
         unitTesting: true,
         unitTestFramework: 'vitest',
+        documentation: false,
       };
 
       mockPrompt.mockResolvedValue(mockAnswers);
@@ -170,8 +182,8 @@ describe('cli/commands/init', () => {
         aiProvider: 'openai',
         outputDir: 'tests/e2e',
         healing: false,
-        visual: false,
         unitTesting: false,
+        documentation: false,
       };
 
       mockPrompt.mockResolvedValue(mockAnswers);
@@ -191,8 +203,8 @@ describe('cli/commands/init', () => {
         aiProvider: 'openai',
         outputDir: 'tests/e2e',
         healing: true,
-        visual: true,
         unitTesting: true,
+        documentation: false,
       };
 
       mockPrompt.mockResolvedValue(mockAnswers);

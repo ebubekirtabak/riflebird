@@ -162,55 +162,73 @@ jobs:
             const ticketId = match[1];
             const body = pr.body || '';
 
-            // 1. Safety Check: If ticket ID is already in body (and formatted as a link?), skip.
-            // basic check:
-            if (body.includes(ticketId) && body.includes('](')) {
-               console.log(`Ticket ${ticketId} already seems to be linked. Skipping.`);
+            // 1. Idempotency Check: Avoid duplicates
+            // Check if a link [RF-123] already exists
+            const linkRegex = new RegExp(`\\[${ticketId}\\]`);
+            if (linkRegex.test(body)) {
+               console.log(`Ticket ${ticketId} already linked. Skipping.`);
                return;
             }
 
-            const { JIRA_BASE_URL, JIRA_USER_EMAIL, JIRA_API_TOKEN } = process.env;
-            let linkText = ticketId;
-
-            if (JIRA_BASE_URL && JIRA_USER_EMAIL && JIRA_API_TOKEN) {
-              try {
-                // Fetch ticket details
-                const response = await fetch(`${JIRA_BASE_URL}/rest/api/3/issue/${ticketId}`, {
-                  headers: {
-                    'Authorization': `Basic ${Buffer.from(JIRA_USER_EMAIL + ':' + JIRA_API_TOKEN).toString('base64')}`,
-                    'Accept': 'application/json'
-                  }
-                });
-
-                if (response.ok) {
-                  const data = await response.json();
-                  const summary = data.fields.summary;
-                  const status = data.fields.status.name;
-                  const browsingUrl = `${JIRA_BASE_URL}/browse/${ticketId}`;
-
-                  // Format: [RF-123](url): Summary (Status)
-                  linkText = `[${ticketId}](${browsingUrl}): ${summary} (Status: ${status})`;
-                } else {
-                  console.log(`Failed to fetch from Jira: ${response.status} ${response.statusText}`);
-                }
-              } catch (error) {
-                console.error('Error fetching from Jira:', error);
-              }
-            } else {
-               console.log('Missing Jira secrets. Falling back to simple ticket ID.');
+            // Check if the ticket ID is already present under the Jira Ticket header (plain text case)
+            if (body.includes('## Jira Ticket')) {
+               const parts = body.split('## Jira Ticket');
+               // Check the content after the header
+               if (parts[1] && parts[1].includes(ticketId)) {
+                  console.log(`Ticket ${ticketId} already present in Jira section. Skipping.`);
+                  return;
+               }
             }
 
-            // 2. Robust Replacement Logic
+            const { JIRA_BASE_URL, JIRA_USER_EMAIL, JIRA_API_TOKEN } = process.env;
+            let linkText = ticketId; // Default fallback
+
+            // Try to construct a proper link
+            if (JIRA_BASE_URL) {
+              const browsingUrl = `${JIRA_BASE_URL}/browse/${ticketId}`;
+              // Start with a basic link
+              linkText = `[${ticketId}](${browsingUrl})`;
+
+              if (JIRA_USER_EMAIL && JIRA_API_TOKEN) {
+                try {
+                  // Fetch ticket details for a richer summary
+                  const response = await fetch(`${JIRA_BASE_URL}/rest/api/3/issue/${ticketId}`, {
+                    headers: {
+                      'Authorization': `Basic ${Buffer.from(JIRA_USER_EMAIL + ':' + JIRA_API_TOKEN).toString('base64')}`,
+                      'Accept': 'application/json'
+                    }
+                  });
+
+                  if (response.ok) {
+                    const data = await response.json();
+                    const summary = data.fields.summary;
+                    const status = data.fields.status.name;
+                    // Rich format: [RF-123](url): Summary (Status)
+                    linkText = `[${ticketId}](${browsingUrl}): ${summary} (Status: ${status})`;
+                  } else {
+                    console.log(`Failed to fetch from Jira: ${response.status} ${response.statusText}`);
+                  }
+                } catch (error) {
+                  console.error('Error fetching from Jira:', error);
+                }
+              } else {
+                 console.log('Missing Jira credentials, using basic link.');
+              }
+            } else {
+               console.log('Missing JIRA_BASE_URL. Using plain ticket ID text.');
+            }
+
+            // 2. Replacement Logic
             const placeholderRegex = /<!--\s*Link to the Jira ticket \(e\.g\., RF-123\) or write "None"\s*-->/i;
             let newBody = body;
 
             if (placeholderRegex.test(body)) {
                newBody = body.replace(placeholderRegex, linkText);
             } else if (body.includes('## Jira Ticket')) {
-               // Fallback: Append after header if placeholder is missing
+               // Append under the existing header
                newBody = body.replace('## Jira Ticket', `## Jira Ticket\n\n${linkText}`);
             } else {
-               // Fallback: Append to end
+               // Append new section to end
                newBody = `${body}\n\n## Jira Ticket\n\n${linkText}`;
             }
 

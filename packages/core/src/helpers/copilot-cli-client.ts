@@ -91,7 +91,7 @@ export async function createCopilotCliClient(ai: RiflebirdConfig['ai']): Promise
       proc.stdin.write(promptText);
       proc.stdin.end();
 
-      const [code] = (await once(proc, 'exit')) as unknown as [number | null, string | null];
+      const [code] = (await once(proc, 'exit')) as [number | null, string | null];
 
       if (code !== 0) {
         throw new Error(`Copilot CLI failed (exit ${code}): ${stderr.trim()}`);

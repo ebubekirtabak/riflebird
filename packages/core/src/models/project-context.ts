@@ -9,6 +9,7 @@ export type ProjectContext = {
   formatterConfig: FrameworkInfo;
   projectRoot: string;
   unitTestOutputStrategy?: 'root' | 'colocated';
+  riflebirdVersion?: string;
 };
 
 export type TestFrameworks = {
@@ -16,6 +17,7 @@ export type TestFrameworks = {
   e2e?: FrameworkInfo;
   visual?: FrameworkInfo;
   performance?: FrameworkInfo;
+  documentation?: FrameworkInfo;
 };
 
 export type FrameworkInfo = {

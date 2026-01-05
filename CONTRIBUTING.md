@@ -128,9 +128,14 @@ export type CommandHandler = (options: UserOptions) => Promise<void>;
 export type User = { id: string; name: string };
 
 function isUser(value: unknown): value is User {
-  return typeof value === 'object' && value !== null &&
-         'id' in value && typeof value.id === 'string' &&
-         'name' in value && typeof value.name === 'string';
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    typeof value.id === 'string' &&
+    'name' in value &&
+    typeof value.name === 'string'
+  );
 }
 
 export function parseUser(data: unknown): User {
@@ -141,19 +146,21 @@ export function parseUser(data: unknown): User {
 }
 
 // ❌ Incorrect
-interface UserOptions {  // Don't use interface
+interface UserOptions {
+  // Don't use interface
   name: string;
 }
 
-type InternalConfig = {  // Not exported
+type InternalConfig = {
+  // Not exported
   secret: string;
 };
 
-function handler(options: any) {}  // Using any
+function handler(options: any) {} // Using any
 
-const user = data as unknown as User;  // Unsafe casting
+const user = data as unknown as User; // Unsafe casting
 
-export function login(opts: { username: string }): Promise<void> {}  // Inline type
+export function login(opts: { username: string }): Promise<void> {} // Inline type
 ```
 
 ### Performance & Complexity
@@ -169,23 +176,26 @@ export function login(opts: { username: string }): Promise<void> {}  // Inline t
 ```typescript
 // ❌ O(n²) - Array.includes inside loop
 for (const item of items) {
-  if (existingIds.includes(item.id)) { /* ... */ }
+  if (existingIds.includes(item.id)) {
+    /* ... */
+  }
 }
 
 // ✅ O(n) - Use Set for O(1) lookups
 const existingIdsSet = new Set(existingIds);
 for (const item of items) {
-  if (existingIdsSet.has(item.id)) { /* ... */ }
+  if (existingIdsSet.has(item.id)) {
+    /* ... */
+  }
 }
 
 // ❌ Multiple O(n) passes
-const filtered = items.filter(x => x.active);
-const mapped = filtered.map(x => x.value);
+const filtered = items.filter((x) => x.active);
+const mapped = filtered.map((x) => x.value);
 const sum = mapped.reduce((a, b) => a + b, 0);
 
 // ✅ Single O(n) pass
-const sum = items.reduce((acc, x) => 
-  x.active ? acc + x.value : acc, 0);
+const sum = items.reduce((acc, x) => (x.active ? acc + x.value : acc), 0);
 ```
 
 ### Import Conventions
@@ -233,8 +243,39 @@ Tests run on Node.js 18.x and 20.x.
    ```
 5. **Commit with descriptive messages**: Follow conventional commits
 6. **Push and create PR**: Provide clear description of changes
-7. **Wait for CI**: All checks must pass before merge
-8. **Address review feedback**: Make requested changes
+7. **Address review feedback**: Make requested changes
+8. **Merge**: Once approved, squash and merge into `dev`
+
+### Branch Naming Rules
+
+We follow a strict branch naming convention to streamline our workflow and automation:
+
+- **Core maintainers**: Use `<type>/<jira-ticket>-<description>` (e.g., `feat/RF-123-user-auth`).
+- **Community contributors**: Use `<type>/<username>-<description>` (e.g., `feat/johndoe-fix-login`).
+- **Hotfixes**: Use `hotfix/<version>-<jira-ticket>-<description>` (e.g., `hotfix/0.1.4-RF-999-fix-cve`).
+
+**Common Types:** `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `style`, `build`, `ci`.
+
+See [BRANCHING_STRATEGY.md](./docs/BRANCHING_STRATEGY.md) for full details.
+
+### Commit Message Guidelines
+
+We use [Conventional Commits](https://www.conventionalcommits.org/) to enforce meaningful commit messages. This is enforced via Husky and Commitlint.
+
+**Format:** `<type>(<scope>): <description>`
+
+- **type**: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+- **scope**: Optional, e.g., `core`, `cli`, `auth`
+- **description**: Short summary in lowercase
+
+**Examples:**
+
+- `feat(core): add new validation logic`
+- `fix(cli): resolve crash on startup`
+- `chore: update dependencies`
+
+> [!IMPORTANT]
+> Your commit will be rejected if it doesn't follow this format.
 
 ## Project Structure
 
@@ -251,6 +292,7 @@ riflebird/
 │   │   │   └── commands/   # CLI commands
 │   │   └── __tests__/      # Test files
 │   └── cli/                # CLI package
+├── docs/                   # Documentation files
 ├── .github/
 │   └── workflows/          # CI/CD workflows
 └── scripts/                # Build scripts

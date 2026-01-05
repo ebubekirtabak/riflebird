@@ -13,6 +13,9 @@ export * from './package-manager-detector';
 // Logging utilities
 export * from './log-util';
 
+// Process utilities
+export * from './process/command.util';
+
 // Parsing utilities
 export * from './markdown-util';
 

@@ -1,7 +1,7 @@
-import type { TestType, TestScope } from '../fire-command';
+import type { TestType, TestScope, FireInput } from './types';
 import { SUPPORTED_TEST_TYPES } from './constants';
-import { DEFAULT_FILE_EXCLUDE_PATTERNS } from '../../config/constants';
-import { globToRegex } from '../../utils/file-tree';
+import { DEFAULT_FILE_EXCLUDE_PATTERNS } from '@config/constants';
+import { globToRegex } from '@utils/file-tree';
 
 /**
  * Get default file exclusion patterns
@@ -42,7 +42,25 @@ export function resolveTestTypes(all: boolean | undefined, testTypes: TestType[]
     return testTypes;
   }
 
-  return ['unit'];
+  return ['unit', 'document'];
+}
+
+/**
+ * Get file patterns from input arguments
+ * Determines patterns based on scope (if provided), testPath (if provided), or defaults
+ * @param input - The command input containing scope and testPath
+ * @returns Array of file patterns to search for
+ */
+export function getPatternsFromInput({ scope, testPath }: FireInput): string[] {
+  if (scope) {
+    return getScopePatterns(scope);
+  }
+
+  if (testPath) {
+    return [testPath];
+  }
+
+  return ['src/**/*.{ts,tsx,js,jsx,vue}'];
 }
 
 /**
@@ -90,6 +108,14 @@ export function getScopePatterns(scope: TestScope): string[] {
       '**/src/stores/**/*.{ts,js}',
       '**/stores/**/*.{ts,js}',
       '**/src/state/**/*.{ts,js}',
+    ],
+    document: [
+      '**/src/documents/**/*.{md,markdown}',
+      '**/documents/**/*.{md,markdown}',
+      '**/src/app/documents/**/*.{md,markdown}',
+      '**/app/documents/**/*.stories.{md,markdown,mdx,markdownx,tsx,jsx,vue,ts,js}',
+      '**/app/**/*.stories.{md,markdown,mdx,markdownx,tsx,jsx,vue,ts,js}',
+      '**/src/**/*.stories.{md,markdown,mdx,markdownx,tsx,jsx,vue,ts,js}',
     ],
   };
 
