@@ -29,7 +29,7 @@ export async function executeProcessCommand(
     timeout = 0,
     stdio = 'pipe',
     env = process.env,
-    shell = true,
+    shell = false,
   } = options;
 
   return new Promise((resolve, reject) => {
