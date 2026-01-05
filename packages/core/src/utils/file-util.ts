@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fs from 'node:fs';
 
 /**
  * Configuration for generating file paths
@@ -204,4 +205,48 @@ export const getRelatedExtensions = (extension: string): string[] => {
  */
 export const generateStoryFilePath = (filePath: string): string => {
   return insertSuffix(filePath, '.stories');
+};
+
+/**
+ * Check if a file or directory exists at the given path.
+ * This is a synchronous operation that checks the filesystem.
+ *
+ * @param filePath - Absolute or relative path to check for existence
+ * @returns `true` if the file/directory exists and is accessible, `false` otherwise
+ *
+ * @remarks
+ * - Returns `false` for empty or whitespace-only paths instead of throwing
+ * - Returns `false` for paths with null bytes instead of throwing
+ * - Catches any filesystem errors and returns `false` (e.g., permission issues)
+ * - Works with both files and directories
+ * - For relative paths, resolves relative to current working directory
+ *
+ * @example
+ * ```typescript
+ * // Check if a file exists
+ * fileExists('/path/to/file.ts') // true or false
+ *
+ * // Check relative path
+ * fileExists('./package.json') // true or false
+ *
+ * // Invalid paths return false instead of throwing
+ * fileExists('') // false
+ * fileExists('   ') // false
+ * fileExists('path\x00with\x00nulls') // false
+ * ```
+ */
+export const fileExists = (filePath: string): boolean => {
+  if (!filePath || filePath.trim().length === 0) {
+    return false;
+  }
+
+  if (filePath.includes('\0')) {
+    return false;
+  }
+
+  try {
+    return fs.existsSync(filePath);
+  } catch {
+    return false;
+  }
 };

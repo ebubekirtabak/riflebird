@@ -7,6 +7,7 @@ import {
   debug,
   checkAndThrowFatalError,
   cleanCodeContent,
+  fileExists,
 } from '@utils';
 import { ProjectContextProvider } from '@providers/project-context-provider';
 import type { RiflebirdConfig } from '@config/schema';
@@ -130,8 +131,38 @@ export class UnitTestWriter {
       suffix: '.test',
     });
 
+    let testCodeContent: string | undefined;
+    if (fileExists(testFilePath)) {
+      try {
+        testCodeContent = await fileWalker.readFileFromProject(testFilePath, true);
+      } catch (error) {
+        debug(`Could not read existing test file: ${testFilePath}`, error);
+      }
+    }
+
     let lastTestCode: string | undefined;
     let lastTestResult: Awaited<ReturnType<typeof runTest>> | undefined;
+
+    if (testCodeContent) {
+      if (!isHealingEnabled) {
+        info(
+          `Test already exists and auto-healing is disabled for ${testFilePath}. Skipping verification and regeneration.`
+        );
+        return;
+      }
+
+      info(`Verifying existing test file: ${testFilePath}`);
+      const { passed, result } = await this.verifyTest(projectContext, testFilePath, 1, maxRetries);
+
+      if (passed) {
+        info(`Existing test passed for ${testFilePath}. Skipping regeneration.`);
+        return;
+      }
+
+      info(`Existing test failed. Will attempt to fix...`);
+      lastTestCode = testCodeContent;
+      lastTestResult = result;
+    }
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -143,7 +174,6 @@ export class UnitTestWriter {
             testFilePath,
           },
           testFramework,
-          attempt,
           lastTestCode,
           lastTestResult
         );
@@ -214,24 +244,9 @@ export class UnitTestWriter {
       testFilePath: string;
     },
     testFramework: FrameworkInfo | undefined,
-    attempt: number,
     lastTestCode?: string,
     lastTestResult?: Awaited<ReturnType<typeof runTest>>
   ): Promise<string | null> {
-    if (attempt === 1) {
-      // First attempt: generate new test
-      return this.generateTest(
-        projectContext,
-        {
-          filePath: params.testPath,
-          content: params.fileContent,
-          testFilePath: params.testFilePath,
-          testContent: '',
-        },
-        testFramework
-      );
-    }
-
     if (lastTestResult && lastTestCode) {
       const failingTests = parseFailingTestsFromJson(lastTestResult);
       const errorContext = {

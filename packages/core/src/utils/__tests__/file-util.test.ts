@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import fs from 'node:fs';
 import {
   generateTestFilePath,
   generateFilePathWithConfig,
@@ -7,7 +8,11 @@ import {
   getSourceFilePath,
   getRelatedExtensions,
   generateStoryFilePath,
+  fileExists,
 } from '../file-util';
+
+// Mock the fs module
+vi.mock('node:fs');
 
 describe('file-util', () => {
   describe('detectOutputStrategy', () => {
@@ -381,6 +386,124 @@ describe('file-util', () => {
           suffix: '.stories',
         })
       ).toBe('stories/src/component.stories.tsx');
+    });
+  });
+
+  describe('fileExists', () => {
+    beforeEach(() => {
+      // Clear all mocks before each test
+      vi.clearAllMocks();
+    });
+
+    it('should return true when file exists', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+
+      const result = fileExists('/path/to/existing/file.ts');
+
+      expect(result).toBe(true);
+      expect(fs.existsSync).toHaveBeenCalledWith('/path/to/existing/file.ts');
+      expect(fs.existsSync).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return false when file does not exist', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+
+      const result = fileExists('/path/to/non-existing/file.ts');
+
+      expect(result).toBe(false);
+      expect(fs.existsSync).toHaveBeenCalledWith('/path/to/non-existing/file.ts');
+      expect(fs.existsSync).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle relative paths', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+
+      const result = fileExists('./src/utils/helper.ts');
+
+      expect(result).toBe(true);
+      expect(fs.existsSync).toHaveBeenCalledWith('./src/utils/helper.ts');
+    });
+
+    it('should handle absolute paths', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+
+      const result = fileExists('/Users/test/project/file.ts');
+
+      expect(result).toBe(true);
+      expect(fs.existsSync).toHaveBeenCalledWith('/Users/test/project/file.ts');
+    });
+
+    it('should handle files without extension', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+
+      const result = fileExists('README');
+
+      expect(result).toBe(true);
+      expect(fs.existsSync).toHaveBeenCalledWith('README');
+    });
+
+    it('should handle deep nested paths', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+
+      const result = fileExists('/very/deep/nested/path/to/some/file.tsx');
+
+      expect(result).toBe(false);
+      expect(fs.existsSync).toHaveBeenCalledWith('/very/deep/nested/path/to/some/file.tsx');
+    });
+
+    it('should return false for empty string', () => {
+      const result = fileExists('');
+
+      expect(result).toBe(false);
+      expect(fs.existsSync).not.toHaveBeenCalled();
+    });
+
+    it('should return false for whitespace-only paths', () => {
+      expect(fileExists('   ')).toBe(false);
+      expect(fileExists('\t')).toBe(false);
+      expect(fileExists('\n')).toBe(false);
+      expect(fileExists('  \t\n  ')).toBe(false);
+
+      expect(fs.existsSync).not.toHaveBeenCalled();
+    });
+
+    it('should return false for paths with null bytes', () => {
+      const pathWithNullByte = 'path\0with\0nulls';
+
+      const result = fileExists(pathWithNullByte);
+
+      expect(result).toBe(false);
+      expect(fs.existsSync).not.toHaveBeenCalled();
+    });
+
+    it('should handle filesystem errors gracefully', () => {
+      vi.mocked(fs.existsSync).mockImplementation(() => {
+        throw new Error('Permission denied');
+      });
+
+      const result = fileExists('/restricted/file.ts');
+
+      expect(result).toBe(false);
+      expect(fs.existsSync).toHaveBeenCalledWith('/restricted/file.ts');
+    });
+
+    it('should handle various error types from fs.existsSync', () => {
+      // Test with different error scenarios
+      const errorScenarios = [
+        new Error('EACCES: permission denied'),
+        new Error('ENAMETOOLONG: name too long'),
+        new TypeError('Invalid argument type'),
+      ];
+
+      errorScenarios.forEach((error) => {
+        vi.clearAllMocks();
+        vi.mocked(fs.existsSync).mockImplementation(() => {
+          throw error;
+        });
+
+        const result = fileExists('/some/path.ts');
+        expect(result).toBe(false);
+      });
     });
   });
 });
