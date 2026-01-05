@@ -9,7 +9,6 @@ import {
   cleanCodeContent,
   fileExists,
 } from '@utils';
-import { ProjectContextProvider } from '@providers/project-context-provider';
 import type { RiflebirdConfig } from '@config/schema';
 import { DEFAULT_FILE_EXCLUDE_PATTERNS, DEFAULT_UNIT_TEST_PATTERNS } from '@config/constants';
 import { PromptTemplateBuilder } from './prompt-template-builder';
@@ -63,12 +62,11 @@ export class UnitTestWriter {
    * @returns Aggregated results from all patterns
    */
   async writeTestByMatchedFiles(
-    provider: ProjectContextProvider,
+    projectContext: ProjectContext,
     matchedFiles: FileNode[],
     testFramework?: FrameworkInfo,
     onProgress?: (current: number, total: number, file: string, elapsedMs: number) => void
   ): Promise<PatternResult> {
-    const projectContext = await provider.getContext();
     const exclusionPatterns = this.getExclusionPatternsForUnitTesting();
 
     // Filter out excluded files (test files, storybook files, etc.)

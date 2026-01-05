@@ -73,7 +73,7 @@ export class FireCommand extends Command<FireInput, FireOutput> {
       if (activeTestTypes.includes('unit') && testFrameworks?.unit) {
         debug(`Unit test framework configured: ${testFrameworks.unit.name}`);
         const { files, failures } = await this.unitTestWriter.writeTestByMatchedFiles(
-          provider,
+          projectContext,
           matchedFiles,
           testFrameworks.unit,
           input.onProgress

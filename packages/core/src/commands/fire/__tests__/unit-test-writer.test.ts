@@ -52,7 +52,7 @@ import type { ProjectContext, FrameworkInfo } from '@models/project-context';
 import { ConfigFile } from '@models/project-config-files';
 import type { AIClient } from '@models/ai-client';
 import type { RiflebirdConfig } from '@config/schema';
-import { ProjectContextProvider } from '@providers/project-context-provider';
+
 import type { TestFile } from '@models';
 
 vi.mock('@prompts/unit-test-prompt.txt', () => ({
@@ -801,7 +801,6 @@ describe('Calculator', () => {
   });
 
   describe('writeTestByMatchedFiles', () => {
-    let mockProvider: ProjectContextProvider;
     let getFileTreeMock: ReturnType<typeof vi.fn>;
     let findFilesByPatternInFileTreeMock: ReturnType<typeof vi.fn>;
     let matchesPatternMock: ReturnType<typeof vi.fn>;
@@ -811,13 +810,6 @@ describe('Calculator', () => {
       getFileTreeMock = getFileTree as ReturnType<typeof vi.fn>;
       findFilesByPatternInFileTreeMock = findFilesByPatternInFileTree as ReturnType<typeof vi.fn>;
       matchesPatternMock = matchesPattern as ReturnType<typeof vi.fn>;
-
-      mockProvider = {
-        getContext: vi.fn().mockResolvedValue({
-          ...mockProjectContext,
-          projectRoot: '/test/project',
-        }),
-      } as unknown as ProjectContextProvider;
 
       // Setup default mocks
       getFileTreeMock.mockResolvedValue([]);
@@ -850,7 +842,7 @@ describe('Calculator', () => {
       // matchesPattern mock implementation: return true if filename ends with .spec.ts
       matchesPatternMock.mockImplementation((name, _path) => name.endsWith('.spec.ts'));
 
-      await writer.writeTestByMatchedFiles(mockProvider, mockFiles);
+      await writer.writeTestByMatchedFiles(mockProjectContext, mockFiles);
 
       // Only file1.ts should be processed (file2 is excluded)
       expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(1);
@@ -864,7 +856,7 @@ describe('Calculator', () => {
 
       const onProgress = vi.fn();
 
-      await writer.writeTestByMatchedFiles(mockProvider, mockFiles, undefined, onProgress);
+      await writer.writeTestByMatchedFiles(mockProjectContext, mockFiles, undefined, onProgress);
 
       expect(onProgress).toHaveBeenCalledTimes(2);
       expect(onProgress).toHaveBeenNthCalledWith(
@@ -890,7 +882,7 @@ describe('Calculator', () => {
 
       const onProgress = vi.fn();
 
-      await writer.writeTestByMatchedFiles(mockProvider, mockFiles, undefined, onProgress);
+      await writer.writeTestByMatchedFiles(mockProjectContext, mockFiles, undefined, onProgress);
 
       const elapsedMs = onProgress.mock.calls[0][3];
       expect(typeof elapsedMs).toBe('number');
@@ -919,7 +911,7 @@ describe('Calculator', () => {
             ],
           });
 
-        const result = await writer.writeTestByMatchedFiles(mockProvider, mockFiles);
+        const result = await writer.writeTestByMatchedFiles(mockProjectContext, mockFiles);
 
         expect(result.failures).toHaveLength(1);
         expect(result.failures[0]).toMatchObject({
@@ -945,7 +937,7 @@ describe('Calculator', () => {
             message: 'Rate limit exceeded',
           });
 
-        await expect(writer.writeTestByMatchedFiles(mockProvider, mockFiles)).rejects.toThrow(
+        await expect(writer.writeTestByMatchedFiles(mockProjectContext, mockFiles)).rejects.toThrow(
           /Fatal/
         );
       });
@@ -960,7 +952,7 @@ describe('Calculator', () => {
           message: 'Invalid API key',
         });
 
-        await expect(writer.writeTestByMatchedFiles(mockProvider, mockFiles)).rejects.toThrow(
+        await expect(writer.writeTestByMatchedFiles(mockProjectContext, mockFiles)).rejects.toThrow(
           /Fatal/
         );
       });
@@ -980,7 +972,7 @@ describe('Calculator', () => {
           })
           .mockRejectedValueOnce(new Error('Parse error'));
 
-        const result = await writer.writeTestByMatchedFiles(mockProvider, mockFiles);
+        const result = await writer.writeTestByMatchedFiles(mockProjectContext, mockFiles);
 
         expect(result.failures).toHaveLength(2);
         expect(result.files).toHaveLength(1);
@@ -998,7 +990,7 @@ describe('Calculator', () => {
           'String error message from AI'
         );
 
-        const result = await writer.writeTestByMatchedFiles(mockProvider, mockFiles);
+        const result = await writer.writeTestByMatchedFiles(mockProjectContext, mockFiles);
 
         expect(result.failures).toHaveLength(1);
         expect(result.failures[0].error).toContain('String error message from AI');
@@ -1016,7 +1008,7 @@ describe('Calculator', () => {
 
         const onProgress = vi.fn();
 
-        await writer.writeTestByMatchedFiles(mockProvider, mockFiles, undefined, onProgress);
+        await writer.writeTestByMatchedFiles(mockProjectContext, mockFiles, undefined, onProgress);
 
         expect(onProgress).toHaveBeenCalledTimes(2);
         expect(onProgress).toHaveBeenNthCalledWith(
@@ -1036,7 +1028,7 @@ describe('Calculator', () => {
       });
 
       it('should return empty results when no files provided', async () => {
-        const result = await writer.writeTestByMatchedFiles(mockProvider, []);
+        const result = await writer.writeTestByMatchedFiles(mockProjectContext, []);
 
         expect(result.files).toHaveLength(0);
         expect(result.failures).toHaveLength(0);
