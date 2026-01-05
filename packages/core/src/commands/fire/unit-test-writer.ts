@@ -145,7 +145,7 @@ export class UnitTestWriter {
 
     if (testCodeContent) {
       info(`Verifying existing test file: ${testFilePath}`);
-      const { passed, result } = await this.verifyTest(projectContext, testFilePath, 0, maxRetries);
+      const { passed, result } = await this.verifyTest(projectContext, testFilePath, 1, maxRetries);
 
       if (passed) {
         info(`Existing test passed for ${testFilePath}. Skipping regeneration.`);

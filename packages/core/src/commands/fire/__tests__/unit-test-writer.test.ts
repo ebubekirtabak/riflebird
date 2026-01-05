@@ -1147,13 +1147,15 @@ describe('Calculator', () => {
 
         // Should have called AI to fix
         expect(mockAiClient.createChatCompletion).toHaveBeenCalledTimes(1);
-        // Should call fixTest prompt (we check prompt content to verify it's a fix)
+        // Should call fixTest prompt with context about the failure and existing test
         const callArgs = (mockAiClient.createChatCompletion as ReturnType<typeof vi.fn>).mock
           .calls[0][0];
         const promptContent = callArgs.messages[0].content;
 
-        // The prompt should contain evidence of the fix prompt usage (path or content)
-        expect(promptContent).toContain('unit-test-fix-prompt');
+        // The prompt should contain the error output so the AI can fix the failing test
+        expect(promptContent).toContain('Error: failed');
+        // And it should include the existing failing test content
+        expect(promptContent).toContain('// existing failing test');
       });
 
       it('should skip verification if no test command is present', async () => {
