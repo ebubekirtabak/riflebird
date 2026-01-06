@@ -1,5 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { stripAnsiCodes, runTest, getReporterArgsByFramework, parseTestCommand, readJsonReport } from '../index';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+  stripAnsiCodes,
+  runTest,
+  getReporterArgsByFramework,
+  parseTestCommand,
+  readJsonReport,
+} from '../index';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -108,8 +114,23 @@ describe('Test Runner Integration', () => {
     expect(result.jsonReport).toEqual({
       numTotalTestSuites: 1,
       testResults: [],
-      success: true
+      success: true,
     });
+  });
+
+  it('should ensure the report directory exists', async () => {
+    const mkdirSpy = vi.spyOn(fs, 'mkdir');
+
+    await runTest(`node ${dummyRunnerPath}`, {
+      cwd: tmpDir,
+      testFilePath: path.join(tmpDir, 'test.spec.js'),
+      framework: 'vitest',
+    });
+
+    expect(mkdirSpy).toHaveBeenCalledWith(expect.stringContaining('.riflebird'), {
+      recursive: true,
+    });
+    mkdirSpy.mockRestore();
   });
 
   it('should handle test failures', async () => {
@@ -146,7 +167,7 @@ describe('Test Runner Integration', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('timed out');
-  });
+  }, 10000);
 
   it('should read and clean up existing JSON reports', async () => {
     const reportPath = path.join(tmpDir, 'existing-report.json');

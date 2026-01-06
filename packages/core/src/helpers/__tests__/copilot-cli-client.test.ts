@@ -171,7 +171,8 @@ describe('createCopilotCliClient', () => {
         }),
       } as MockChildProcess;
 
-      return mockProcess as unknown as ChildProcess;
+      // @ts-expect-error - Partial mock of ChildProcess
+      return mockProcess;
     });
   });
 
@@ -186,7 +187,7 @@ describe('createCopilotCliClient', () => {
         model: 'gpt-4',
         temperature: 0.2,
         copilotCli: { args: ['query'] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const { client } = await createCopilotCliClient(ai);
 
@@ -210,8 +211,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: [] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       await expect(createCopilotCliClient(ai)).rejects.toThrow(
         'Copilot CLI not found. Please install the Copilot CLI to use the copilot-cli provider. More info: https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli'
@@ -257,8 +259,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: [] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       await expect(createCopilotCliClient(ai)).rejects.toThrow(
         'GitHub CLI (gh) indicates not authenticated'
@@ -275,8 +278,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: [] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       await expect(createCopilotCliClient(ai)).rejects.toThrow(
         'Copilot CLI not found. Please install the Copilot CLI to use the copilot-cli provider. More info: https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli'
@@ -310,8 +314,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: [] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       await expect(createCopilotCliClient(ai)).rejects.toThrow(
         'Unable to confirm Copilot CLI authentication'
@@ -326,7 +331,7 @@ describe('createCopilotCliClient', () => {
         model: 'gpt-4',
         temperature: 0.2,
         copilotCli: { args: ['query'] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const { client } = await createCopilotCliClient(ai);
 
@@ -346,8 +351,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: ['query', '--model', 'custom-model'] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const { client } = await createCopilotCliClient(ai);
 
@@ -366,8 +372,10 @@ describe('createCopilotCliClient', () => {
     it('should use default model when ai.model is not provided', async () => {
       const ai = {
         provider: 'copilot-cli',
+        model: 'gpt-4o-mini',
+        temperature: 0.2,
         copilotCli: { args: ['query'] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const { client } = await createCopilotCliClient(ai);
 
@@ -387,8 +395,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: ['query', '--model=preset-model'] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const { client } = await createCopilotCliClient(ai);
 
@@ -409,8 +418,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: ['query'] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const { client } = await createCopilotCliClient(ai);
 
@@ -435,8 +445,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: ['query'] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const mockSpawn = vi.mocked(spawn);
       let capturedInput = '';
@@ -474,7 +485,8 @@ describe('createCopilotCliClient', () => {
             }),
           } as MockChildProcess;
 
-          return mockProcess as unknown as ChildProcess;
+          // @ts-expect-error - Partial mock of ChildProcess
+          return mockProcess;
         }
       );
 
@@ -496,8 +508,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: ['query'] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const mockSpawn = vi.mocked(spawn);
       let capturedInput = '';
@@ -531,7 +544,8 @@ describe('createCopilotCliClient', () => {
             }),
           } as MockChildProcess;
 
-          return mockProcess as unknown as ChildProcess;
+          // @ts-expect-error - Partial mock of ChildProcess
+          return mockProcess;
         }
       );
 
@@ -585,14 +599,16 @@ describe('createCopilotCliClient', () => {
           }),
         } as MockChildProcess;
 
-        return mockProcess as unknown as ChildProcess;
+        // @ts-expect-error - Partial mock of ChildProcess
+        return mockProcess;
       });
 
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: ['query'] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const { client } = await createCopilotCliClient(ai);
 
@@ -610,8 +626,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: ['query', '--format', 'json', '--verbose'] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const { client } = await createCopilotCliClient(ai);
 
@@ -631,8 +648,9 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
+        temperature: 0.2,
         copilotCli: { args: [] },
-      } as unknown as RiflebirdConfig['ai'];
+      } as RiflebirdConfig['ai'];
 
       const { client } = await createCopilotCliClient(ai);
 
@@ -648,7 +666,8 @@ describe('createCopilotCliClient', () => {
       const ai = {
         provider: 'copilot-cli',
         model: 'gpt-4',
-      } as unknown as RiflebirdConfig['ai'];
+        temperature: 0.2,
+      } as RiflebirdConfig['ai'];
 
       const { client } = await createCopilotCliClient(ai);
 

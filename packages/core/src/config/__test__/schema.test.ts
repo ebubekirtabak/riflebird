@@ -219,5 +219,27 @@ describe('config/schema', () => {
       expect(result.generation?.naming).toBe('camelCase');
       expect(result.generation?.language).toBe('javascript');
     });
+
+    it('should validate documentation config', () => {
+      const config = {
+        ai: {
+          provider: 'openai' as const,
+          apiKey: 'sk-mock-key',
+          model: 'gpt-4',
+          temperature: 0.2,
+        },
+        documentation: {
+          enabled: true,
+          documentationOutputDir: 'docs/stories',
+          documentationMatch: ['src/**/*.doc.tsx'],
+        },
+      };
+
+      const result = RiflebirdConfigSchema.parse(config);
+
+      expect(result.documentation?.enabled).toBe(true);
+      expect(result.documentation?.documentationOutputDir).toBe('docs/stories');
+      expect(result.documentation?.documentationMatch).toEqual(['src/**/*.doc.tsx']);
+    });
   });
 });

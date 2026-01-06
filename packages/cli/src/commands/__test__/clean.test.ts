@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cleanCommand } from '../clean';
 import fs from 'fs/promises';
 import path from 'path';
+import { RIFLEBIRD_DIR } from '@riflebird/core';
 
 // Mock fs/promises
 vi.mock('fs/promises', () => ({
@@ -27,10 +28,10 @@ describe('cleanCommand', () => {
     vi.restoreAllMocks();
   });
 
-  it('should remove the .riflebird directory and log success if it exists', async () => {
+  it(`should remove the ${RIFLEBIRD_DIR} directory and log success if it exists`, async () => {
     const cwd = '/test/cwd';
     vi.spyOn(process, 'cwd').mockReturnValue(cwd);
-    const expectedPath = path.join(cwd, '.riflebird');
+    const expectedPath = path.join(cwd, RIFLEBIRD_DIR);
 
     // Mock access to succeed (directory exists)
     vi.mocked(fs.access).mockResolvedValue(undefined);
@@ -48,7 +49,7 @@ describe('cleanCommand', () => {
   it('should log a message if the cache directory does not exist', async () => {
     const cwd = '/test/cwd';
     vi.spyOn(process, 'cwd').mockReturnValue(cwd);
-    const expectedPath = path.join(cwd, '.riflebird');
+    const expectedPath = path.join(cwd, RIFLEBIRD_DIR);
 
     // Mock access to fail (directory does not exist)
     const error = new Error('ENOENT');

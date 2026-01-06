@@ -1,5 +1,9 @@
 <p align="center">
-  <img src=".github/riflebird-logo.png" alt="Riflebird Logo" width="200" height="200">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/riflebird-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset=".github/riflebird-logo.png">
+    <img alt="Riflebird Logo" src=".github/riflebird-logo.png" width="200" height="200">
+  </picture>
 </p>
 
 <h1 align="center">Riflebird</h1>
@@ -30,6 +34,18 @@
   and CI-friendly outputs to integrate easily into your pipelines.
 </p>
 
+## Framework Ecosystem
+
+Generate native tests and documentation for the industry's leading tools:
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Vitest-6E9F18?style=for-the-badge&logo=vitest&logoColor=white" alt="Vitest" />
+  <img src="https://img.shields.io/badge/Jest-C21325?style=for-the-badge&logo=jest&logoColor=white" alt="Jest" />
+  <img src="https://img.shields.io/badge/Mocha-8D6748?style=for-the-badge&logo=mocha&logoColor=white" alt="Mocha" />
+  <img src="https://img.shields.io/badge/Storybook-FF4785?style=for-the-badge&logo=storybook&logoColor=white" alt="Storybook" />
+  <img src="https://img.shields.io/badge/Chromatic-FC521F?style=for-the-badge&logo=chromatic&logoColor=white" alt="Chromatic" />
+</p>
+
 ## Project Status
 
 For a detailed roadmap including planned features, timelines, and success metrics, see [ROADMAP.md](./ROADMAP.md).
@@ -37,8 +53,9 @@ For a detailed roadmap including planned features, timelines, and success metric
 **Current Status Summary**:
 
 - ✅ **Unit Testing**: Beta (90% success rate) - Core functionality working, auto healing implemented
+- ✅ **Documentation**: Beta - Generates Storybook stories and documentation
+- ✅ **Visual Testing**: Added in documentation generation
 - ⚠️ **E2E Testing**: In Progress - Adapters exist, full implementation in progress
-- ⚠️ **Visual Testing**: In Progress - AI-powered regression detection in development
 - ❌ **Performance Testing**: Planned for v2.0 - Architecture design phase
 - ❌ **Accessibility Testing**: Planned for v2.0 - Axe/pa11y integration planned
 
@@ -98,8 +115,8 @@ For more advanced usage including glob patterns, test type filtering, and scope 
 ## Features
 
 - 🎯 **AI-Powered Test Generation** - Describe tests in natural language
+- 📚 **Auto-Documentation & Visual Testing** - Generate Storybook stories, docs, and visual regression tests
 - 🔄 **Self-Healing** - Automatically fix broken tests
-- 🎨 **Visual Testing** - AI-powered visual regression testing
 - 🧠 **Smart Selectors** - Intelligent element targeting
 - 🚀 **Multi-Framework** - Supports Playwright, Cypress, Puppeteer, WebdriverIO
 - 🔒 **Secret Sanitization** - Automatically detects and redacts API keys, tokens, and credentials before sending code to LLM providers ([learn more](packages/core/src/security/README.md))

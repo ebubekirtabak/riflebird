@@ -6,6 +6,7 @@ import {
   AIProviderSchema,
   FrameworkSchema,
   UnitTestFrameworkSchema,
+  DocumentationFrameworkSchema,
   DEFAULT_UNIT_TEST_PATTERNS,
   DEFAULT_COVERAGE_INCLUDE,
   DEFAULT_COVERAGE_EXCLUDE,
@@ -17,9 +18,18 @@ export type InitAnswers = {
   apiKey?: string;
   outputDir: string;
   healing: boolean;
-  visual: boolean;
   unitTesting: boolean;
   unitTestFramework?: z.infer<typeof UnitTestFrameworkSchema>;
+  documentation: boolean;
+  documentationFramework?: z.infer<typeof DocumentationFrameworkSchema>;
+  visualDocumentation?: boolean;
+};
+
+const DOCUMENTATION_DEFAULTS: Record<string, { outputDir: string; match: string[] }> = {
+  storybook: {
+    outputDir: './stories/',
+    match: ['src/**/*.stories.{ts,tsx,js,jsx,vue}'],
+  },
 };
 
 export async function initCommand() {
@@ -70,12 +80,6 @@ export async function initCommand() {
     },
     {
       type: 'confirm',
-      name: 'visual',
-      message: 'Enable visual testing with AI?',
-      default: true,
-    },
-    {
-      type: 'confirm',
       name: 'unitTesting',
       message: 'Enable unit testing configuration?',
       default: false,
@@ -91,6 +95,26 @@ export async function initCommand() {
         { name: 'AVA', value: 'ava' },
       ],
       when: (answers: InitAnswers) => answers.unitTesting,
+    },
+    {
+      type: 'confirm',
+      name: 'documentation',
+      message: 'Enable documentation generation?',
+      default: true,
+    },
+    {
+      type: 'list',
+      name: 'documentationFramework',
+      message: 'Select documentation framework:',
+      choices: [{ name: 'Storybook', value: 'storybook' }],
+      when: (answers: InitAnswers) => answers.documentation,
+    },
+    {
+      type: 'confirm',
+      name: 'visualDocumentation',
+      message: 'Enable visual testing for documentation?',
+      default: false,
+      when: (answers: InitAnswers) => answers.documentation,
     },
   ]);
 
@@ -161,13 +185,6 @@ export default defineConfig({
     strategy: 'smart',
   },
 
-  visual: {
-    enabled: ${answers.visual},
-    threshold: 0.1,
-    ignoreRegions: [],
-    updateBaselines: false,
-  },
-
   reporting: {
     format: ['html', 'json'],
     outputDir: 'test-results',
@@ -204,6 +221,25 @@ ${
     restoreMocks: true,
     clearMocks: true,
     timeout: 5000,
+  },`
+    : ''
+}
+${
+  answers.documentation
+    ? `
+  documentation: {
+    enabled: true,
+    framework: '${answers.documentationFramework || 'storybook'}',
+    documentationOutputDir: '${
+      DOCUMENTATION_DEFAULTS[answers.documentationFramework || 'storybook'].outputDir
+    }',
+    setupFiles: [],
+    documentationMatch: ${JSON.stringify(
+      DOCUMENTATION_DEFAULTS[answers.documentationFramework || 'storybook'].match
+    )},
+    visual: {
+      enabled: ${answers.visualDocumentation},
+    },
   },`
     : ''
 }

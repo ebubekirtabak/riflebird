@@ -27,6 +27,8 @@
       "@config/*": ["src/config/*"],
       "@adapters/*": ["src/adapters/*"],
       "@commands/*": ["src/commands/*"],
+      "@commons/*": ["src/commons/*"],
+      "@commons": ["src/commons/index.ts"],
       "@prompts/*": ["src/prompts/*"],
       "@providers/*": ["src/providers/*"],
       "@security/*": ["src/security/*"],
@@ -36,7 +38,11 @@
       "@types/*": ["src/types/*"],
       "@types": ["src/types/index.ts"],
       "@agentic": ["src/agentic/index.ts"],
-      "@agentic/*": ["src/agentic/*"]
+      "@agentic/*": ["src/agentic/*"],
+      "@handlers": ["src/handlers/index.ts"],
+      "@handlers/*": ["src/handlers/*"],
+      "@services": ["src/services/index.ts"],
+      "@services/*": ["src/services/*"]
     }
   },
   "include": ["src/**/*", "index.ts"],

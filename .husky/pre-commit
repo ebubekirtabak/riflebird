@@ -2,3 +2,17 @@
 
 # Use pnpm to run lint-staged (requires pnpm to be installed as specified in packageManager)
 npx --yes pnpm lint-staged
+
+# Validate Branch Name
+branch="$(git rev-parse --abbrev-ref HEAD)"
+# Allow master, dev, main, and release branches
+if [ "$branch" = "master" ] || [ "$branch" = "dev" ] || [ "$branch" = "main" ] || [[ "$branch" == release/* ]]; then
+  exit 0
+fi
+
+if ! echo "$branch" | grep -E '^(feat|fix|docs|refactor|test|chore|perf|style|build|hotfix|experiment|ci|revert)/'; then
+  echo "❌ Invalid branch name: '$branch'. Follow the naming rules!"
+  echo "Allowed prefixes: feat/, fix/, docs/, refactor/, test/, chore/, perf/, style/, build/, hotfix/, experiment/, ci/, revert/, release/"
+  exit 1
+fi
+

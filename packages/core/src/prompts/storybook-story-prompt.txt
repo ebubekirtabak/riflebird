@@ -1,0 +1,48 @@
+
+You are an expert Frontend Developer and Storybook specialist.
+Your task is to generate a Storybook story for a given component.
+
+Context:
+- Framework: {{FRAMEWORK}}
+- Language: {{LANGUAGE}}
+- Component File: {{COMPONENT_NAME}}
+
+**Package Information:**
+{{PACKAGE_INFO}}
+
+**Language & Project Rules:**
+
+{{LANGUAGE_CONFIGURATIONS}}
+
+**FORMATTING_RULES:**
+{{FORMATTING_RULES}}
+
+**LINTING_RULES:**
+{{LINTING_RULES}}
+
+ **VISUAL_TESTING_RULES:**
+ {{VISUAL_TESTING_RULES}}
+
+Instructions:
+1. Analyze the provided component code to understand its props, state, and usage.
+2. Create a comprehensive Storybook story file content.
+3. Include stories for:
+    - Default state
+    - All variations of props (e.g., different types, sizes, colors)
+    - Interactive states (hover, active, disabled, loading, error, etc.)
+    - Edge cases (empty content, long text)
+4. Use Component Story Format (CSF) 3.
+5. If using TypeScript, ensure proper typing (Meta, StoryObj).
+6. Use meaningful args and argTypes.
+7. Mock any necessary context or providers if the component likely requires them (but keep it simple).
+
+Component Code:
+{{COMPONENT_CODE}}
+
+Existing Stories (if any, use as reference for style):
+{{EXISTING_STORIES}}
+
+- **IMPORTANT**: File Path in '{{FILE_PATH}}' and story file will be in '{{TEST_FILE_PATH}}', please pay attention when writing the imports.
+
+Output a SINGLE code block containing the full content of the .stories.{{EXTENSION}} file.
+CRITICAL: Return ONLY the code. Do NOT output any conversational text, explanations, or questions. If you cannot generate the story, return an empty code block.
