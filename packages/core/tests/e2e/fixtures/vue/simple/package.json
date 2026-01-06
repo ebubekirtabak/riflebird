@@ -1,0 +1,11 @@
+{
+  "name": "vue-simple-fixture",
+  "version": "1.0.0",
+  "dependencies": {
+    "vue": "^3.3.0"
+  },
+  "devDependencies": {
+    "@storybook/vue3": "^7.6.0",
+    "storybook": "^7.6.0"
+  }
+}
