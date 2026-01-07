@@ -12,6 +12,9 @@
   <a href="https://github.com/ebubekirtabak/riflebird/actions/workflows/test.yml">
     <img src="https://github.com/ebubekirtabak/riflebird/actions/workflows/test.yml/badge.svg" alt="Test">
   </a>
+  <a href="https://github.com/ebubekirtabak/riflebird/actions/workflows/e2e.yml">
+    <img src="https://github.com/ebubekirtabak/riflebird/actions/workflows/e2e.yml/badge.svg" alt="E2E Tests">
+  </a>
   <a href="https://codecov.io/gh/ebubekirtabak/riflebird">
     <img src="https://codecov.io/gh/ebubekirtabak/riflebird/branch/master/graph/badge.svg" alt="Coverage">
   </a>
