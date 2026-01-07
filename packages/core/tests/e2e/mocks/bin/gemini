@@ -1,0 +1,108 @@
+#!/usr/bin/env node
+
+const fs = require('fs');
+const path = require('path');
+
+// Parse args roughly
+const args = process.argv.slice(2);
+const promptIndex = args.indexOf('-p');
+const prompt = promptIndex !== -1 ? args[promptIndex + 1] : '';
+
+if (args.includes('--list-sessions')) {
+  console.log('Available sessions: mock-session-id');
+  process.exit(0);
+}
+
+// Function to generate mock response based on prompt content
+function generateMockResponse(promptText) {
+  // Handle Project Configuration Analysis
+  // Check for common words from the project configuration prompt
+  if (
+    promptText &&
+    (promptText.includes('configuration') ||
+      promptText.includes('file tree') ||
+      promptText.includes('Analyze'))
+  ) {
+    const isVue = promptText.includes('vue'); // Heuristic based on file names in file tree
+    const frameworkName = isVue ? 'Vue' : 'React';
+    const frameworkType = isVue ? 'framework' : 'library';
+
+    // Return a JSON string that FileTreeWalker can parse
+    return JSON.stringify({
+      framework: {
+        name: frameworkName,
+        type: frameworkType,
+        configFile: 'package.json',
+        configFilePath: 'package.json',
+      },
+      language: 'typescript',
+      packageManager: 'npm',
+      libs: { core: [], testing: [], styling: [] },
+      testFrameworks: {},
+      linting: { configFile: 'package.json', configFilePath: 'package.json' },
+      formatting: { configFile: 'package.json', configFilePath: 'package.json' },
+      languageConfig: { configFile: 'package.json', configFilePath: 'package.json' },
+      importantConfigFiles: {},
+    });
+  }
+
+  // Handle AgenticRunner requests (Unit tests or Storybook)
+  if (promptText.includes('react') || promptText.includes('tsx') || promptText.includes('React')) {
+    const code = `
+import type { Meta, StoryObj } from '@storybook/react';
+import { Button } from './Button';
+
+const meta: Meta<typeof Button> = {
+  component: Button,
+};
+
+export default meta;
+type Story = StoryObj<typeof Button>;
+
+export const Default: Story = {};
+    `.trim();
+
+    // Return AgenticResponse JSON
+    return JSON.stringify({
+      action: 'generate_test',
+      code: code,
+    });
+  }
+
+  if (promptText.includes('vue') || promptText.includes('Vue')) {
+    const code = `
+import type { Meta, StoryObj } from '@storybook/vue3';
+import HelloWorld from './HelloWorld.vue';
+
+const meta: Meta<typeof HelloWorld> = {
+  component: HelloWorld,
+};
+
+export default meta;
+type Story = StoryObj<typeof HelloWorld>;
+
+export const Default: Story = {};
+    `.trim();
+
+    // Return AgenticResponse JSON
+    return JSON.stringify({
+      action: 'generate_test',
+      code: code,
+    });
+  }
+
+  // Default response
+  return JSON.stringify({
+    action: 'success',
+    code: '// Generated Mock Content\nconsole.log("Hello from Mock Gemini");',
+  });
+}
+
+const mockContent = generateMockResponse(prompt);
+
+// Output matching GeminiCliOutput structure
+console.log(
+  JSON.stringify({
+    response: mockContent,
+  })
+);

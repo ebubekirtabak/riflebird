@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+
+const args = process.argv.slice(2);
+
+// Mock TSC
+// Args might be: ['tsc', '--noEmit', ...]
+if (args[0] === 'tsc' || args.includes('tsc')) {
+    // Return success for TSC
+    process.exit(0);
+}
+
+console.error('Mock npx: Unexpected command', args);
+process.exit(1);

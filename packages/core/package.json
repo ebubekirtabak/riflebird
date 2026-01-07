@@ -17,6 +17,7 @@
     "dev": "tsup --watch",
     "build": "tsup",
     "test": "vitest",
+    "test:e2e": "vitest run tests/e2e/scenarios/frameworks.test.ts",
     "lint": "eslint .",
     "type-check": "tsc --noEmit"
   },
