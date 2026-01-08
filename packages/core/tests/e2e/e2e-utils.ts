@@ -74,3 +74,72 @@ export function runRiflebird(args: string[], cwd: string): RunResult {
     exitCode: result.status,
   };
 }
+
+export type InteractiveInput = string | { key: string } | { delay: number };
+
+export async function runRiflebirdInteractive(
+  args: string[],
+  cwd: string,
+  inputs: InteractiveInput[]
+): Promise<RunResult> {
+  const { spawn } = await import('child_process');
+
+  return new Promise((resolve, reject) => {
+    const env = {
+      ...process.env,
+      PATH: `${MOCK_BIN_DIR}:${process.env.PATH}`,
+    };
+
+    const child = spawn('node', [DIST_INDEX, ...args], {
+      cwd,
+      env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    child.on('error', (err) => {
+      reject(err);
+    });
+
+    child.on('close', (code) => {
+      resolve({
+        stdout,
+        stderr,
+        exitCode: code,
+      });
+    });
+
+    // Handle inputs
+    const writeInputs = async () => {
+      for (const input of inputs) {
+        if (typeof input === 'string') {
+          child.stdin.write(input);
+        } else if ('key' in input) {
+          // Handle special keys if needed, for now just assuming string inputs
+          // or use a library if complex key codes are needed.
+          // For simple inquirer, \n is Enter.
+          if (input.key === 'enter') child.stdin.write('\n');
+          if (input.key === 'down') child.stdin.write('\u001B[B');
+          if (input.key === 'up') child.stdin.write('\u001B[A');
+        } else if ('delay' in input) {
+          await new Promise((r) => setTimeout(r, input.delay));
+        }
+        // Small delay between inputs to ensure they are processed
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      child.stdin.end();
+    };
+
+    writeInputs().catch(reject);
+  });
+}
