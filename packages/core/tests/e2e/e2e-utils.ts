@@ -34,6 +34,12 @@ export function createTestSandbox(fixtureName: string): TestSandbox {
     fs.renameSync(fixtureConfig, path.join(tempDir, 'riflebird.config.ts'));
   }
 
+  // Rename package.json if exists as fixture
+  const fixturePackage = path.join(tempDir, 'package.fixture.json');
+  if (fs.existsSync(fixturePackage)) {
+    fs.renameSync(fixturePackage, path.join(tempDir, 'package.json'));
+  }
+
   return {
     cwd: tempDir,
     cleanup: () => {
