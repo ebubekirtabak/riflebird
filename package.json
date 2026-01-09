@@ -30,6 +30,7 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "test": "turbo run test",
+    "test:e2e:core": "pnpm --filter @riflebird/core run test:e2e",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint -- --fix",
     "publish": "pnpm changeset publish",

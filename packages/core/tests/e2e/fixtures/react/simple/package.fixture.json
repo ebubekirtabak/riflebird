@@ -1,0 +1,11 @@
+{
+  "name": "react-simple-fixture",
+  "version": "1.0.0",
+  "dependencies": {
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@storybook/react": "^7.6.0",
+    "storybook": "^7.6.0"
+  }
+}
